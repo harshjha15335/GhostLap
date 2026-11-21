@@ -1,0 +1,5 @@
+{
+  "source": "Hand-curated. OpenF1 publishes no power-unit usage. Fill `usage` from the FIA's per-event PU element lists. Verify `limits` against the 2026 FIA Sporting Regulations before publishing.",
+  "limits": { "ICE": 4, "TC": 4, "MGU-K": 4, "ES": 2, "CE": 2, "EX": 8, "GEARBOX": 4 },
+  "usage": []
+}
