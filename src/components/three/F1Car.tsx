@@ -1,4 +1,4 @@
-import { forwardRef, useMemo, useRef, type ReactNode } from 'react';
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { useFrame, type ThreeElements } from '@react-three/fiber';
 
@@ -95,7 +95,38 @@ export const COMPOUND_COLORS: Record<string, string> = {
 
 const GHOST = new THREE.Color('#00F5D4');
 
-const ease = (t: number) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
+/** easeOutCubic, clamped to 0..1 — the curve used for the explode animation. */
+export const easeExplode = (t: number) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
+
+/**
+ * One explodable sub-assembly. Module-level (not defined inside F1Car) so React keeps the
+ * same component identity across renders and only the position prop changes as `e` moves.
+ */
+function PartGroup({
+  id,
+  e,
+  mirror = 1,
+  onHover,
+  children,
+}: {
+  id: CarPartId;
+  e: number;
+  mirror?: 1 | -1;
+  onHover?: (id: CarPartId | null) => void;
+  children: ReactNode;
+}) {
+  const v = EXPLODE_VECTORS[id];
+  return (
+    <group
+      name={id}
+      position={[v[0] * e * mirror, v[1] * e, v[2] * e]}
+      onPointerOver={onHover ? (ev) => { ev.stopPropagation(); onHover(id); } : undefined}
+      onPointerOut={onHover ? () => onHover(null) : undefined}
+    >
+      {children}
+    </group>
+  );
+}
 
 export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
   {
@@ -115,6 +146,8 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
   const seg = detail === 'high' ? 28 : 12;
   const hl = useMemo(() => new Set(highlight ?? []), [highlight]);
 
+  // Base materials depend only on livery/ghost; tyre ring is updated in place so that
+  // per-frame tyre-wear changes (replay) never rebuild or leak materials.
   const mats = useMemo(() => {
     const body = ghost
       ? new THREE.MeshStandardMaterial({ color: GHOST, emissive: GHOST, emissiveIntensity: 0.9, transparent: true, opacity: 0.55, depthWrite: false })
@@ -123,39 +156,34 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
     const acc = ghost ? body : new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.25, metalness: 0.2, roughness: 0.4 });
     const tyre = ghost ? body : new THREE.MeshStandardMaterial({ color: '#0d0d0f', roughness: 0.9 });
     const metal = ghost ? body : new THREE.MeshStandardMaterial({ color: '#9aa3ad', metalness: 0.85, roughness: 0.3 });
-    const ring = new THREE.MeshStandardMaterial({
-      color: ghost ? GHOST : new THREE.Color(tyreColor),
-      emissive: ghost ? GHOST : new THREE.Color(tyreColor),
-      emissiveIntensity: 0.4 + tyreGlow * 2.2,
-      toneMapped: false,
-    });
+    const ring = new THREE.MeshStandardMaterial({ toneMapped: false });
     const ersCore = new THREE.MeshStandardMaterial({ color: '#0a1a1a', emissive: GHOST, emissiveIntensity: ghost ? 0.9 : 0.6, toneMapped: false });
     const ersWarn = new THREE.MeshStandardMaterial({ color: '#1a0f05', emissive: new THREE.Color('#FF7A00'), emissiveIntensity: 0.7, toneMapped: false });
     const pulse = new THREE.MeshStandardMaterial({ color: GHOST, emissive: GHOST, emissiveIntensity: 1.2, transparent: true, opacity: 0.9, toneMapped: false });
     return { body, carbon, acc, tyre, metal, ring, ersCore, ersWarn, pulse };
-  }, [color, accent, ghost, tyreGlow, tyreColor]);
+  }, [color, accent, ghost]);
+
+  useEffect(
+    () => () => {
+      new Set(Object.values(mats)).forEach((mat) => mat.dispose());
+    },
+    [mats],
+  );
+
+  useLayoutEffect(() => {
+    const c = ghost ? GHOST : mats.ring.color.set(tyreColor);
+    mats.ring.color.copy(c);
+    mats.ring.emissive.copy(c);
+    mats.ring.emissiveIntensity = 0.4 + tyreGlow * 2.2;
+  }, [mats, ghost, tyreColor, tyreGlow]);
 
   // upgrade pulse
   useFrame(({ clock }) => {
     if (hl.size) mats.pulse.emissiveIntensity = 0.8 + Math.sin(clock.elapsedTime * 5) * 0.7;
   });
 
-  const e = ease(explode);
+  const e = easeExplode(explode);
   const m = (id: CarPartId, normal: THREE.Material) => (hl.has(id) ? mats.pulse : normal);
-
-  const Part = ({ id, children, mirror = 1 }: { id: CarPartId; children: ReactNode; mirror?: 1 | -1 }) => {
-    const v = EXPLODE_VECTORS[id];
-    return (
-      <group
-        name={id}
-        position={[v[0] * e * mirror, v[1] * e, v[2] * e]}
-        onPointerOver={onPartHover ? (ev) => { ev.stopPropagation(); onPartHover(id); } : undefined}
-        onPointerOut={onPartHover ? () => onPartHover(null) : undefined}
-      >
-        {children}
-      </group>
-    );
-  };
 
   const wheel = (x: number, z: number, r: number, w: number, key: string) => (
     <group key={key} position={[x, r, z]} rotation={[0, 0, Math.PI / 2]}>
@@ -171,7 +199,7 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
   return (
     <group ref={ref} {...group}>
       {/* 3 — Underfloor & Venturi tunnels (wheels stay with the floor's datum, not exploded) */}
-      <Part id="floor">
+      <PartGroup e={e} onHover={onPartHover} id="floor">
         <mesh material={m('floor', mats.carbon)} position={[0, 0.08, -0.1]} castShadow receiveShadow>
           <boxGeometry args={[1.5, 0.05, 3.6]} />
         </mesh>
@@ -181,10 +209,10 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
               <boxGeometry args={[0.02, 0.08, 1.4]} />
             </mesh>
           ))}
-      </Part>
+      </PartGroup>
 
       {/* 2 — Monocoque, nose, cockpit & halo (anchor) */}
-      <Part id="monocoque">
+      <PartGroup e={e} onHover={onPartHover} id="monocoque">
         <mesh material={m('monocoque', mats.body)} position={[0, 0.42, 0.25]} castShadow>
           <boxGeometry args={[0.62, 0.42, 2.6]} />
         </mesh>
@@ -216,10 +244,10 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
           ))}
         {wheel(-0.86, 1.65, 0.36, 0.3, 'fl')}
         {wheel(0.86, 1.65, 0.36, 0.3, 'fr')}
-      </Part>
+      </PartGroup>
 
       {/* 1 — Front wing */}
-      <Part id="frontWing">
+      <PartGroup e={e} onHover={onPartHover} id="frontWing">
         <mesh material={m('frontWing', mats.acc)} position={[0, 0.12, 2.55]} castShadow>
           <boxGeometry args={[1.8, 0.03, 0.34]} />
         </mesh>
@@ -231,11 +259,11 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
             <boxGeometry args={[0.03, 0.18, 0.46]} />
           </mesh>
         ))}
-      </Part>
+      </PartGroup>
 
       {/* 4 — Sidepods (mirrored outward) */}
       {([-1, 1] as const).map((s) => (
-        <Part key={`pod${s}`} id="sidepods" mirror={s}>
+        <PartGroup key={`pod${s}`} id="sidepods" mirror={s} e={e} onHover={onPartHover}>
           <mesh material={m('sidepods', mats.body)} position={[s * 0.55, 0.36, -0.2]} castShadow>
             <boxGeometry args={[0.42, 0.36, 1.7]} />
           </mesh>
@@ -245,11 +273,11 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
                 <boxGeometry args={[0.3, 0.012, 0.06]} />
               </mesh>
             ))}
-        </Part>
+        </PartGroup>
       ))}
 
       {/* 5 — ICE & turbo */}
-      <Part id="ice">
+      <PartGroup e={e} onHover={onPartHover} id="ice">
         <mesh material={m('ice', mats.metal)} position={[0, 0.5, -0.75]} castShadow>
           <boxGeometry args={[0.4, 0.3, 0.9]} />
         </mesh>
@@ -262,10 +290,10 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
         <mesh material={m('ice', mats.metal)} position={[0, 0.55, -1.28]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.1, 0.1, 0.22, seg]} />
         </mesh>
-      </Part>
+      </PartGroup>
 
       {/* 6 — MGU-K, energy store & control electronics */}
-      <Part id="ers">
+      <PartGroup e={e} onHover={onPartHover} id="ers">
         <mesh material={m('ers', mats.ersCore)} position={[0, 0.3, -0.25]}>
           <boxGeometry args={[0.36, 0.12, 0.5]} />
         </mesh>
@@ -275,10 +303,10 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
         <mesh material={m('ers', mats.carbon)} position={[-0.12, 0.42, -0.05]}>
           <boxGeometry args={[0.14, 0.06, 0.2]} />
         </mesh>
-      </Part>
+      </PartGroup>
 
       {/* 7 — Gearbox, rear suspension, diffuser & rear wheels */}
-      <Part id="gearbox">
+      <PartGroup e={e} onHover={onPartHover} id="gearbox">
         <mesh material={m('gearbox', mats.carbon)} position={[0, 0.35, -1.65]} castShadow>
           <boxGeometry args={[0.32, 0.28, 0.7]} />
         </mesh>
@@ -293,10 +321,10 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
           ))}
         {wheel(-0.84, -1.55, 0.37, 0.38, 'rl')}
         {wheel(0.84, -1.55, 0.37, 0.38, 'rr')}
-      </Part>
+      </PartGroup>
 
       {/* 8 — Rear wing with active flap */}
-      <Part id="rearWing">
+      <PartGroup e={e} onHover={onPartHover} id="rearWing">
         <mesh material={m('rearWing', mats.acc)} position={[0, 0.98, -2.15]} rotation={[0.12, 0, 0]} castShadow>
           <boxGeometry args={[1.0, 0.04, 0.34]} />
         </mesh>
@@ -311,7 +339,7 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
         <mesh material={m('rearWing', mats.carbon)} position={[0, 0.62, -2.05]}>
           <boxGeometry args={[0.06, 0.5, 0.08]} />
         </mesh>
-      </Part>
+      </PartGroup>
     </group>
   );
 });
