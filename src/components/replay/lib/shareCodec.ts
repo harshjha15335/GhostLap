@@ -48,6 +48,8 @@ export function decodeScenario(code: string, bundle?: RaceBundle | null): WhatIf
 }
 
 export function shareUrl(slug: string, sc: WhatIfScenario): string {
+  const route = `/replay/${slug}?ghost=${encodeScenario(sc)}`;
+  if (import.meta.env.VITE_ROUTER === 'hash') return `${window.location.origin}${window.location.pathname}#${route}`;
   const base = `${window.location.origin}${import.meta.env.BASE_URL}`.replace(/\/+$/, '');
-  return `${base}/replay/${slug}?ghost=${encodeScenario(sc)}`;
+  return `${base}${route}`;
 }
