@@ -1,0 +1,160 @@
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Camera, ChevronDown, Eye, Video } from 'lucide-react';
+import type { CameraMode, TrackStatusType } from '@/types';
+import { useRaceLab } from '@/store/raceLabStore';
+import { useSeason } from '@/store/seasonStore';
+import { useTicker } from '../lib/frame';
+
+const CAMS: { id: CameraMode; label: string; key: string; Icon: typeof Camera }[] = [
+  { id: 'broadcast', label: 'Broadcast', key: '1', Icon: Video },
+  { id: 'topdown', label: 'Top-Down', key: '2', Icon: Eye },
+  { id: 'chase', label: 'Chase', key: '3', Icon: Camera },
+];
+
+export function RaceSelector() {
+  const season = useSeason();
+  const slug = useRaceLab((s) => s.slug);
+  const bundle = useRaceLab((s) => s.bundle);
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    window.addEventListener('pointerdown', close);
+    return () => window.removeEventListener('pointerdown', close);
+  }, [open]);
+
+  const current = season?.races.find((r) => r.slug === slug) ?? bundle?.summary;
+  let round = 0;
+  const races = (season?.races ?? []).map((r) => ({ ...r, n: r.status === 'cancelled' ? null : ++round }));
+
+  return (
+    <div ref={ref} className="relative min-w-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex min-w-0 max-w-full items-center gap-2 rounded-md border border-line bg-panel/85 px-2.5 py-1.5 text-left backdrop-blur hover:border-neon/50"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className="shrink-0 rounded-sm bg-neon px-1 font-mono text-[10px] font-bold text-asphalt">
+          R{String(current?.round ?? 0).padStart(2, '0')}
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate font-display text-[15px] leading-tight tracking-wide text-white md:text-lg">
+            {current?.name?.toUpperCase() ?? 'LOADING…'}
+          </span>
+          <span className="hidden truncate font-mono text-[10px] text-white/45 md:block">
+            {current ? `${current.circuitName} · ${current.country} · ${new Date(current.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}` : ''}
+          </span>
+        </span>
+        <ChevronDown size={16} className={`shrink-0 text-white/60 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <ul
+          role="listbox"
+          className="scrollbar-thin absolute left-0 top-full z-40 mt-1 max-h-[60vh] w-[min(320px,calc(100vw-24px))] overflow-y-auto rounded-md border border-line bg-asphalt/95 py-1 shadow-2xl"
+        >
+          {races.map((r) => {
+            const ok = r.status === 'completed' && r.hasBundle;
+            const active = r.slug === slug;
+            return (
+              <li key={r.slug}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  disabled={!ok}
+                  onClick={() => {
+                    setOpen(false);
+                    if (!active) navigate(`/replay/${r.slug}?autoplay=1`);
+                  }}
+                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm ${
+                    active ? 'bg-neon/10 text-neon' : ok ? 'text-white/85 hover:bg-white/5' : 'cursor-not-allowed text-white/30'
+                  }`}
+                >
+                  <span className="w-7 font-mono text-[10px] text-white/40">{r.n ? `R${String(r.n).padStart(2, '0')}` : '—'}</span>
+                  <span className="flex-1 truncate">{r.name}</span>
+                  {r.status !== 'completed' && (
+                    <span
+                      className={`rounded-[3px] px-1 font-mono text-[9px] uppercase ${
+                        r.status === 'cancelled' ? 'bg-crimson/20 text-crimson' : 'bg-white/10 text-white/50'
+                      }`}
+                    >
+                      {r.status}
+                    </span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+          {!season && <li className="px-3 py-2 font-mono text-xs text-white/50">Loading calendar…</li>}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export function CameraSwitch({ vertical = false }: { vertical?: boolean }) {
+  const camera = useRaceLab((s) => s.camera);
+  const setCamera = useRaceLab((s) => s.setCamera);
+  return (
+    <div
+      role="group"
+      aria-label="Camera"
+      className={`flex overflow-hidden rounded-md border border-line bg-panel/85 backdrop-blur ${vertical ? 'flex-col' : ''}`}
+    >
+      {CAMS.map(({ id, label, key, Icon }) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => setCamera(id)}
+          title={`${label} camera (${key})`}
+          aria-pressed={camera === id}
+          className={`flex h-9 items-center gap-1.5 px-2.5 font-mono text-[11px] uppercase tracking-wide ${
+            camera === id ? 'bg-neon text-asphalt' : 'text-white/70 hover:text-white'
+          }`}
+        >
+          <Icon size={14} />
+          <span className={vertical ? 'sr-only' : 'hidden lg:inline'}>{label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const STATUS_STYLE: Record<TrackStatusType | 'FLAG', { text: string; cls: string }> = {
+  SC: { text: 'SAFETY CAR', cls: 'bg-[#FFD400] text-asphalt' },
+  VSC: { text: 'VIRTUAL SAFETY CAR', cls: 'bg-amber text-asphalt' },
+  RED: { text: 'RED FLAG', cls: 'bg-crimson text-white' },
+  FLAG: { text: 'CHEQUERED FLAG', cls: 'bg-white text-asphalt' },
+};
+
+export function TrackStatusBanner() {
+  useTicker(4);
+  const { timeline, time } = useRaceLab.getState();
+  if (!timeline) return null;
+  const b = timeline.bundle;
+  const winner = b.cars.find((c) => c.finishPosition === 1) ?? b.cars[0];
+  const wCum = timeline.cumulative.get(winner.driverNumber) ?? [];
+  const finished = time >= (wCum[wCum.length - 1] ?? Infinity);
+  const st = timeline.trackStatusAt(time);
+  const key = finished ? 'FLAG' : st;
+  if (!key) return null;
+  const s = STATUS_STYLE[key];
+  return (
+    <div
+      className={`pointer-events-none flex items-center gap-2 rounded-sm px-3 py-1 font-display text-sm tracking-[0.18em] shadow-lg md:text-base ${s.cls} ${
+        key === 'FLAG' ? 'bg-[repeating-linear-gradient(45deg,#fff_0_8px,#ddd_8px_16px)]' : 'animate-pulse'
+      }`}
+      role="status"
+    >
+      {key !== 'FLAG' && <span className="h-2 w-2 rounded-full bg-current" />}
+      {s.text}
+    </div>
+  );
+
+}
