@@ -67,9 +67,10 @@ function evalChapter(k: number, t: number, c: Ctx, out: Pose) {
     case 0: {
       // low 3/4 front hero shot, slow idle orbit
       const a = -0.62 - 0.32 * t + Math.sin(c.time * 0.12) * 0.06 + c.px * 0.05;
-      const r = (mobile ? 17 : 10.5) - 2 * t;
-      eye.set(Math.sin(a) * r, 1.35 + 0.5 * t - c.py * 0.15, Math.cos(a) * r);
-      tgt.set(0, mobile ? 3.2 : 2.05, 0);
+      const r = (mobile ? 17 : 11.5) - 2 * t;
+      eye.set(Math.sin(a) * r, 2.3 + 0.5 * t - c.py * 0.15, Math.cos(a) * r);
+      tgt.set(0, mobile ? 3.6 : 3.1, 0);
+      if (!mobile) pan(eye, tgt, -2.6);
       look(out, eye, tgt);
       out.focus.set(0, 0, 0);
       out.fog = 0.02;
@@ -78,10 +79,10 @@ function evalChapter(k: number, t: number, c: Ctx, out: Pose) {
     case 1: {
       // specimen orbit: front 3/4 -> side -> rear 3/4, car framed right of the copy
       const a = -1.1 - 1.05 * t;
-      const r = mobile ? 11.5 : 6.8;
+      const r = mobile ? 14.5 : 12;
       eye.set(Math.sin(a) * r, 1.35 + 0.9 * t, Math.cos(a) * r);
-      tgt.set(0, mobile ? -0.9 : 0.45, 0);
-      if (!mobile) pan(eye, tgt, -2.1);
+      tgt.set(0, mobile ? 0.35 : 0.45, 0);
+      if (!mobile) pan(eye, tgt, -4.2);
       look(out, eye, tgt);
       out.focus.set(0, 0, 0);
       out.fog = 0.022;
@@ -122,14 +123,14 @@ function evalChapter(k: number, t: number, c: Ctx, out: Pose) {
       const k2 = smooth01((t - 0.05) / 0.85);
       const fx = -34 + 70 * k2;
       if (mobile) {
-        eye.set(fx - 8, 30, U_CENTER_Z + 34);
-        tgt.set(fx, 0, U_CENTER_Z + 6);
+        eye.set(fx - 4, 42, U_CENTER_Z + 46);
+        tgt.set(fx + 2, 0, U_CENTER_Z + 5);
       } else {
-        eye.set(fx * 0.6 - 14, 20, U_CENTER_Z + 40);
-        tgt.set(fx * 0.6, 0, U_CENTER_Z + 5);
+        eye.set(fx * 0.85 - 14, 20, U_CENTER_Z + 40);
+        tgt.set(fx * 0.85, 0, U_CENTER_Z + 5);
       }
       look(out, eye, tgt);
-      out.focus.set(fx * 0.6, 0, U_CENTER_Z);
+      out.focus.set(fx * 0.85, 0, U_CENTER_Z);
       out.fog = 0.008;
       return;
     }
@@ -180,7 +181,8 @@ export default function CameraRig({ bus, layout }: { bus: LandingBus; layout: La
 
     let k = 0;
     for (let i = 0; i < ch.length; i++) if (y >= ch[i].top - 0.5) k = i;
-    const tOf = (i: number) => (reduced && i !== 2 ? 0.5 : ch[i].progress);
+    // reduced motion: one static composition per chapter (ch.5 shows its end state)
+    const tOf = (i: number) => (reduced && i !== 2 ? (i === 4 ? 1 : 0.5) : ch[i].progress);
     const { a, b, out } = poses;
     evalChapter(k, tOf(k), ctx, out);
 

@@ -37,7 +37,7 @@ export function asphaltTextures(size = 512) {
       const grain = r();
       const puddle = noise(x / size, y / size);
       // rough channel: wet patches are smooth (dark)
-      const rough = Math.min(255, Math.max(0, (0.35 + (puddle - 0.5) * 1.4) * 255 + (grain - 0.5) * 70));
+      const rough = Math.min(255, Math.max(0, (0.55 + (puddle - 0.5) * 0.5) * 255 + (grain - 0.5) * 46));
       img.data[i] = rough;
       img.data[i + 1] = rough;
       img.data[i + 2] = rough;
@@ -80,24 +80,21 @@ export function radialTexture(inner = 'rgba(0,0,0,0.85)', outer = 'rgba(0,0,0,0)
   return t;
 }
 
-/** Linear alpha gradient along V (1 at v=1 -> 0 at v=0), for wake trails. */
+/** Greyscale alpha map (alphaMap reads the green channel): bright at v=0 -> black at v=1, soft sides. */
 export function wakeTexture() {
   const [c, g] = canvas(32, 128);
-  const grad = g.createLinearGradient(0, 128, 0, 0);
-  grad.addColorStop(0, 'rgba(255,255,255,1)');
-  grad.addColorStop(0.35, 'rgba(255,255,255,0.45)');
-  grad.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = grad;
+  g.fillStyle = '#000';
   g.fillRect(0, 0, 32, 128);
-  // soften the sides
-  const side = g.createLinearGradient(0, 0, 32, 0);
-  side.addColorStop(0, 'rgba(0,0,0,1)');
-  side.addColorStop(0.3, 'rgba(0,0,0,0)');
-  side.addColorStop(0.7, 'rgba(0,0,0,0)');
-  side.addColorStop(1, 'rgba(0,0,0,1)');
-  g.globalCompositeOperation = 'destination-out';
-  g.fillStyle = side;
-  g.fillRect(0, 0, 32, 128);
+  for (let x = 0; x < 32; x++) {
+    const side = Math.sin((Math.PI * (x + 0.5)) / 32);
+    const grad = g.createLinearGradient(0, 128, 0, 0);
+    const v = Math.round(255 * side * side);
+    grad.addColorStop(0, `rgb(${v},${v},${v})`);
+    grad.addColorStop(0.3, `rgb(${Math.round(v * 0.45)},${Math.round(v * 0.45)},${Math.round(v * 0.45)})`);
+    grad.addColorStop(1, '#000');
+    g.fillStyle = grad;
+    g.fillRect(x, 0, 1, 128);
+  }
   const t = new THREE.CanvasTexture(c);
   return t;
 }

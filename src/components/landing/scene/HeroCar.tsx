@@ -47,9 +47,9 @@ void main(){
   vec3 col = mix(rubber, hot * 1.4, clamp(heat * 1.1, 0.0, 1.0));
   // residual heat streaks along the whole mark
   float streak = smoothstep(0.86, 1.0, sin(vUv.y * 18.85 + 1.2)) * (0.35 + 0.65 * fract(sin(floor(vUv.x * 0.6) * 12.9898) * 43758.5));
-  col += vec3(1.0, 0.32, 0.04) * streak * 0.18;
+  col += vec3(1.0, 0.32, 0.04) * streak * 0.4;
   // marbled grey rim
-  col += vec3(0.07, 0.075, 0.085) * smoothstep(0.55, 0.95, across) * (1.0 - heat);
+  col += vec3(0.11, 0.115, 0.125) * smoothstep(0.55, 0.95, across) * (1.0 - heat);
   float a = edge * (0.9 * tread) ;
   gl_FragColor = vec4(col, a);
 }`;

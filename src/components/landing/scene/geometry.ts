@@ -29,7 +29,7 @@ export function ribbonGeometry(points: THREE.Vector3[], width: number, offset = 
     uv.set([len, 0, len, 1], i * 4);
     if (i < n - 1) {
       const k = i * 2;
-      idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3);
+      idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
     }
   }
   const g = new THREE.BufferGeometry();

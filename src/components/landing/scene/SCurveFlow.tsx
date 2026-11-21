@@ -47,7 +47,7 @@ export default function SCurveFlow({ bus, grid }: { bus: LandingBus; grid: FlowC
     const track = ribbonGeometry(center, HALF_W * 2, 0, 0.03);
     const lineL = ribbonGeometry(center, 0.38, -HALF_W - 0.1, 0.045);
     const lineR = ribbonGeometry(center, 0.38, HALF_W + 0.1, 0.045);
-    const text = ribbonGeometry(center, TEXT_H, HALF_W + 4.4, 0.04);
+    const text = ribbonGeometry(center, TEXT_H, HALF_W + 5.6, 0.04);
     return { track, lineL, lineR, text };
   }, [center]);
 
@@ -74,7 +74,7 @@ export default function SCurveFlow({ bus, grid }: { bus: LandingBus; grid: FlowC
     textTex.repeat.set(1 / (TEXT_H * (2048 / 160)), 1);
     const wakeTex = wakeTexture();
     return {
-      track: new THREE.MeshStandardMaterial({ color: '#141820', roughness: 0.42, metalness: 0.25, envMapIntensity: 0.6 }),
+      track: new THREE.MeshStandardMaterial({ color: '#1b2130', roughness: 0.42, metalness: 0.2, envMapIntensity: 0.4 }),
       line: new THREE.MeshBasicMaterial({ color: '#f1f3f6', toneMapped: false }),
       text: new THREE.MeshBasicMaterial({ map: textTex, transparent: true, depthWrite: false, toneMapped: false, opacity: 0.92 }),
       car: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.35, envMapIntensity: 1.2 }),
@@ -201,10 +201,10 @@ export default function SCurveFlow({ bus, grid }: { bus: LandingBus; grid: FlowC
       cm.setMatrixAt(i, o.matrix);
       const len = (6 + a.v * 0.35 + a.dirty * 8) * edge;
       o.position.set(p.x - t.x * 3.2 * SCALE * 0.5, 0.6, p.z - t.z * 3.2 * SCALE * 0.5);
-      o.scale.set(2.4 * edge, 1, len);
+      o.scale.set(1.7 * edge, 1, len);
       o.updateMatrix();
       wm.setMatrixAt(i, o.matrix);
-      c.copy(colors[i] ?? amber).lerp(amber, 0.25 + a.dirty * 0.55).multiplyScalar(0.55 + a.dirty * 0.9);
+      c.copy(colors[i] ?? amber).lerp(amber, 0.25 + a.dirty * 0.55).multiplyScalar(0.35 + a.dirty * 0.8);
       wm.setColorAt(i, c);
     }
     cm.instanceMatrix.needsUpdate = true;

@@ -158,7 +158,7 @@ export function HotspotPins({ bus, hover, setHover }: { bus: LandingBus; hover: 
           </button>
           <div
             className={`pointer-events-none absolute left-5 top-3 w-max max-w-[220px] origin-top-left rounded-md border bg-asphalt/90 px-2.5 py-1.5 backdrop-blur transition ${
-              hover === h.id ? 'scale-100 border-white/40' : 'scale-95 border-white/10'
+              hover === h.id ? 'scale-100 border-white/40' : 'scale-95 border-white/10 max-sm:hidden'
             }`}
           >
             <div className="font-mono text-[9px] tracking-[0.2em] text-white/50">{h.code}</div>
@@ -399,7 +399,7 @@ export function UndercutLabels({ bus }: { bus: LandingBus }) {
         <div className={`${pill} bg-neon text-asphalt`}>Stayed out</div>
       </div>
       <div ref={reg('ug-gain')} className={base} style={{ visibility: 'hidden' }}>
-        <div className="sticker -translate-y-full rotate-[-4deg] rounded-md border-2 border-asphalt bg-white px-2 py-1 font-display text-2xl leading-none text-asphalt">+1 POS</div>
+        <div className="sticker -translate-x-1/2 -translate-y-full rotate-[-4deg] rounded-md border-2 border-asphalt bg-white px-2 py-1 font-display text-2xl leading-none text-asphalt">+1 POS</div>
       </div>
     </>
   );

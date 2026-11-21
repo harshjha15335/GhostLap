@@ -43,8 +43,8 @@ export default function GhostUndercut({ bus }: { bus: LandingBus }) {
           [29, PIT_Z],
           [38, Z + 9],
           [46, Z + 1.5],
-          [54, Z],
-          [70, Z],
+          [52, Z],
+          [60, Z],
         ].map(([x, z]) => new THREE.Vector3(x, 0, z)),
         false,
         'centripetal',
@@ -69,7 +69,7 @@ export default function GhostUndercut({ bus }: { bus: LandingBus }) {
   const mats = useMemo(() => {
     const glow = radialTexture('rgba(0,245,212,0.9)', 'rgba(0,245,212,0)');
     return {
-      track: new THREE.MeshStandardMaterial({ color: '#141820', roughness: 0.42, metalness: 0.25 }),
+      track: new THREE.MeshStandardMaterial({ color: '#1b2130', roughness: 0.42, metalness: 0.2, envMapIntensity: 0.4 }),
       pit: new THREE.MeshStandardMaterial({ color: '#10151F', roughness: 0.5, metalness: 0.2 }),
       line: new THREE.MeshBasicMaterial({ color: '#f1f3f6', toneMapped: false }),
       pitLine: new THREE.MeshBasicMaterial({ color: '#D4FF00', toneMapped: false }),
@@ -112,9 +112,9 @@ export default function GhostUndercut({ bus }: { bus: LandingBus }) {
     const { p, t, a } = tmp;
 
     // rival + real car stay on the racing line
-    const rx = -50 + 102 * k;
+    const rx = -50 + 96 * k;
     rival.current?.position.set(rx, 0, RIVAL_LANE);
-    real.current?.position.set(-64 + 104 * k, 0, Z + 1.6);
+    real.current?.position.set(-64 + 98 * k, 0, Z + 1.6);
     // ghost splits from the real car into the pit lane and rejoins ahead
     ghostPath.getPointAt(k, p);
     ghostPath.getTangentAt(k, t);
@@ -133,9 +133,9 @@ export default function GhostUndercut({ bus }: { bus: LandingBus }) {
     placeAnchor(bus.anchors['ug-ghost'], a, camera, W, H, inCh);
     a.set(rx, 3.2, RIVAL_LANE);
     placeAnchor(bus.anchors['ug-rival'], a, camera, W, H, inCh);
-    a.set(-64 + 104 * k, 3.2, Z + 1.6);
+    a.set(-64 + 98 * k, 3.2, Z + 1.6);
     placeAnchor(bus.anchors['ug-real'], a, camera, W, H, inCh * (1 - range01(k, 0.6, 0.8)) * range01(k, 0.12, 0.25));
-    a.set(p.x + 4, 6, p.z);
+    a.set(p.x - 3, 6.5, p.z);
     placeAnchor(bus.anchors['ug-gain'], a, camera, W, H, inCh * range01(k, 0.86, 0.95));
   });
 

@@ -19,7 +19,7 @@ function Floor({ reflector }: { reflector: boolean }) {
   const tex = useMemo(() => asphaltTextures(512), []);
   useEffect(() => {
     tex.map.repeat.set(FLOOR_SIZE / 9, FLOOR_SIZE / 9);
-    tex.rough.repeat.set(FLOOR_SIZE / 26, FLOOR_SIZE / 26);
+    tex.rough.repeat.set(FLOOR_SIZE / 48, FLOOR_SIZE / 48);
     return () => {
       tex.map.dispose();
       tex.rough.dispose();
@@ -32,21 +32,22 @@ function Floor({ reflector }: { reflector: boolean }) {
         <MeshReflectorMaterial
           map={tex.map}
           roughnessMap={tex.rough}
-          color="#5d6470"
-          roughness={0.75}
-          metalness={0.35}
+          color="#30353e"
+          roughness={0.8}
+          metalness={0.25}
+          envMapIntensity={0.25}
           blur={[320, 90]}
           resolution={512}
           mixBlur={1.4}
-          mixStrength={2.2}
-          mixContrast={1.15}
+          mixStrength={1.4}
+          mixContrast={1.1}
           depthScale={1.1}
           minDepthThreshold={0.35}
           maxDepthThreshold={1.3}
-          mirror={0.65}
+          mirror={0.45}
         />
       ) : (
-        <meshStandardMaterial map={tex.map} roughnessMap={tex.rough} color="#6b7280" roughness={0.55} metalness={0.3} envMapIntensity={0.9} />
+        <meshStandardMaterial map={tex.map} roughnessMap={tex.rough} color="#3a404a" roughness={0.5} metalness={0.25} envMapIntensity={0.3} />
       )}
     </mesh>
   );
@@ -54,9 +55,11 @@ function Floor({ reflector }: { reflector: boolean }) {
 
 /** Additive haze cone hanging under a floodlight head. */
 const hazeVert = /* glsl */ `
-varying float vY; varying vec3 vN; varying vec3 vV;
+varying float vY; varying vec3 vN; varying vec3 vV; varying float vTop;
 void main(){
   vY = uv.y;
+  vec3 wp = (modelMatrix * vec4(position, 1.0)).xyz;
+  vTop = normalize(cameraPosition - wp).y;
   vN = normalize(normalMatrix * normal);
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   vV = normalize(-mv.xyz);
@@ -64,10 +67,10 @@ void main(){
 }`;
 const hazeFrag = /* glsl */ `
 uniform vec3 uColor; uniform float uOpacity;
-varying float vY; varying vec3 vN; varying vec3 vV;
+varying float vY; varying vec3 vN; varying vec3 vV; varying float vTop;
 void main(){
   float f = pow(abs(dot(vN, vV)), 2.0);
-  float a = pow(vY, 1.6) * f * uOpacity;
+  float a = pow(vY, 1.6) * f * uOpacity * (1.0 - smoothstep(0.45, 0.8, abs(vTop)));
   gl_FragColor = vec4(uColor * a, a);
 }`;
 
@@ -215,9 +218,9 @@ function LightRig({ bus }: { bus: LandingBus }) {
   });
   return (
     <group ref={g}>
-      <pointLight position={[-9, 11, 7]} intensity={260} distance={60} decay={2} color="#e6edff" />
-      <pointLight position={[11, 9, -8]} intensity={200} distance={55} decay={2} color="#ffd9b0" />
-      <pointLight position={[0, 6, -14]} intensity={120} distance={40} decay={2} color="#00F5D4" />
+      <pointLight position={[-9, 16, 7]} intensity={230} distance={70} decay={2} color="#e6edff" />
+      <pointLight position={[11, 14, -8]} intensity={170} distance={65} decay={2} color="#ffd9b0" />
+      <pointLight position={[0, 9, -14]} intensity={90} distance={45} decay={2} color="#00F5D4" />
     </group>
   );
 }
@@ -229,7 +232,7 @@ export default function World({ bus }: { bus: LandingBus }) {
   // hero apex kerb + white line, right of the parked car
   const heroArc = useMemo(() => {
     const pts: THREE.Vector3[] = [];
-    for (let z = -10; z <= 10; z += 0.5) pts.push(new THREE.Vector3(3.9 + 0.035 * z * z, 0, z));
+    for (let z = -12; z <= 3; z += 0.5) pts.push(new THREE.Vector3(3.9 + 0.035 * z * z, 0, z));
     return pts;
   }, []);
   const heroLine = useMemo(() => ribbonGeometry(offsetLine(heroArc, -0.95), 0.16, 0, 0.03), [heroArc]);
@@ -246,8 +249,7 @@ export default function World({ bus }: { bus: LandingBus }) {
       <Environment resolution={q.envResolution} frames={1} environmentIntensity={0.85}>
         <Lightformer form="rect" intensity={3} color="#ffffff" position={[0, 8, 0]} rotation-x={Math.PI / 2} scale={[14, 3, 1]} />
         <Lightformer form="rect" intensity={1.6} color="#dfe6ff" position={[-10, 4, 6]} rotation-y={Math.PI / 2.5} scale={[10, 2, 1]} />
-        <Lightformer form="rect" intensity={1.4} color="#00F5D4" position={[10, 3, -6]} rotation-y={-Math.PI / 2.5} scale={[8, 1.5, 1]} />
-        <Lightformer form="ring" intensity={1.2} color="#FF7A00" position={[0, 3, -12]} scale={4} />
+        <Lightformer form="rect" intensity={0.6} color="#cfe3ff" position={[10, 3, -6]} rotation-y={-Math.PI / 2.5} scale={[8, 1.5, 1]} />
       </Environment>
 
       <Floor reflector={q.reflector} />
