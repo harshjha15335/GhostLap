@@ -1,0 +1,18 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+
+# Agent local state
+.claude/settings.local.json
+.gemini/.env
+.worktrees/
+*.trimmed.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
