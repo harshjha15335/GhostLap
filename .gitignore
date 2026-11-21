@@ -19,3 +19,6 @@ Thumbs.db
 scripts/.cache/
 node_modules/
 dist/
+
+# Agent worktrees (temporary)
+.claude/worktrees/
