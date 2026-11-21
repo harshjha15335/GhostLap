@@ -89,7 +89,7 @@ export default function PitWallNav() {
       </div>
 
       {open && (
-        <nav className="border-b border-line bg-panel/95 px-4 py-2 backdrop-blur-md md:hidden" aria-label="Mobile">
+        <nav className="border-b border-line bg-panel px-4 py-2 shadow-2xl md:hidden" aria-label="Mobile">
           {links.map((l) => {
             const active = l.match(pathname);
             return (

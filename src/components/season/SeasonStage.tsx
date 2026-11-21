@@ -81,13 +81,14 @@ function CameraRig({ stage }: { stage: StageId }) {
   const pointer = useThree((s) => s.pointer);
   useFrame((_, dt) => {
     // portrait screens need to pull back
-    const k = aspect < 1 ? 1.65 / Math.max(aspect, 0.45) : aspect < 1.4 ? 1.25 : 1;
+    const k = aspect < 1 ? 1.15 / Math.max(aspect, 0.45) : aspect < 1.4 ? 1.2 : 1;
     if (stage === 'showroom') {
-      tmpPos.set(pointer.x * 1.2, 5.2 + pointer.y * 0.5, 17.5 * k);
-      tmpLook.set(0, 1.6, 0);
+      tmpPos.set(pointer.x * 1.2, 7.6 + pointer.y * 0.5, 21 * k);
+      tmpLook.set(0, 1.5, 1.5);
     } else {
-      tmpPos.set(EXPLODED_X + pointer.x * 0.6, 4.2 + pointer.y * 0.4, 11.5 * Math.min(k, 1.9));
-      tmpLook.set(EXPLODED_X, 1.1, 0);
+      const ke = aspect < 1 ? 1.5 / Math.max(aspect, 0.45) : k;
+      tmpPos.set(EXPLODED_X + pointer.x * 0.6, 3.8 + pointer.y * 0.4, 11.5 * Math.min(ke, 2.6));
+      tmpLook.set(EXPLODED_X, aspect < 1 ? -0.7 : 0.9, 0);
     }
     const l = 1 - Math.exp(-2.6 * dt);
     camera.position.lerp(tmpPos, l);
@@ -209,7 +210,7 @@ function HeroTurntable({ entity }: { entity: Entity | null }) {
     if (car.current) car.current.rotation.y += dt * 0.35;
   });
   return (
-    <group position={[0, 0, 6]}>
+    <group position={[0, 0, 5.6]} scale={0.82}>
       <mesh position={[0, 0.04, 0]}>
         <cylinderGeometry args={[3.1, 3.25, 0.08, 64]} />
         <meshPhysicalMaterial color="#0e131b" metalness={0.9} roughness={0.25} />
@@ -436,15 +437,16 @@ export default function SeasonStage(props: SeasonStageProps) {
       <Canvas
         dpr={dpr}
         frameloop={inView ? 'always' : 'never'}
-        camera={{ position: [0, 5.2, 17.5], fov: 36, near: 0.1, far: 200 }}
+        camera={{ position: [0, 7.6, 21], fov: 36, near: 0.1, far: 200 }}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
         onPointerMissed={() => props.onPartHover(null)}
       >
         <color attach="background" args={['#06080c']} />
         <fog attach="fog" args={['#06080c', 22, 48]} />
-        <ambientLight intensity={0.25} />
-        <hemisphereLight args={['#9fb7d6', '#05070a', 0.35]} />
-        <directionalLight position={[-6, 8, 8]} intensity={0.6} />
+        <ambientLight intensity={0.45} />
+        <hemisphereLight args={['#9fb7d6', '#05070a', 0.5]} />
+        <directionalLight position={[-6, 8, 10]} intensity={1.3} />
+        <directionalLight position={[8, 4, -6]} intensity={0.5} color="#00F5D4" />
         <CameraRig stage={props.stage} />
         <Suspense fallback={null}>
           <StageVisibility stage={props.stage}>
