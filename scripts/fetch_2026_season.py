@@ -150,8 +150,29 @@ def hexcol(c: str | None) -> str:
 # --------------------------------------------------------------------------- #
 # circuit geometry
 # --------------------------------------------------------------------------- #
+CIRCUIT_MAX_CANDIDATES = 14
+CIRCUIT_MIN_UNIQUE = 220      # distinct location samples for a "good" lap trace
+CIRCUIT_MAX_JUMP = 650        # OpenF1 units (~dm) between consecutive samples
+
+
+def _trace_quality(pts):
+    """(unique samples, largest jump between consecutive distinct samples)."""
+    raw = sorted(((p["x"], p["y"], parse_ts(p["date"])) for p in pts), key=lambda r: r[2])
+    uniq = [raw[0]] if raw else []
+    for r in raw[1:]:
+        if math.dist(r[:2], uniq[-1][:2]) > 1e-6:
+            uniq.append(r)
+    jump = max((math.dist(a[:2], b[:2]) for a, b in zip(uniq, uniq[1:])), default=1e9)
+    if len(uniq) > 1:
+        jump = max(jump, math.dist(uniq[-1][:2], uniq[0][:2]))  # closing segment
+    return len(uniq), jump
+
+
 def build_circuit(session_key: int, laps_by_driver: dict, slug: str, name: str, totalLaps: int):
-    """Extract one clean green-flag lap of location data and resample to a closed loop."""
+    """Extract one clean green-flag lap of location data and resample to a closed loop.
+
+    Tries the fastest clean laps in turn and keeps the densest trace without
+    gaps (sparse traces cut corners and under-measure the lap)."""
     candidates = []
     for dn, laps in laps_by_driver.items():
         for lp in laps:
@@ -159,14 +180,19 @@ def build_circuit(session_key: int, laps_by_driver: dict, slug: str, name: str, 
                 lp.get("lap_duration")
                 and lp.get("date_start")
                 and not lp.get("is_pit_out_lap")
-                and 3 <= lp["lap_number"] <= totalLaps - 2
+                and 3 <= lp["lap_number"] <= max(3, totalLaps - 2)
                 and lp.get("duration_sector_1")
                 and lp.get("duration_sector_2")
             ):
                 candidates.append((lp["lap_duration"], dn, lp))
     candidates.sort(key=lambda c: c[0])
+    # skip implausibly fast laps (timing glitches): nothing quicker than 98.5% of the 3rd fastest
+    if len(candidates) > 3:
+        ref = candidates[2][0]
+        candidates = [c for c in candidates if c[0] >= 0.985 * ref]
 
-    for _, dn, lp in candidates[:6]:
+    best = None
+    for _, dn, lp in candidates[:CIRCUIT_MAX_CANDIDATES]:
         t0 = parse_ts(lp["date_start"])
         t1 = t0 + lp["lap_duration"]
         lo = datetime.fromtimestamp(t0 - 0.5, timezone.utc).isoformat()
@@ -175,8 +201,18 @@ def build_circuit(session_key: int, laps_by_driver: dict, slug: str, name: str, 
         pts = [p for p in pts if p.get("x") is not None and not (p["x"] == 0 and p["y"] == 0)]
         if len(pts) < 80:
             continue
-        return _resample(pts, t0, lp, slug, name)
-    return None
+        uniq, jump = _trace_quality(pts)
+        score = uniq - (0 if jump <= CIRCUIT_MAX_JUMP else 1000)
+        if best is None or score > best[0]:
+            best = (score, pts, t0, lp)
+        if uniq >= CIRCUIT_MIN_UNIQUE and jump <= CIRCUIT_MAX_JUMP:
+            break
+    if best is None:
+        return None
+    score, pts, t0, lp = best
+    circuit = _resample(pts, t0, lp, slug, name)
+    circuit["_quality"] = score
+    return circuit
 
 
 def _resample(pts, t0, lap, slug, name):
@@ -276,11 +312,14 @@ SC_DEPLOY = re.compile(r"^SAFETY CAR DEPLOYED")
 SC_IN = re.compile(r"SAFETY CAR IN THIS LAP")
 VSC_DEPLOY = re.compile(r"^VSC DEPLOYED|VIRTUAL SAFETY CAR DEPLOYED")
 VSC_END = re.compile(r"VSC ENDING|VIRTUAL SAFETY CAR ENDING")
-RED = re.compile(r"RED FLAG")
-RESUME = re.compile(r"RACE WILL RESUME|RESUMPTION|STANDING START PROCEDURE|ROLLING START")
+# "RED FLAG INFRINGEMENT" (a steward note) must not open a red-flag window
+RED = re.compile(r"RED FLAG\s*[-–]\s*RACE SUSPENDED|RACE SUSPENDED")
+RESTART = re.compile(r"STANDING START|ROLLING START|RACE WILL RESTART|RESTART")
+RESUME_ANNOUNCE = re.compile(r"RACE WILL RESUME")
 PEN = re.compile(r"FIA STEWARDS:.*?(\d+) SECOND TIME PENALTY FOR CAR (\d+)")
-DT = re.compile(r"FIA STEWARDS:.*?DRIVE THROUGH PENALTY FOR CAR (\d+)")
-SG = re.compile(r"FIA STEWARDS:.*?(\d+)?\s*SECOND STOP AND GO PENALTY FOR CAR (\d+)")
+DT = re.compile(r"FIA STEWARDS:.*?DRIVE[- ]THROUGH PENALTY FOR CAR (\d+)")
+SG = re.compile(r"FIA STEWARDS:.*?(?:(\d+) SECOND )?STOP[- ]AND[- ]GO PENALTY FOR CAR (\d+)")
+SERVED = re.compile(r"FIA STEWARDS:\s*PENALTY SERVED")
 GRID = re.compile(r"FIA STEWARDS:.*?(\d+) PLACE GRID PENALTY FOR CAR (\d+)")
 WARN = re.compile(r"(BLACK AND WHITE FLAG|WARNING).*?CAR (\d+)")
 REPR = re.compile(r"FIA STEWARDS:.*?REPRIMAND.*?CAR (\d+)")
@@ -290,11 +329,41 @@ CAR_NUM = re.compile(r"CARS? (\d+)")
 
 
 def track_status_windows(rc, total_laps):
+    """SC / VSC / RED windows (inclusive leader laps) from race-control messages.
+
+    - a red flag closes any open SC/VSC on the suspension lap; the RED window runs
+      until the restart (standing/rolling start) so it covers the suspended lap
+    - an SC deployment closes an open VSC (VSC → SC escalation)
+    - steward notes such as "RED FLAG INFRINGEMENT" are ignored
+    """
     windows = []
     open_sc = open_vsc = open_red = None
+    resume_lap = None
     for m in sorted(rc, key=lambda m: m["date"]):
         msg, lap = m["message"].upper(), m.get("lap_number") or 1
-        if SC_DEPLOY.search(msg):
+        lap = min(max(1, lap), total_laps)
+        if msg.startswith("FIA STEWARDS") or "INCIDENT" in msg:
+            continue
+        is_red = bool(RED.search(msg)) or (m.get("flag") == "RED" and m.get("scope") in (None, "Track"))
+        if is_red:
+            if open_red is None:
+                open_red = lap
+                resume_lap = None
+            if open_sc is not None:
+                windows.append({"type": "SC", "startLap": open_sc, "endLap": lap})
+                open_sc = None
+            if open_vsc is not None:
+                windows.append({"type": "VSC", "startLap": open_vsc, "endLap": lap})
+                open_vsc = None
+        elif open_red is not None and RESUME_ANNOUNCE.search(msg):
+            resume_lap = lap
+        elif open_red is not None and RESTART.search(msg):
+            windows.append({"type": "RED", "startLap": open_red, "endLap": max(open_red, lap)})
+            open_red = None
+        elif SC_DEPLOY.search(msg):
+            if open_vsc is not None:
+                windows.append({"type": "VSC", "startLap": open_vsc, "endLap": max(open_vsc, lap - 1)})
+                open_vsc = None
             if open_sc is None:
                 open_sc = lap
         elif SC_IN.search(msg):
@@ -302,23 +371,18 @@ def track_status_windows(rc, total_laps):
                 windows.append({"type": "SC", "startLap": open_sc, "endLap": lap})
                 open_sc = None
         elif VSC_DEPLOY.search(msg):
-            open_vsc = lap
+            if open_vsc is None and open_sc is None:
+                open_vsc = lap
         elif VSC_END.search(msg):
             if open_vsc is not None:
                 windows.append({"type": "VSC", "startLap": open_vsc, "endLap": lap})
                 open_vsc = None
-        elif RED.search(msg) and m.get("category") != "Flag" or (m.get("flag") == "RED" and m.get("scope") == "Track"):
-            if open_red is None:
-                open_red = lap
-        elif RESUME.search(msg) and open_red is not None:
-            windows.append({"type": "RED", "startLap": open_red, "endLap": max(open_red, lap)})
-            open_red = None
     if open_sc is not None:
         windows.append({"type": "SC", "startLap": open_sc, "endLap": total_laps})
     if open_vsc is not None:
         windows.append({"type": "VSC", "startLap": open_vsc, "endLap": open_vsc})
     if open_red is not None:
-        windows.append({"type": "RED", "startLap": open_red, "endLap": open_red})
+        windows.append({"type": "RED", "startLap": open_red, "endLap": max(open_red, resume_lap or open_red)})
     # merge overlapping SC windows (re-deploys)
     windows.sort(key=lambda w: (w["type"], w["startLap"]))
     merged = []
@@ -358,25 +422,135 @@ def parse_penalties(rc, round_no, slug):
     return out
 
 
-def fill_laps(raw_laps, n_laps, winner_lap1=None):
-    """Return gap-free lap times + sectors for laps 1..n_laps."""
+def penalty_service(rc, penalties, total_laps):
+    """Match 'PENALTY SERVED' notes to awarded TIME / DRIVE_THROUGH / STOP_GO penalties.
+
+    Returns the RaceBundle.penalties list:
+      {driverNumber, lap, category, seconds, servedLap}
+    servedLap is null when the penalty was not served on track (applied to the
+    race time after the flag). Notes issued after the chequered flag count as
+    post-race application, not on-track service."""
+    flag_ts = None
+    for m in rc:
+        if m.get("flag") == "CHEQUERED" and m.get("date"):
+            ts = parse_ts(m["date"])
+            flag_ts = ts if flag_ts is None else min(flag_ts, ts)
+    served_notes = []
+    for m in sorted(rc, key=lambda m: m["date"]):
+        msg = m["message"].upper()
+        if not SERVED.search(msg):
+            continue
+        body = msg.split("PENALTY SERVED", 1)[1]
+        g = CAR_NUM.search(body)
+        if not g:
+            continue
+        cat = "DRIVE_THROUGH" if re.search(r"DRIVE[- ]THROUGH", body) else "STOP_GO" if re.search(r"STOP[- ]AND[- ]GO", body) else "TIME"
+        secs = re.search(r"(\d+) SECOND", body)
+        after_flag = flag_ts is not None and m.get("date") and parse_ts(m["date"]) > flag_ts
+        served_notes.append({"dn": int(g.group(1)), "cat": cat, "secs": int(secs.group(1)) if secs else None,
+                             "lap": m.get("lap_number"), "post": after_flag, "used": False})
+    out = []
+    for p in penalties:
+        if p["category"] not in ("TIME", "DRIVE_THROUGH", "STOP_GO") or p["driverNumber"] is None:
+            continue
+        served = None
+        for n in served_notes:
+            if n["used"] or n["dn"] != p["driverNumber"] or n["cat"] != p["category"]:
+                continue
+            if p["category"] == "TIME" and n["secs"] is not None and n["secs"] != p["seconds"]:
+                continue
+            n["used"] = True
+            served = None if n["post"] else n["lap"]
+            break
+        out.append({"driverNumber": p["driverNumber"], "lap": p["lap"] or 1, "category": p["category"],
+                    "seconds": p["seconds"], "servedLap": min(served, total_laps) if served else None})
+    return out
+
+
+ANCHOR_TOLERANCE = 1.5   # s of drift between lap-duration chain and race clock before re-anchoring
+REPAIR_WINDOW = 6         # max laps merged when repairing an implausible lap
+
+
+def lap_times_pass1(raw_laps, n_laps, lap1=None, t0=None):
+    """Lap times for laps 1..n from OpenF1 (may contain None).
+
+    lap_duration is preferred; missing laps come from the date_start chain.
+    Lap 1 is the race-clock value (lights out → start of lap 2) when known.
+    The cumulative time is re-anchored to the race clock (lap date_start − T0)
+    wherever the duration chain drifts by more than ANCHOR_TOLERANCE seconds,
+    so every car's cumulative time stays consistent with the timing feed."""
     by_n = {lp["lap_number"]: lp for lp in raw_laps}
+    starts = [parse_ts(by_n[i]["date_start"]) if by_n.get(i) and by_n[i].get("date_start") else None
+              for i in range(1, n_laps + 1)]
     times = []
-    for i in range(1, n_laps + 1):
-        lp = by_n.get(i)
+    for i in range(n_laps):
+        lp = by_n.get(i + 1)
         t = lp.get("lap_duration") if lp else None
-        if t is None and lp and by_n.get(i + 1) and lp.get("date_start") and by_n[i + 1].get("date_start"):
-            t = parse_ts(by_n[i + 1]["date_start"]) - parse_ts(lp["date_start"])
+        if t is not None and t <= 0:
+            t = None
+        if t is None and i + 1 < n_laps and starts[i] and starts[i + 1]:
+            t = starts[i + 1] - starts[i]
         times.append(t)
-    if times and times[0] is None and winner_lap1:
-        times[0] = winner_lap1
-    med = median(times, 95.0)
-    for i, t in enumerate(times):
-        if t is None or t <= 0:
-            prev = next((times[j] for j in range(i - 1, -1, -1) if times[j]), None)
-            nxt = next((times[j] for j in range(i + 1, len(times)) if times[j]), None)
-            times[i] = median([prev, nxt], med) or med
-    # sectors
+    if n_laps and lap1 and lap1 > 0:
+        times[0] = lap1
+    anchored = 0
+    if t0 is not None:
+        cum = 0.0
+        for i in range(n_laps):
+            clock_end = (starts[i + 1] - t0) if i + 1 < n_laps and starts[i + 1] else None
+            if clock_end is not None and clock_end > cum:
+                if times[i] is None:
+                    times[i] = clock_end - cum
+                elif abs(cum + times[i] - clock_end) > ANCHOR_TOLERANCE:
+                    times[i] = clock_end - cum
+                    anchored += 1
+            if times[i] is None:
+                break
+            cum += times[i]
+    return times, anchored
+
+
+def repair_laps(times, field_med, floor):
+    """Fill missing laps and fix implausibly short ones without changing the
+    cumulative time: merge the bad lap with neighbours until the window looks
+    plausible vs the field's median lap profile, then redistribute the window's
+    total time in proportion to that profile."""
+    n = len(times)
+    times = list(times)
+    for i in range(n):
+        if times[i] is None:
+            times[i] = field_med[i]
+    repaired = 0
+    for i in range(n):
+        if times[i] >= floor:
+            continue
+        lo = hi = i
+        toggle = True
+        while hi - lo + 1 < REPAIR_WINDOW:
+            tot = sum(times[lo:hi + 1])
+            ref = sum(field_med[lo:hi + 1])
+            if tot >= 0.95 * ref and min(tot * field_med[j] / ref for j in range(lo, hi + 1)) >= floor:
+                break
+            if (toggle and lo > 0) or hi == n - 1:
+                lo -= 1
+            else:
+                hi += 1
+            toggle = not toggle
+            if lo < 0:
+                lo = 0
+                if hi == n - 1:
+                    break
+        tot = sum(times[lo:hi + 1])
+        ref = sum(field_med[lo:hi + 1]) or 1
+        for j in range(lo, hi + 1):
+            times[j] = tot * field_med[j] / ref
+        repaired += 1
+    return times, repaired
+
+
+def sectors_for(raw_laps, times):
+    by_n = {lp["lap_number"]: lp for lp in raw_laps}
+    n_laps = len(times)
     ratios = []
     for lp in raw_laps:
         s = [lp.get("duration_sector_1"), lp.get("duration_sector_2"), lp.get("duration_sector_3")]
@@ -393,7 +567,147 @@ def fill_laps(raw_laps, n_laps, winner_lap1=None):
             sectors.append([r3(x) for x in s])
         else:
             sectors.append([r3(times[i] * r[k]) for k in range(3)])
-    return [r3(t) for t in times], sectors
+    return sectors
+
+
+def norm_compound(c):
+    c = (c or "").upper()
+    return c if c in COMPOUNDS else None
+
+
+def reconcile_strategy(raw_laps, n, times, stints_raw, pits_raw, neutral_laps, red_laps, med_lane, nominal_loss, field_ref):
+    """Consistent pit stops + stints for one car.
+
+    OpenF1's /pit, /stints and the laps' is_pit_out_lap flags occasionally
+    disagree (missing or phantom pit records, stints off by a lap). Evidence,
+    strongest first: out-lap flag on lap L+1 → in-lap L; a /pit record backed by
+    lost time (or inside a neutralised window); a stint boundary backed by lost
+    time or a compound change. Stints are rebuilt from the tyre-change stops.
+    Returns (stints, pits, notes)."""
+    notes = []
+    # time lost vs a non-pitting reference (30th percentile of the field on that
+    # lap), relative to this car's usual offset — robust under SC/VSC too
+    offs = [times[i] - field_ref[i] for i in range(1, n) if (i + 1) not in red_laps]
+    offset = median(offs, 0.0)
+
+    def loss_at(L):
+        if L < 1 or L > n:
+            return 0.0
+        js = [L - 1] if L == n else [L - 1, L]
+        return sum(times[j] - field_ref[j] - offset for j in js)
+
+    threshold = max(5.0, 0.3 * nominal_loss)
+
+    flags = sorted({lp["lap_number"] - 1 for lp in raw_laps
+                    if lp.get("is_pit_out_lap") and 2 <= lp["lap_number"] <= n})
+    recs = sorted([p for p in pits_raw if (p.get("lane_duration") or p.get("pit_duration")) and 1 <= p["lap_number"] <= n],
+                  key=lambda p: p["lap_number"])
+    used = [False] * len(recs)
+
+    def lane_of(p):
+        return p.get("lane_duration") or p.get("pit_duration")
+
+    def estimate(L):
+        return {"lap": L, "laneSeconds": r3(max(10.0, med_lane + max(-5.0, min(30.0, loss_at(L) - nominal_loss)))),
+                "stopSeconds": None, "_est": True}
+
+    pits = {}
+    for L in flags:
+        best = None
+        for k, p in enumerate(recs):
+            if not used[k] and abs(p["lap_number"] - L) <= 1:
+                if best is None or abs(p["lap_number"] - L) < abs(recs[best]["lap_number"] - L):
+                    best = k
+        if best is not None:
+            used[best] = True
+            p = recs[best]
+            pits[L] = {"lap": L, "laneSeconds": r3(lane_of(p)), "stopSeconds": r3(p.get("stop_duration"))}
+            if p["lap_number"] != L:
+                notes.append(f"pit record lap {p['lap_number']}→{L} (out-lap flag)")
+        else:
+            pits[L] = estimate(L)
+            notes.append(f"pit lap {L} from out-lap flag (lane estimated)")
+    for k, p in enumerate(recs):
+        if used[k]:
+            continue
+        L = p["lap_number"]
+        if L in pits:
+            continue
+        if L in red_laps or loss_at(L) > (0.5 * threshold if L in neutral_laps else threshold):
+            pits[L] = {"lap": L, "laneSeconds": r3(lane_of(p)), "stopSeconds": r3(p.get("stop_duration"))}
+        else:
+            notes.append(f"dropped phantom pit record lap {L} (no time lost)")
+
+    # stints (OpenF1), trimmed to laps actually completed
+    st = []
+    for s in sorted(stints_raw, key=lambda s: s["stint_number"]):
+        comp = norm_compound(s.get("compound"))
+        ls = s.get("lap_start") or 1
+        if ls > n:
+            continue
+        le = min(s.get("lap_end") or n, n)
+        if st and comp is None:
+            comp = st[-1]["compound"]
+        st.append({"compound": comp or "MEDIUM", "lapStart": ls, "lapEnd": max(ls, le), "age": s.get("tyre_age_at_start") or 0})
+    if not st and n:
+        st = [{"compound": "MEDIUM", "lapStart": 1, "lapEnd": n, "age": 0}]
+        notes.append("no stint data (compound unknown → MEDIUM)")
+    # OpenF1 artifact: a one-lap opening stint with no stop behind it
+    # — usually the first stint's end lap is missing: if a stop sits inside the
+    # second stint (away from its end), the opening stint really ran until then
+    if len(st) > 1 and st[0]["lapEnd"] <= 1 and not any(L <= 2 for L in pits):
+        inner = [L for L in sorted(pits) if 2 < L < st[1]["lapEnd"] - 2]
+        if inner:
+            notes.append(f"opening stint ({st[0]['compound']}) extended to the stop on lap {inner[0]}")
+            st[0] = {**st[0], "lapEnd": inner[0]}
+            st[1] = {**st[1], "lapStart": inner[0] + 1}
+        else:
+            notes.append(f"dropped one-lap opening stint ({st[0]['compound']}) without a stop")
+            st = st[1:]
+            st[0] = {**st[0], "lapStart": 1}
+
+    # match stint boundaries to stops
+    boundaries = [(s["lapEnd"], idx + 1) for idx, s in enumerate(st[:-1])]
+    changes = {}  # pit lap -> index of the stint that starts after it
+    for b, nxt in boundaries:
+        if b >= n:
+            continue
+        cand = [L for L in pits if abs(L - b) <= 2 and L not in changes]
+        if cand:
+            changes[min(cand, key=lambda L: (abs(L - b), L))] = nxt
+            continue
+        compound_change = st[nxt]["compound"] != st[nxt - 1]["compound"]
+        if (b >= 2 and loss_at(b) > threshold) or b in red_laps or compound_change:
+            pits[b] = estimate(b)
+            changes[b] = nxt
+            notes.append(f"pit lap {b} from stint boundary (lane estimated)")
+        else:
+            notes.append(f"merged stint boundary lap {b} (no stop evidence)")
+    # recorded stops with a stationary time are tyre changes even when /stints
+    # misses the boundary: the new set's compound is unknown → same compound, new set
+    for L in sorted(pits):
+        p = pits[L]
+        if L not in changes and (p.get("stopSeconds") or 0) >= 1.5 and L < n:
+            k = max([i for i, s in enumerate(st) if s["lapStart"] <= L] or [0])
+            st.append({"compound": st[k]["compound"], "lapStart": L + 1, "lapEnd": n, "age": 0})
+            changes[L] = len(st) - 1
+            notes.append(f"pit lap {L} has a stationary time but no stint boundary (compound assumed unchanged)")
+    # rebuild stints from tyre-change stops
+    stints = []
+    cur = st[0] if st else None
+    start = 1
+    for L in sorted(changes):
+        if L >= n or cur is None:
+            break
+        stints.append({"compound": cur["compound"], "lapStart": start, "lapEnd": L, "tyreAgeAtStart": cur["age"]})
+        cur = st[changes[L]]
+        start = L + 1
+    if cur is not None and n >= start:
+        stints.append({"compound": cur["compound"], "lapStart": start, "lapEnd": n, "tyreAgeAtStart": cur["age"]})
+    pit_list = [pits[L] for L in sorted(pits)]
+    for p in pit_list:
+        p["_tyres"] = p["lap"] in changes
+    return stints, pit_list, notes
 
 
 def process_race(meeting, race_sess, quali_sess, round_no, slug, drivers_meta):
@@ -436,10 +750,20 @@ def process_race(meeting, race_sess, quali_sess, round_no, slug, drivers_meta):
         if w2 and w2.get("date_start"):
             t0 = parse_ts(w2["date_start"]) - winner_lap1
 
+    if t0 is None:  # fall back to the earliest lap-1 start in the timing feed
+        starts = [parse_ts(lp["date_start"]) for lp in laps_all if lp["lap_number"] == 1 and lp.get("date_start")]
+        t0 = min(starts) if starts else None
+
     quali_pos = {r["driver_number"]: to_pos(r.get("position")) for r in quali_results if to_pos(r.get("position"))}
     quali_top3 = [dn for dn, _ in sorted(quali_pos.items(), key=lambda kv: kv[1])[:3]]
 
-    cars = []
+    windows = track_status_windows(rc, total_laps)
+    sc_laps = {l for w in windows if w["type"] in ("SC", "VSC", "RED") for l in range(w["startLap"], w["endLap"] + 1)}
+    red_laps = {l for w in windows if w["type"] == "RED" for l in range(w["startLap"], w["endLap"] + 1)}
+
+    # ---- pass 1: raw lap times per car (race-clock anchored) ----
+    pass1 = {}
+    qa = {"anchored": 0, "repaired": 0, "strategy": []}
     for r in results:
         dn = r["driver_number"]
         n = int(r.get("number_of_laps") or 0)
@@ -449,25 +773,50 @@ def process_race(meeting, race_sess, quali_sess, round_no, slug, drivers_meta):
             l2 = next((lp for lp in raw if lp["lap_number"] == 2 and lp.get("date_start")), None)
             if l2:
                 lap1 = parse_ts(l2["date_start"]) - t0
-        if dn == (winner or {}).get("driver_number"):
+        if dn == (winner or {}).get("driver_number") and winner_lap1:
             lap1 = winner_lap1
-        times, sectors = fill_laps(raw, n, lap1) if n else ([], [])
-        stints = []
-        for s in sorted([s for s in stints_all if s["driver_number"] == dn], key=lambda s: s["stint_number"]):
-            comp = (s.get("compound") or "MEDIUM").upper()
-            if comp not in COMPOUNDS:
-                comp = "MEDIUM"
-            ls, le = s.get("lap_start") or 1, s.get("lap_end") or n
-            stints.append({"compound": comp, "lapStart": ls, "lapEnd": min(le, max(n, ls)), "tyreAgeAtStart": s.get("tyre_age_at_start") or 0})
-        pits = [
-            {"lap": p["lap_number"], "laneSeconds": r3(p.get("lane_duration") or p.get("pit_duration")), "stopSeconds": r3(p.get("stop_duration"))}
-            for p in sorted([p for p in pits_all if p["driver_number"] == dn], key=lambda p: p["lap_number"])
-            if (p.get("lane_duration") or p.get("pit_duration")) and p["lap_number"] <= n
-        ]
+        times, anchored = lap_times_pass1(raw, n, lap1, t0)
+        qa["anchored"] += anchored
+        pass1[dn] = times
+
+    # field median lap profile + plausibility floor (98.5 % of the 3rd fastest timed lap)
+    field_med = []
+    for i in range(total_laps + 5):
+        vals = [t[i] for t in pass1.values() if i < len(t) and t[i] is not None]
+        field_med.append(median(vals, field_med[-1] if field_med else 95.0))
+    timed = sorted(lp["lap_duration"] for lp in laps_all if lp.get("lap_duration") and lp["lap_number"] > 1)
+    floor = 0.985 * (timed[2] if len(timed) > 2 else (timed[0] if timed else 60.0))
+
+    def pct30(vals):
+        vals = sorted(vals)
+        return vals[int(0.3 * (len(vals) - 1))] if vals else None
+
+    field_ref = []
+    for i in range(total_laps + 5):
+        vals = [t[i] for t in pass1.values() if i < len(t) and t[i] is not None]
+        field_ref.append(pct30(vals) or field_med[i])
+    lanes = [p.get("lane_duration") or p.get("pit_duration") for p in pits_all]
+    lanes = [x for x in lanes if x and x < 60]
+    med_lane = median(lanes, 23.0)
+    nominal_loss = med_lane - 2.0
+
+    cars = []
+    for r in results:
+        dn = r["driver_number"]
+        n = int(r.get("number_of_laps") or 0)
+        raw = laps_by_driver.get(dn, [])
+        times, repaired = repair_laps(pass1[dn], field_med, floor) if n else ([], 0)
+        qa["repaired"] += repaired
+        sectors = sectors_for(raw, times) if n else []
+        stints, pits, notes = reconcile_strategy(
+            raw, n, times, [s for s in stints_all if s["driver_number"] == dn],
+            [p for p in pits_all if p["driver_number"] == dn], sc_laps, red_laps, med_lane, nominal_loss,
+            field_ref) if n else ([], [], [])
+        qa["strategy"] += [f"#{dn}: {x}" for x in notes]
         status = "DSQ" if r.get("dsq") else "DNS" if r.get("dns") else "DNF" if r.get("dnf") else "FINISHED"
         cars.append({
             "driverNumber": dn,
-            "laps": times,
+            "laps": [r3(t) for t in times],
             "sectors": sectors,
             "stints": stints,
             "pits": pits,
@@ -480,24 +829,25 @@ def process_race(meeting, race_sess, quali_sess, round_no, slug, drivers_meta):
         })
     cars.sort(key=lambda c: (c["finishPosition"] is None, c["finishPosition"] or 99, -len(c["laps"])))
 
-    windows = track_status_windows(rc, total_laps)
-    sc_laps = {l for w in windows if w["type"] in ("SC", "VSC", "RED") for l in range(w["startLap"], w["endLap"] + 1)}
-
-    # pit loss: (in-lap + out-lap) - 2 * driver's clean median, green flag only
+    # pit loss: (in-lap + out-lap) - 2 * driver's clean median, green flag only,
+    # tyre-change stops only (no drive-throughs, no red-flag changes)
     losses = []
     for c in cars:
         clean = median([t for i, t in enumerate(c["laps"], 1) if i > 1 and i not in sc_laps])
         for p in c["pits"]:
             L = p["lap"]
+            if not p.get("_tyres") or p.get("_est"):
+                continue
             if L in sc_laps or L + 1 in sc_laps or L < 2 or L + 1 > len(c["laps"]) or not clean:
                 continue
             loss = c["laps"][L - 1] + c["laps"][L] - 2 * clean
             if 10 < loss < 45:
                 losses.append(loss)
-    pit_loss = median(losses, median([p["laneSeconds"] for c in cars for p in c["pits"]], 22.0) - 2.0)
+    pit_loss = median(losses, nominal_loss)
 
-    sc_lap_times = [c["laps"][l - 1] for c in cars for l in sc_laps if 1 < l <= len(c["laps"])]
     green_med = median([t for c in cars for i, t in enumerate(c["laps"], 1) if i > 1 and i not in sc_laps], 95.0)
+    sc_lap_times = [c["laps"][l - 1] for c in cars for l in sc_laps - red_laps
+                    if 1 < l <= len(c["laps"]) and c["laps"][l - 1] < 2.5 * green_med]
     sc_lap = median(sc_lap_times, green_med * 1.4)
 
     # ---- events ----
@@ -519,8 +869,13 @@ def process_race(meeting, race_sess, quali_sess, round_no, slug, drivers_meta):
     pit_laps = {(c["driverNumber"], p["lap"]) for c in cars for p in c["pits"]}
     for c in cars:
         for p in c["pits"]:
-            events.append({"lap": p["lap"], "type": "PIT", "driverNumber": c["driverNumber"],
-                           "message": f"Pit stop · {p['laneSeconds']:.1f}s in lane" + (f" · {p['stopSeconds']:.1f}s stationary" if p.get("stopSeconds") else "")})
+            if p["lap"] in red_laps and p["laneSeconds"] > 60:
+                msg = "Tyre change under red flag"
+            else:
+                kind = "Pit stop" if p.get("_tyres") else "Pit lane visit (no tyre change)"
+                msg = (f"{kind} · {p['laneSeconds']:.1f}s in lane" + (" (est.)" if p.get("_est") else "")
+                       + (f" · {p['stopSeconds']:.1f}s stationary" if p.get("stopSeconds") else ""))
+            events.append({"lap": p["lap"], "type": "PIT", "driverNumber": c["driverNumber"], "message": msg})
         if c["status"] == "DNF":
             events.append({"lap": max(1, c["dnfLap"] or 1), "type": "DNF", "driverNumber": c["driverNumber"], "message": "Retired from the race"})
     overtake_count = 0
@@ -529,7 +884,9 @@ def process_race(meeting, race_sess, quali_sess, round_no, slug, drivers_meta):
         ts = parse_ts(o["date"])
         lap = lap_at(a, ts)
         pit_related = any((d, l) in pit_laps for d in (a, b) for l in (lap - 1, lap))
-        if lap <= 1 or pit_related or lap in sc_laps:
+        # red-flag restarts re-sort the field (resumption order / grid): not on-track passes
+        restart_noise = any(w["type"] == "RED" and w["startLap"] <= lap <= w["endLap"] + 2 for w in windows)
+        if lap <= 1 or pit_related or lap in sc_laps or restart_noise:
             continue
         overtake_count += 1
         events.append({"lap": lap, "type": "OVERTAKE", "driverNumber": a, "otherDriverNumber": b,
@@ -561,14 +918,30 @@ def process_race(meeting, race_sess, quali_sess, round_no, slug, drivers_meta):
     for c in cars:
         for i, t in enumerate(c["laps"], 1):
             if i > 1 and (fl is None or t < fl[1]):
-                raw_ok = any(lp["lap_number"] == i and lp.get("lap_duration") for lp in laps_by_driver.get(c["driverNumber"], []))
+                raw_ok = any(lp["lap_number"] == i and lp.get("lap_duration") and abs(lp["lap_duration"] - t) < 0.05
+                             for lp in laps_by_driver.get(c["driverNumber"], []))
                 if raw_ok:
                     fl = (c["driverNumber"], t, i)
     if fl:
         events.append({"lap": fl[2], "type": "FASTEST_LAP", "driverNumber": fl[0], "message": f"Fastest lap {fmt_lap(fl[1])}"})
     events.sort(key=lambda e: (e["lap"], e["type"]))
 
-    circuit = build_circuit(sk, laps_by_driver, slug, race_sess["circuit_short_name"], total_laps) or fallback_circuit(slug, race_sess["circuit_short_name"])
+    circuit = build_circuit(sk, laps_by_driver, slug, race_sess["circuit_short_name"], total_laps)
+    if (circuit is None or circuit["_quality"] < CIRCUIT_MIN_UNIQUE // 2) and quali_sess and quali_laps:
+        # some race sessions have no location feed (e.g. Monaco 2026): use a qualifying lap instead
+        q_by_driver: dict[int, list] = {}
+        for lp in quali_laps:
+            q_by_driver.setdefault(lp["driver_number"], []).append(lp)
+        max_q = max((lp["lap_number"] for lp in quali_laps), default=0)
+        q_circuit = build_circuit(quali_sess["session_key"], q_by_driver, slug, race_sess["circuit_short_name"], max_q + 2)
+        if q_circuit and (circuit is None or q_circuit["_quality"] > circuit["_quality"]):
+            qa["strategy"].append("circuit geometry from qualifying (race location feed missing or too sparse)")
+            circuit = q_circuit
+    if circuit:
+        circuit.pop("_quality", None)
+    if circuit is None:
+        qa["strategy"].append("WARNING: no location data — fallback oval geometry")
+        circuit = fallback_circuit(slug, race_sess["circuit_short_name"])
 
     podium = [c["driverNumber"] for c in cars if c["finishPosition"] in (1, 2, 3)]
     second = next((r for r in results if r.get("position") == 2), None)
@@ -596,7 +969,15 @@ def process_race(meeting, race_sess, quali_sess, round_no, slug, drivers_meta):
         "events": events,
         "pitLossSeconds": r3(pit_loss),
         "safetyCarLapSeconds": r3(sc_lap),
+        # optional extension (engine reads it if present): awarded time / drive-through /
+        # stop-go penalties and the lap they were served on (null = added after the flag)
+        "penalties": penalty_service(rc, penalties, total_laps),
     }
+    for c in cars:
+        for p in c["pits"]:
+            p.pop("_tyres", None)
+            p.pop("_est", None)
+    bundle["_qa"] = qa
 
     # pace (% gap to fastest)
     quali_best = {}
@@ -662,6 +1043,55 @@ def detect_upgrades(team_pace, races, teams):
             for k in ("paceBefore", "paceAfter", "paceDelta"):
                 u.setdefault(k, None)
             out.append(u)
+    return out
+
+
+def validate_bundle(b):
+    """Sanity checks over a finished RaceBundle; returns human-readable warnings."""
+    out = []
+    qa = b.get("_qa") or {}
+    if qa.get("anchored") or qa.get("repaired"):
+        out.append(f"lap times: {qa.get('anchored', 0)} re-anchored to race clock, {qa.get('repaired', 0)} implausible laps repaired")
+    for note in qa.get("strategy", []):
+        out.append(note)
+    T = b["totalLaps"]
+    cars = b["cars"]
+    winner = next((c for c in cars if c["finishPosition"] == 1), None)
+    win_time = sum(winner["laps"]) if winner else None
+    classified = sorted([c for c in cars if c["finishPosition"]], key=lambda c: c["finishPosition"])
+    prev = None
+    for c in cars:
+        dn, laps = c["driverNumber"], c["laps"]
+        if c["status"] == "FINISHED" and c["raceTime"]:
+            d = c["raceTime"] - sum(laps)
+            if d < -1.0 or d > 61:
+                out.append(f"#{dn} race time {c['raceTime']:.1f} vs lap sum {sum(laps):.1f} (Δ {d:+.1f}s)")
+        if len(c["stints"]) and (c["stints"][0]["lapStart"] != 1 or c["stints"][-1]["lapEnd"] != len(laps)):
+            out.append(f"#{dn} stints do not cover laps 1..{len(laps)}")
+        if c["status"] == "FINISHED" and len(laps) < T and win_time and sum(laps) < win_time - 3:
+            out.append(f"#{dn} classified {T - len(laps)} lap(s) down but crossed the line before the winner finished")
+    for a, bb in zip(classified, classified[1:]):
+        if len(a["laps"]) == len(bb["laps"]):
+            ta = a["raceTime"] or sum(a["laps"])
+            tb = bb["raceTime"] or sum(bb["laps"])
+            if ta > tb + 0.5:
+                out.append(f"P{a['finishPosition']} #{a['driverNumber']} slower than P{bb['finishPosition']} #{bb['driverNumber']} on time ({ta:.1f} vs {tb:.1f})")
+    km = b["circuit"]["lengthKm"]
+    if winner:
+        green = sorted(winner["laps"][1:])
+        best = green[0] if green else 0
+        if best:
+            v = km * 3600 / best
+            if not 150 <= v <= 260:
+                out.append(f"circuit {km} km at a {best:.1f}s best lap = {v:.0f} km/h average (implausible geometry?)")
+    if not 8 <= b["pitLossSeconds"] <= 40:
+        out.append(f"pit loss {b['pitLossSeconds']}s out of range")
+    for w in b["trackStatus"]:
+        if w["endLap"] - w["startLap"] > 12:
+            out.append(f"{w['type']} window laps {w['startLap']}-{w['endLap']} unusually long")
+    for e in b["events"]:
+        if not 1 <= e["lap"] <= T:
+            out.append(f"event on lap {e['lap']} outside race: {e['message'][:40]}")
     return out
 
 
@@ -834,7 +1264,9 @@ def main():
     (OUT / "season.json").write_text(json.dumps(season, separators=(",", ":")))
     (SEED_OUT / "season.json").write_text(json.dumps(season, separators=(",", ":")))
     for slug, b in bundles.items():
-        ordered = {"summary": b["summary"], **{k: v for k, v in b.items() if k != "summary"}}
+        for w in validate_bundle(b):
+            print(f"  [check] {slug}: {w}")
+        ordered = {"summary": b["summary"], **{k: v for k, v in b.items() if k not in ("summary", "_qa")}}
         txt = json.dumps(ordered, separators=(",", ":"))
         (OUT / "races" / f"{slug}.json").write_text(txt)
         if slug in SEED_SLUGS:
