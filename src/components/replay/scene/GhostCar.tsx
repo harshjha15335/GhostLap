@@ -107,6 +107,7 @@ function GhostInner({ bundle, curve, ghost }: { bundle: RaceBundle; curve: Circu
     g.position.y += 0.05;
     rt.look.copy(g.position).add(rt.t);
     g.lookAt(rt.look);
+    g.scale.setScalar(1 + frame.topW * 1.1);
 
     // trail ribbon: sampled back along the spline (stable when scrubbing)
     const pos = trailGeo.getAttribute('position') as THREE.BufferAttribute;

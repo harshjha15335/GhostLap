@@ -6,6 +6,7 @@ import type { RaceTimeline } from '@/engine/raceInterpolator';
 import { createCircuitCurve } from '@/engine/circuitCurve';
 import { useRaceLab } from '@/store/raceLabStore';
 import { frame } from '../lib/frame';
+import { ghostProgress } from '../lib/raceMath';
 import { Track } from './Track';
 import { Cars } from './Cars';
 import { GhostCar } from './GhostCar';
@@ -34,7 +35,7 @@ function RaceClock() {
       const next = states[i + 1];
       if (next && !next.retired) frame.gapBehind.set(states[i].driverNumber, next.gapAhead);
     }
-    frame.ghost = ghost ? tl.ghostProgressAt(ghost, time) : null;
+    frame.ghost = ghost ? ghostProgress(tl, ghost, time) : null;
   }, -3);
   return null;
 }

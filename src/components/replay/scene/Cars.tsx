@@ -8,7 +8,7 @@ import type { RaceTimeline } from '@/engine/raceInterpolator';
 import { F1Car, COMPOUND_COLORS } from '@/components/three/F1Car';
 import { useRaceLab } from '@/store/raceLabStore';
 import { useDriverLookup } from '@/store/seasonStore';
-import { CAR_SCALE, PIT_LANE_OFFSET, frame } from '../lib/frame';
+import { CAR_SCALE, GHOST_LANE, PIT_LANE_OFFSET, frame } from '../lib/frame';
 import { tyreWear, wakeIntensity } from '../lib/raceMath';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -155,6 +155,7 @@ export const Cars = memo(function Cars({ bundle, timeline, curve }: CarsProps) {
     if (!states.length) return;
     const L = curve.length;
     const t = frame.time;
+    const ghostDn = useRaceLab.getState().ghost?.scenario.driverNumber ?? -1;
 
     // 1. lap fraction (with grid stagger on lap 1 and a parade after the flag)
     for (let k = 0; k < states.length; k++) {
@@ -187,6 +188,7 @@ export const Cars = memo(function Cars({ bundle, timeline, curve }: CarsProps) {
       if (!s) continue;
       let target = 0;
       if (s.inPit) target = PIT_LANE_OFFSET;
+      else if (ghostDn === s.driverNumber) target = -GHOST_LANE; // make room for the ghost beside reality
       else if (s.lap === 1 && t < rt.finishTime[i] && s.lapFraction < 0.06) target = (rt.grid[i] % 2 ? -0.55 : 0.55);
       else {
         // nearest visible car physically ahead
@@ -217,6 +219,7 @@ export const Cars = memo(function Cars({ bundle, timeline, curve }: CarsProps) {
       g.position.y += 0.02;
       rt.look.copy(g.position).add(rt.t);
       g.lookAt(rt.look);
+      g.scale.setScalar(CAR_SCALE * (1 + frame.topW * 1.1));
 
       const wake = wakes.current[i];
       if (wake) {
@@ -296,13 +299,13 @@ function FocusMarker() {
     if (!g) return;
     const { focusDriver } = useRaceLab.getState();
     const car = focusDriver != null ? frame.carGroups.get(focusDriver) : undefined;
-    if (!car || !car.visible) {
+    if (!car || !car.visible || frame.chase) {
       g.visible = false;
       return;
     }
     g.visible = true;
     g.position.copy(car.position);
-    g.position.y += 2.3 + Math.sin(clock.elapsedTime * 3) * 0.12;
+    g.position.y += 2.3 * (1 + frame.topW * 1.6) + Math.sin(clock.elapsedTime * 3) * 0.12;
     g.rotation.y = clock.elapsedTime * 1.4;
     const st = frame.byDriver.get(focusDriver!);
     if (label.current && st && (last.current.dn !== focusDriver || last.current.pos !== st.position)) {

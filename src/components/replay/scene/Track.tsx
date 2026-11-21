@@ -154,7 +154,7 @@ export function Track({ circuit, curve }: { circuit: CircuitGeometry; curve: Cir
     const [sp1, sp2] = circuit.sectorSplits;
     const sectorOf = (f: number) => (f < sp1 ? 0 : f < sp2 ? 1 : 2);
     const base = new THREE.Color('#141820');
-    const tints = SECTOR_COLORS.map((c) => base.clone().lerp(new THREE.Color(c), 0.035));
+    const tints = SECTOR_COLORS.map((c) => base.clone().lerp(new THREE.Color(c), 0.008));
     const rails = SECTOR_COLORS.map((c) => new THREE.Color(c));
 
     let minY = Infinity;

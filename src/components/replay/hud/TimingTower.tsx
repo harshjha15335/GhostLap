@@ -5,7 +5,7 @@ import { COMPOUND_COLORS } from '@/components/three/F1Car';
 import { useRaceLab } from '@/store/raceLabStore';
 import { useDriverLookup } from '@/store/seasonStore';
 import { useTicker } from '../lib/frame';
-import { COMPOUND_SHORT, fmtGap, timeAtProgress } from '../lib/raceMath';
+import { COMPOUND_SHORT, fmtGap, ghostProgress, timeAtProgress } from '../lib/raceMath';
 
 export function TyreChip({ compound, age, size = 'sm' }: { compound: Compound; age?: number; size?: 'sm' | 'md' }) {
   const c = COMPOUND_COLORS[compound];
@@ -41,6 +41,7 @@ export function TimingTower() {
   const [expanded, setExpanded] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
 
   if (!timeline || !bundle) return null;
+  const compact = window.innerWidth < 768;
   const states = timeline.statesAt(time);
   const leader = states[0];
   const pitSet = new Map(bundle.cars.map((c) => [c.driverNumber, new Set(c.pits.map((p) => p.lap))]));
@@ -58,7 +59,7 @@ export function TimingTower() {
   // insert ghost row by progress
   let ghostRow: Row | null = null;
   if (ghost && leader) {
-    const gp = timeline.ghostProgressAt(ghost, time);
+    const gp = ghostProgress(timeline, ghost, time);
     const leaderCum = timeline.cumulative.get(leader.driverNumber) ?? [];
     const done = time >= ghost.totalTime;
     const gapToLeader = done
@@ -141,12 +142,12 @@ export function TimingTower() {
           const gapStr = r.flag === 'DNF'
             ? 'DNF'
             : s.position === 1 && !isGhost
-              ? 'LEADER'
+              ? compact ? 'LEAD' : 'LEADER'
               : r.lapped >= 1 && mode === 'gap'
                 ? `+${r.lapped} LAP`
                 : mode === 'gap' || isGhost
-                  ? fmtGap(s.gapToLeader)
-                  : fmtGap(s.gapAhead);
+                  ? fmtGap(s.gapToLeader, compact)
+                  : fmtGap(s.gapAhead, compact);
           const skipped = !expanded && prev && rows.indexOf(prev) !== rows.indexOf(r) - 1;
           return (
             <li key={isGhost ? 'ghost' : s.driverNumber}>

@@ -111,7 +111,7 @@ export default function WhatIfDrawer() {
           <h2 className="font-display text-xl leading-none tracking-wide text-white">
             WHAT IF<span className="text-ghost">?</span>
           </h2>
-          <p className="font-mono text-[10px] text-white/45">Ghost Car strategy simulator · deterministic model</p>
+          <p className="font-mono text-[10px] text-white/45">Ghost Car strategy simulator</p>
         </div>
         <button
           type="button"

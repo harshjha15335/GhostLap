@@ -1,4 +1,5 @@
-import type { Compound, RaceBundle, WhatIfScenario } from '@/types';
+import type { Compound, GhostResult, RaceBundle, WhatIfScenario } from '@/types';
+import type { RaceTimeline } from '@/engine/raceInterpolator';
 import { MODEL, defaultScenario } from '@/engine/strategySimulator';
 
 /** Seconds/lap lost to dirty air at a given gap to the car ahead (MODEL constants). */
@@ -64,9 +65,9 @@ export function scenarioChangeLap(bundle: RaceBundle, sc: WhatIfScenario): numbe
   return sc.fromLap;
 }
 
-export function fmtGap(s: number): string {
+export function fmtGap(s: number, compact = false): string {
   if (!Number.isFinite(s)) return '';
-  return `+${s.toFixed(s >= 100 ? 1 : 3)}`;
+  return `+${s.toFixed(compact || s >= 100 ? 1 : 3)}`;
 }
 
 export function fmtRaceClock(t: number): string {
@@ -75,6 +76,33 @@ export function fmtRaceClock(t: number): string {
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
   return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+
+const sectorCache = new WeakMap<GhostResult, [number, number, number][] | null>();
+/**
+ * Sector profile for the ghost: the real car's sectors scaled to each ghost lap time,
+ * so the ghost moves through a lap exactly like reality when lap times match.
+ */
+export function ghostSectors(bundle: RaceBundle, ghost: GhostResult): [number, number, number][] | null {
+  if (sectorCache.has(ghost)) return sectorCache.get(ghost)!;
+  const car = bundle.cars.find((c) => c.driverNumber === ghost.scenario.driverNumber);
+  let out: [number, number, number][] | null = null;
+  if (car && car.sectors.length) {
+    out = ghost.laps.map((lt, i) => {
+      const s = car.sectors[Math.min(i, car.sectors.length - 1)];
+      if (i < car.laps.length && Math.abs(car.laps[i] - lt) < 1e-6) return s; // identical to reality
+      const sum = s[0] + s[1] + s[2];
+      if (!(sum > 0)) return [lt / 3, lt / 3, lt / 3] as [number, number, number];
+      const k = lt / sum;
+      return [s[0] * k, s[1] * k, s[2] * k] as [number, number, number];
+    });
+  }
+  sectorCache.set(ghost, out);
+  return out;
+}
+
+export function ghostProgress(timeline: RaceTimeline, ghost: GhostResult, t: number) {
+  return timeline.progressForLaps(ghost.cumulative, ghostSectors(timeline.bundle, ghost), t);
 }
 
 export function fmtDelta(s: number): string {

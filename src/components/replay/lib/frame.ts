@@ -24,6 +24,9 @@ export const frame = {
   ghost: null as LapProgress | null,
   carGroups: new Map<number, Group>(),
   ghostGroup: null as Group | null,
+  /** 0..1 top-down camera weight (cars scale up so they read from above) */
+  topW: 0,
+  chase: false,
 };
 
 /** Re-render the calling component at ~hz (for DOM HUD that reads getState()). */

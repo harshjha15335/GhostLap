@@ -120,6 +120,8 @@ export function CameraRig({ curve }: { curve: CircuitCurve }) {
     // --- top-down weight
     rt.topW = THREE.MathUtils.damp(rt.topW, mode === 'topdown' ? 1 : 0, 2.6, dt);
     rt.anchor.copy(rt.carAnchor).lerp(rt.center, ease(THREE.MathUtils.clamp(rt.topW, 0, 1)));
+    frame.topW = rt.topW;
+    frame.chase = mode === 'chase';
 
     // --- desired offsets per mode
     const z = zoom.current;
@@ -127,14 +129,15 @@ export function CameraRig({ curve }: { curve: CircuitCurve }) {
     if (mode === 'topdown') {
       const vfov = THREE.MathUtils.degToRad(cam.fov) / 2;
       const aspect = size.width / Math.max(1, size.height);
-      const h = Math.max((rt.dims.z / 2) / Math.tan(vfov), (rt.dims.x / 2) / (Math.tan(vfov) * aspect)) * 1.28;
-      rt.desiredOff.set(0, h * z, h * 0.18 * z);
-      rt.desiredLook.set(0, 0, 0);
+      // usable viewport is roughly the band between the top bar and the scrubber
+      const h = Math.max((rt.dims.z / 2) / Math.tan(vfov), (rt.dims.x / 2) / (Math.tan(vfov) * aspect)) * 1.5;
+      rt.desiredOff.set(0, h * z, h * 0.22 * z);
+      rt.desiredLook.set(0, 0, h * 0.07 * z);
     } else if (mode === 'chase') {
-      const back = 7.2 * z * (1 + rt.pairDist / 40);
+      const back = 10.5 * z * (1 + rt.pairDist / 40);
       rt.desiredOff.copy(rt.tan).multiplyScalar(-back);
-      rt.desiredOff.y += 2.6 * z * (1 + rt.pairDist / 60);
-      rt.desiredLook.copy(rt.tan).multiplyScalar(6).setY(0.6);
+      rt.desiredOff.y += 4.4 * z * (1 + rt.pairDist / 60);
+      rt.desiredLook.copy(rt.tan).multiplyScalar(3.5).setY(0.4);
     } else {
       rt.orbit += dt * 0.09;
       const R = 17 * z * spread;
