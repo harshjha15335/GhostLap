@@ -3,7 +3,10 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import Logo from './Logo';
 
-/** Fixed 48px pit-wall top bar shared by every route. */
+/**
+ * Fixed 48px top bar shared by every route: a cream paper strip with an ink keyline,
+ * the GhostLap logo sticker and ink links; the active route is a lime die-cut sticker.
+ */
 const links = [
   { to: '/', label: 'Home', match: (p: string) => p === '/' },
   { to: '/circuits', label: 'Circuits', match: (p: string) => p.startsWith('/circuits') },
@@ -19,25 +22,26 @@ export default function PitWallNav() {
   useEffect(() => setOpen(false), [pathname]);
 
   const linkCls = (active: boolean) =>
-    `relative px-3 py-1 font-mono text-[11px] uppercase tracking-[0.16em] transition-colors ${
-      active ? 'text-neon' : 'text-white/60 hover:text-white'
+    `relative rounded-md border-2 px-3 py-[3px] font-mono text-[11px] font-semibold uppercase tracking-[0.14em] transition-[transform,background-color,color] ${
+      active
+        ? '-rotate-2 border-ink bg-neon text-ink shadow-sticker-sm'
+        : 'border-transparent text-ink/75 hover:-translate-y-px hover:border-ink/20 hover:bg-ink/[0.06] hover:text-ink'
     }`;
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 h-12 border-b border-line bg-asphalt/85 backdrop-blur-md">
+    <header className="theme-paper paper-tex fixed inset-x-0 top-0 z-50 h-12 border-b-2 border-ink bg-cream">
       <div className="mx-auto flex h-full max-w-[1600px] items-center gap-4 px-4">
-        <NavLink to="/" className="flex items-center gap-2" aria-label="GhostLap home">
+        <NavLink to="/" className="flex items-center gap-2 rounded-md" aria-label="GhostLap home">
           <Logo className="text-[19px]" tilt={-3} />
-          <span className="hidden font-mono text-[10px] tracking-widest text-white/35 sm:inline">2026</span>
+          <span className="hidden rounded-[3px] bg-ink px-1 font-mono text-[10px] font-semibold tracking-widest text-cream sm:inline">2026</span>
         </NavLink>
 
-        <nav className="ml-4 hidden items-center md:flex" aria-label="Primary">
+        <nav className="ml-4 hidden items-center gap-1 md:flex" aria-label="Primary">
           {links.map((l) => {
             const active = l.match(pathname);
             return (
               <NavLink key={l.to} to={l.to} className={linkCls(active)} aria-current={active ? 'page' : undefined}>
                 {l.label}
-                {active && <span className="absolute inset-x-3 -bottom-[13px] h-[2px] bg-neon shadow-[0_0_10px_#D4FF00]" />}
               </NavLink>
             );
           })}
@@ -46,7 +50,7 @@ export default function PitWallNav() {
         <div className="ml-auto flex items-center gap-3">
           <button
             type="button"
-            className="flex h-8 w-8 items-center justify-center rounded border border-line text-white/80 md:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-md border-2 border-ink bg-neon text-ink shadow-sticker-sm md:hidden"
             aria-label={open ? 'Close menu' : 'Open menu'}
             aria-expanded={open}
             onClick={() => setOpen((o) => !o)}
@@ -57,19 +61,20 @@ export default function PitWallNav() {
       </div>
 
       {open && (
-        <nav className="border-b border-line bg-panel px-4 py-2 shadow-2xl md:hidden" aria-label="Mobile">
+        <nav className="paper-tex border-b-2 border-ink bg-cream px-4 py-2 shadow-[0_6px_0_rgba(15,26,18,0.9)] md:hidden" aria-label="Mobile">
           {links.map((l) => {
             const active = l.match(pathname);
             return (
               <NavLink
                 key={l.to}
                 to={l.to}
-                className={`flex items-center justify-between border-b border-line/60 py-3 font-mono text-xs uppercase tracking-[0.18em] last:border-0 ${
-                  active ? 'text-neon' : 'text-white/75'
+                aria-current={active ? 'page' : undefined}
+                className={`my-1 flex items-center justify-between rounded-md border-2 px-3 py-2.5 font-display text-xl uppercase tracking-wide ${
+                  active ? 'border-ink bg-neon text-ink shadow-sticker-sm' : 'border-transparent text-ink/80 hover:bg-ink/[0.06]'
                 }`}
               >
                 {l.label}
-                {active && <span className="h-1.5 w-1.5 rounded-full bg-neon" />}
+                {active && <span className="font-mono text-[10px] tracking-[0.2em]">YOU ARE HERE</span>}
               </NavLink>
             );
           })}
