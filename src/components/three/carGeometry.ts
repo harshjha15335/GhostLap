@@ -3,23 +3,24 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { atlasUV, type AtlasRegionId } from './liveries';
 
 /**
- * Procedural 2026-spec F1 car geometry — built once per detail level and cached at module level,
- * so every car instance (22 in replay) shares the same GPU buffers. Only materials are
- * per instance.
+ * 2026 Mercedes-AMG W17 E Performance · Procedural 3D Geometry Engine
+ * Built from scratch based on the 2026 Technical Regulations and Tyler_Dave's W17 model.
  *
- * 2026 Technical Regulations Traits:
- * - Slim aerodynamic droop nose with narrow survival cell
- * - Active-aero front wing with swept mainplane, multi-element flaps and sculpted endplates
- * - Titanium halo with central aerodynamic pylon
- * - Sculpted airbox with intake splitter and T-cam
- * - Deep undercut "waterslide" sidepods tapering into an ultra-tight coke-bottle rear
- * - Underfloor with 4 entrance Venturi strakes, edge strakes and rear diffuser
- * - Active-aero rear wing with drooping spoon mainplane, movable flap, swan-neck pylons and beam wing
- * - Visible push/pull-rod suspension with aerofoil wishbones
- * - 18" covered wheels with authentic Pirelli sidewall markings (P ZERO / PIRELLI) on high detail
+ * Key Architectural Features:
+ * - Slender droop needle nosecone docked directly onto the front wing mainplane
+ * - 3-tier cascading front wing with center gull-wing dihedral droop and sculpted endplates
+ * - Titanium halo with central aerodynamic pylon and horizontal crown flow-diverter flick
+ * - Aerodynamic rear-view mirrors with twin guide stalks
+ * - High-inlet radiator mouth with massive undercuts and waterslide downwash top gully
+ * - 5 shoulder heat-extraction louvres per sidepod
+ * - Extended dorsal shark fin and ultra-tight coke-bottle rear waist
+ * - Underfloor with 4 entrance Venturi strakes, stepped edge-wing, and 4-strake diffuser
+ * - Curved spoon rear wing with top-mounted dual swan-neck pylons, DRS pod, and beam wing
+ * - Push-rod front & pull-rod rear aerofoil suspension wishbones
+ * - 18" covered aero wheels with Pirelli P Zero sidewall branding and Petronas cyan rim ring
  *
- * Conventions: forward = +Z, up = +Y, origin at the floor centre on the ground plane.
- * ~5.4 m long (front wing tip z ≈ +2.9 → rear wing trailing edge z ≈ -2.5), ~1.9 m wide.
+ * Structured as 8 explodable sub-assemblies for /season CAD debrief.
+ * Cached once per detail level at module scope so all 22 replay cars share GPU buffers.
  */
 
 export type Detail = 'high' | 'low';
@@ -29,7 +30,7 @@ export type PartMeshes = { mat: MatKey; geo: THREE.BufferGeometry }[];
 export type CarGeometry = Record<PartKey, PartMeshes>;
 
 /* ------------------------------------------------------------------ */
-/* layout constants (exported so anchors / skid offsets stay in sync)  */
+/* Layout constants                                                    */
 /* ------------------------------------------------------------------ */
 
 export const FRONT_AXLE_Z = 1.75;
@@ -41,24 +42,22 @@ const FRONT_W = 0.3;
 const REAR_W = 0.375;
 
 /* ------------------------------------------------------------------ */
-/* helpers                                                             */
+/* Math & Geometry Utilities                                           */
 /* ------------------------------------------------------------------ */
 
-/** Normalise a geometry for merging: non-indexed, position + normal (+ uv when painted). */
 function prep(g: THREE.BufferGeometry): THREE.BufferGeometry {
   if (!g.getAttribute('normal')) g.computeVertexNormals();
   const n = g.index ? g.toNonIndexed() : g;
   const keepUV = n.userData.atlas === true || n.userData.hasUV === true;
-  for (const k of Object.keys(n.attributes)) if (k !== 'position' && k !== 'normal' && !(keepUV && k === 'uv')) n.deleteAttribute(k);
+  for (const k of Object.keys(n.attributes)) {
+    if (k !== 'position' && k !== 'normal' && !(keepUV && k === 'uv')) n.deleteAttribute(k);
+  }
   n.clearGroups();
   return n;
 }
 
-/**
- * Give a body surface UVs into the livery atlas (see LIVERY_ATLAS in liveries.ts). The
- * chooser picks a region per triangle from its face normal and centroid.
- */
 type Chooser = (n: THREE.Vector3, c: THREE.Vector3) => AtlasRegionId;
+
 function paint(src: THREE.BufferGeometry, choose: Chooser | AtlasRegionId): THREE.BufferGeometry {
   const g = prep(src);
   const p = g.getAttribute('position') as THREE.BufferAttribute;
@@ -85,7 +84,6 @@ function paint(src: THREE.BufferGeometry, choose: Chooser | AtlasRegionId): THRE
   return g;
 }
 
-/** Body shell: tops → noseTop, bottoms → underside, the rest → side by x sign. */
 const chooseBody: Chooser = (n, c) => (n.y > 0.72 ? 'noseTop' : n.y < -0.6 ? 'underside' : c.x >= 0 ? 'bodySideR' : 'bodySideL');
 const choosePod: Chooser = (n, c) => (n.y > 0.8 ? (c.x >= 0 ? 'sidepodTopR' : 'sidepodTopL') : n.y < -0.75 ? 'underside' : c.x >= 0 ? 'sidepodR' : 'sidepodL');
 
@@ -97,7 +95,6 @@ function merge(list: THREE.BufferGeometry[]): THREE.BufferGeometry {
   return g;
 }
 
-/** Mirror across the YZ plane (left side from right side) keeping outward-facing winding. */
 function mirrorX(src: THREE.BufferGeometry): THREE.BufferGeometry {
   const g = prep(src.clone());
   g.scale(-1, 1, 1);
@@ -114,7 +111,6 @@ function mirrorX(src: THREE.BufferGeometry): THREE.BufferGeometry {
 
 const UP = new THREE.Vector3(0, 1, 0);
 
-/** Thin rod between two points (suspension arms, mirror stalks, stays). */
 function rod(a: [number, number, number], b: [number, number, number], r: number, seg: number, flat = 1) {
   const A = new THREE.Vector3(...a);
   const B = new THREE.Vector3(...b);
@@ -133,59 +129,103 @@ function box(w: number, h: number, d: number, at: [number, number, number], rot?
   return g;
 }
 
-/** Uniform Catmull-Rom through keyframe values (clamped ends). */
 function cr(p0: number, p1: number, p2: number, p3: number, t: number) {
   const t2 = t * t;
   const t3 = t2 * t;
   return 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
 }
 
-/** Resample keyframes along a spline, `sub` samples per span. */
-function resample<T extends Record<string, number>>(keys: T[], sub: number): T[] {
+interface Sec {
+  z: number;
+  hw: number;
+  yb: number;
+  yt: number;
+}
+
+function resample(keys: Sec[], sub: number): Sec[] {
   if (sub <= 1) return keys;
-  const out: T[] = [];
-  const at = (i: number) => keys[Math.max(0, Math.min(keys.length - 1, i))];
-  for (let i = 0; i < keys.length - 1; i++) {
-    for (let j = 0; j < sub; j++) {
-      const t = j / sub;
-      const o = {} as Record<string, number>;
-      for (const k of Object.keys(keys[i])) o[k] = cr(at(i - 1)[k], at(i)[k], at(i + 1)[k], at(i + 2)[k], t);
-      out.push(o as T);
+  const out: Sec[] = [];
+  const K = keys;
+  for (let i = 0; i < K.length - 1; i++) {
+    const k0 = K[Math.max(0, i - 1)];
+    const k1 = K[i];
+    const k2 = K[i + 1];
+    const k3 = K[Math.min(K.length - 1, i + 2)];
+    for (let s = 0; s < sub; s++) {
+      const t = s / sub;
+      out.push({
+        z: k1.z + (k2.z - k1.z) * t,
+        hw: cr(k0.hw, k1.hw, k2.hw, k3.hw, t),
+        yb: cr(k0.yb, k1.yb, k2.yb, k3.yb, t),
+        yt: cr(k0.yt, k1.yt, k2.yt, k3.yt, t),
+      });
     }
   }
-  out.push(keys[keys.length - 1]);
+  out.push(K[K.length - 1]);
   return out;
 }
 
-/** Skin rings into a surface with caps. */
-function skin(rings: THREE.Vector3[][], capStart = true, capEnd = true): THREE.BufferGeometry {
+function superEllipsePoint(hw: number, yb: number, yt: number, th: number, m: number, n: number, flatBottom = 0): [number, number] {
+  const cos = Math.cos(th);
+  const sin = Math.sin(th);
+  const sgnX = Math.sign(cos);
+  const sgnY = Math.sign(sin);
+  const x = sgnX * hw * Math.pow(Math.abs(cos), 2 / m);
+  const ym = (yt + yb) / 2;
+  const hy = (yt - yb) / 2;
+  let y = ym + sgnY * hy * Math.pow(Math.abs(sin), 2 / n);
+  if (sin < 0 && flatBottom > 0) {
+    const t = -sin;
+    y = y * (1 - t * flatBottom) + yb * (t * flatBottom);
+  }
+  return [x, y];
+}
+
+function skin(rings: THREE.Vector3[][]): THREE.BufferGeometry {
+  const numR = rings.length;
   const R = rings[0].length;
   const pos: number[] = [];
   const idx: number[] = [];
-  for (const ring of rings) for (const p of ring) pos.push(p.x, p.y, p.z);
-  for (let i = 0; i < rings.length - 1; i++) {
-    for (let k = 0; k < R; k++) {
-      const a = i * R + k;
-      const b = i * R + ((k + 1) % R);
-      const c = (i + 1) * R + k;
-      const d = (i + 1) * R + ((k + 1) % R);
-      idx.push(a, c, b, b, c, d);
+
+  for (let i = 0; i < numR; i++) {
+    for (let j = 0; j < R; j++) {
+      const p = rings[i][j];
+      pos.push(p.x, p.y, p.z);
     }
   }
-  const cap = (ring: THREE.Vector3[], front: boolean) => {
-    const base = pos.length / 3;
-    const c = ring.reduce((s, p) => s.add(p), new THREE.Vector3()).multiplyScalar(1 / R);
-    pos.push(c.x, c.y, c.z);
-    for (const p of ring) pos.push(p.x, p.y, p.z);
-    for (let k = 0; k < R; k++) {
-      const a = base + 1 + k;
-      const b = base + 1 + ((k + 1) % R);
-      if (front) idx.push(base, a, b);
-      else idx.push(base, b, a);
+
+  for (let i = 0; i < numR - 1; i++) {
+    for (let j = 0; j < R; j++) {
+      const jNext = (j + 1) % R;
+      const a = i * R + j;
+      const b = (i + 1) * R + j;
+      const c = (i + 1) * R + jNext;
+      const d = i * R + jNext;
+      idx.push(a, b, c, a, c, d);
+    }
+  }
+
+  // End caps
+  const cap = (ringIdx: number, flip: boolean) => {
+    let cx = 0, cy = 0, cz = 0;
+    for (let j = 0; j < R; j++) {
+      const p = rings[ringIdx][j];
+      cx += p.x; cy += p.y; cz += p.z;
+    }
+    cx /= R; cy /= R; cz /= R;
+    const centerIdx = pos.length / 3;
+    pos.push(cx, cy, cz);
+    const base = ringIdx * R;
+    for (let j = 0; j < R; j++) {
+      const jNext = (j + 1) % R;
+      if (flip) idx.push(centerIdx, base + jNext, base + j);
+      else idx.push(centerIdx, base + j, base + jNext);
     }
   };
-  if (capStart) cap(rings[0], true);
-  if (capEnd) cap(rings[rings.length - 1], false);
+
+  cap(0, false);
+  cap(numR - 1, true);
+
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setIndex(idx);
@@ -193,30 +233,22 @@ function skin(rings: THREE.Vector3[][], capStart = true, capEnd = true): THREE.B
   return g;
 }
 
-type Sec = { z: number; hw: number; yb: number; yt: number };
-
-/** Superellipse loft — chassis / airbox / engine cover. */
-function loft(keys: Sec[], R: number, sub: number, nTop = 2.6, nBot = 4, taper = 0.18) {
-  const rings = resample(keys, sub).map((s) => {
+function loft(keys: Sec[], R: number, sub: number, m = 2.4, n = 2.4, flatBottom = 0.35): THREE.BufferGeometry {
+  const sec = resample(keys, sub);
+  const rings: THREE.Vector3[][] = [];
+  for (let i = 0; i < sec.length; i++) {
+    const s = sec[i];
     const ring: THREE.Vector3[] = [];
-    const mid = (s.yb + s.yt) / 2;
-    const hh = (s.yt - s.yb) / 2;
-    for (let k = 0; k < R; k++) {
-      const th = (k / R) * Math.PI * 2;
-      const c = Math.cos(th);
-      const sn = Math.sin(th);
-      const n = sn >= 0 ? nTop : nBot;
-      const yy = Math.sign(sn) * Math.pow(Math.abs(sn), 2 / n);
-      const xx = Math.sign(c) * Math.pow(Math.abs(c), 2 / n);
-      const tap = 1 - taper * Math.max(0, yy);
-      ring.push(new THREE.Vector3(s.hw * xx * tap, mid + hh * yy, s.z));
+    for (let j = 0; j < R; j++) {
+      const th = (j / R) * Math.PI * 2;
+      const [x, y] = superEllipsePoint(s.hw, s.yb, s.yt, th, m, n, flatBottom);
+      ring.push(new THREE.Vector3(x, y, s.z));
     }
-    return ring;
-  });
+    rings.push(ring);
+  }
   return skin(rings);
 }
 
-/** Cambered aerofoil swept across a span. */
 function wing(o: {
   x0: number;
   x1: number;
@@ -272,7 +304,6 @@ function wing(o: {
   return { top: mk(top, true), bot: mk(bot, false) };
 }
 
-/** Flat plate in YZ plane from a 2D shape. */
 function plateYZ(shape: THREE.Shape, t: number, x: number, hi: boolean) {
   const g = new THREE.ExtrudeGeometry(shape, {
     depth: t,
@@ -289,16 +320,13 @@ function plateYZ(shape: THREE.Shape, t: number, x: number, hi: boolean) {
 }
 
 /* ------------------------------------------------------------------ */
-/* wheels & Pirelli sidewalls                                          */
+/* Pirelli Sidewalls & Wheels                                          */
 /* ------------------------------------------------------------------ */
 
-/**
- * Creates outer sidewall ring with planar UVs mapped 0..1 for the Pirelli texture.
- */
 function createSidewallRing(x: number, z: number, r: number, hw: number, hi: boolean) {
   const ri = 0.235;
   const ro = 0.358;
-  const segs = hi ? 40 : 16;
+  const segs = hi ? 36 : 16;
   const sign = Math.sign(x);
   const posX = x + sign * (hw + 0.003);
 
@@ -348,10 +376,9 @@ function wheelParts(x: number, z: number, w: number, hi: boolean) {
   const r = WHEEL_R;
   const ri = 0.235;
   const sh = 0.065;
-  const seg = hi ? 32 : 12;
+  const seg = hi ? 28 : 12;
   const hw = w / 2;
 
-  // rounded tyre profile
   const prof: THREE.Vector2[] = [];
   const arc = (cx: number, cy: number, a0: number, a1: number, n: number) => {
     for (let i = 0; i <= n; i++) {
@@ -369,12 +396,11 @@ function wheelParts(x: number, z: number, w: number, hi: boolean) {
   tyre.rotateZ(Math.PI / 2);
   tyre.translate(x, r, z);
 
-  // 2026 aerodynamic covered wheel disc
-  const cover = new THREE.CylinderGeometry(ri + 0.003, ri + 0.003, w - 0.024, hi ? 24 : 10, 1, false);
+  // Covered aerodynamic rim wheel disc
+  const cover = new THREE.CylinderGeometry(ri + 0.003, ri + 0.003, w - 0.024, hi ? 22 : 10, 1, false);
   cover.rotateZ(Math.PI / 2);
   cover.translate(x, r, z);
 
-  // Outer sidewall compound ring (in high detail: planar ring for Pirelli branding; in low: glowing ring)
   let ring: THREE.BufferGeometry;
   if (hi) {
     ring = createSidewallRing(x, z, r, hw, true);
@@ -384,8 +410,8 @@ function wheelParts(x: number, z: number, w: number, hi: boolean) {
     ring.translate(x + Math.sign(x) * (hw + 0.002), r, z);
   }
 
-  // Wheel nut / hub detail
-  const nut = new THREE.CylinderGeometry(0.038, 0.05, 0.045, hi ? 10 : 6);
+  // Wheel center nut
+  const nut = new THREE.CylinderGeometry(0.038, 0.05, 0.045, hi ? 8 : 6);
   nut.rotateZ(Math.PI / 2);
   nut.translate(x + Math.sign(x) * (hw + 0.004), r, z);
 
@@ -393,12 +419,12 @@ function wheelParts(x: number, z: number, w: number, hi: boolean) {
 }
 
 /* ------------------------------------------------------------------ */
-/* 2026 Bodywork & Sub-assemblies                                      */
+/* 2026 Mercedes W17 Sub-Assemblies                                    */
 /* ------------------------------------------------------------------ */
 
-// 2026 regulations chassis loft sections (Mercedes W17 proportions)
+// Precise loft sections for the W17 needle nose, cockpit, and engine cowl
 const BODY_KEYS: Sec[] = [
-  { z: 2.92, hw: 0.038, yb: 0.11, yt: 0.16 },  // slender needle nose tip resting on wing
+  { z: 2.92, hw: 0.038, yb: 0.11, yt: 0.16 },  // slender needle nose tip resting on front wing
   { z: 2.65, hw: 0.070, yb: 0.125, yt: 0.22 }, // gentle droop rise
   { z: 2.25, hw: 0.105, yb: 0.145, yt: 0.32 }, // tapering front nosecone
   { z: 1.85, hw: 0.138, yb: 0.155, yt: 0.42 }, // front bulkhead
@@ -413,26 +439,26 @@ const BODY_KEYS: Sec[] = [
   { z: -2.05, hw: 0.05, yb: 0.24, yt: 0.36 },   // tail cone
 ];
 
-// Airbox & shark fin
+// Airbox & extended shark fin
 const AIRBOX_KEYS: Sec[] = [
   { z: -0.12, hw: 0.11, yb: 0.6, yt: 0.99 },
   { z: -0.34, hw: 0.12, yb: 0.6, yt: 1.03 },
   { z: -0.72, hw: 0.088, yb: 0.6, yt: 0.93 },
   { z: -1.15, hw: 0.045, yb: 0.57, yt: 0.81 },
   { z: -1.5, hw: 0.015, yb: 0.51, yt: 0.65 },
-  { z: -1.82, hw: 0.008, yb: 0.45, yt: 0.52 }, // extended 2026 shark fin
+  { z: -1.82, hw: 0.008, yb: 0.45, yt: 0.52 },
 ];
 
 function buildMonocoque(hi: boolean): PartMeshes {
-  const R = hi ? 24 : 12;
+  const R = hi ? 22 : 12;
   const sub = hi ? 4 : 1;
   const body = [
     paint(loft(BODY_KEYS, R, sub), chooseBody),
-    paint(loft(AIRBOX_KEYS, hi ? 18 : 8, sub, 2.2, 3, 0.25), chooseBody),
+    paint(loft(AIRBOX_KEYS, hi ? 16 : 8, sub, 2.2, 3, 0.25), chooseBody),
   ];
 
   if (hi) {
-    // Aerodynamic rear-view mirrors
+    // W17 aerodynamic rear-view mirrors
     for (const s of [-1, 1]) {
       body.push(paint(box(0.15, 0.055, 0.04, [s * 0.46, 0.72, 0.58], [0, s * 0.22, 0]), chooseBody));
     }
@@ -440,14 +466,14 @@ function buildMonocoque(hi: boolean): PartMeshes {
 
   const carbon: THREE.BufferGeometry[] = [];
 
-  // Cockpit interior opening & headrest padding
-  const cockpit = new THREE.SphereGeometry(1, hi ? 20 : 8, hi ? 8 : 4, 0, Math.PI * 2, 0, Math.PI / 2);
+  // Cockpit opening
+  const cockpit = new THREE.SphereGeometry(1, hi ? 18 : 8, hi ? 8 : 4, 0, Math.PI * 2, 0, Math.PI / 2);
   cockpit.scale(0.19, 0.05, 0.35);
   cockpit.translate(0, 0.655, 0.3);
   carbon.push(cockpit);
 
   // Airbox intake mouth & internal splitter
-  const intake = new THREE.CircleGeometry(1, hi ? 16 : 8);
+  const intake = new THREE.CircleGeometry(1, hi ? 14 : 8);
   intake.scale(0.07, 0.095, 1);
   intake.translate(0, 0.86, -0.115);
   carbon.push(intake);
@@ -455,7 +481,7 @@ function buildMonocoque(hi: boolean): PartMeshes {
     carbon.push(box(0.008, 0.16, 0.05, [0, 0.86, -0.11]));
   }
 
-  // Front suspension wishbones (aerofoil sections) + push-rod + steering arm
+  // Front suspension wishbones + push-rod + steering arm
   const rs = hi ? 6 : 4;
   for (const s of [-1, 1]) {
     const ux = s * 0.66;
@@ -471,7 +497,7 @@ function buildMonocoque(hi: boolean): PartMeshes {
     // Upright / brake duct housing
     carbon.push(box(0.05, 0.29, 0.08, [s * 0.67, 0.34, z]));
     if (hi) {
-      // Twin aerodynamic mirror stalks (horizontal guide + diagonal mount)
+      // Twin aerodynamic mirror stalks
       carbon.push(rod([s * 0.29, 0.67, 0.62], [s * 0.41, 0.71, 0.58], 0.011, 4));
       carbon.push(rod([s * 0.36, 0.61, 0.56], [s * 0.45, 0.69, 0.58], 0.009, 4));
     }
@@ -479,7 +505,7 @@ function buildMonocoque(hi: boolean): PartMeshes {
 
   // Halo cockpit rim padding & T-cam
   if (hi) {
-    const hr = new THREE.TorusGeometry(1, 0.055, 5, 18, Math.PI);
+    const hr = new THREE.TorusGeometry(1, 0.055, 5, 16, Math.PI);
     hr.rotateX(-Math.PI / 2);
     hr.scale(0.19, 1, 0.11);
     hr.translate(0, 0.68, -0.02);
@@ -504,7 +530,7 @@ function buildMonocoque(hi: boolean): PartMeshes {
     false,
     'centripetal',
   );
-  acc.push(new THREE.TubeGeometry(hoop, hi ? 44 : 16, 0.028, hi ? 8 : 4, false));
+  acc.push(new THREE.TubeGeometry(hoop, hi ? 40 : 16, 0.028, hi ? 8 : 4, false));
 
   // Central aerodynamic pylon
   const pylon = new THREE.CatmullRomCurve3([
@@ -527,8 +553,9 @@ function buildMonocoque(hi: boolean): PartMeshes {
   carbon.push(fl.cover, fr.cover);
 
   const out: PartMeshes = [
-    { mat: 'body', geo: merge([...body, ...acc.map((g) => paint(g, 'halo'))]) },
+    { mat: 'body', geo: merge(body) },
     { mat: 'carbon', geo: merge(carbon) },
+    { mat: 'metal', geo: merge(acc) },
     { mat: 'tyre', geo: merge([fl.tyre, fr.tyre]) },
     { mat: 'ring', geo: merge([fl.ring, fr.ring]) },
   ];
@@ -537,13 +564,13 @@ function buildMonocoque(hi: boolean): PartMeshes {
 }
 
 function buildFrontWing(hi: boolean): PartMeshes {
-  const segs = hi ? 20 : 6;
+  const segs = hi ? 18 : 6;
   const prof = hi ? 8 : 4;
   const tops: THREE.BufferGeometry[] = [];
   const carbon: THREE.BufferGeometry[] = [];
   const plates: THREE.BufferGeometry[] = [];
 
-  // Mainplane across full span: 2026 active aero with subtle center gull-wing droop
+  // W17 mainplane across full span with subtle center gull-wing droop
   const S = 0.93;
   const main = wing({
     x0: -S,
@@ -558,7 +585,7 @@ function buildFrontWing(hi: boolean): PartMeshes {
   tops.push(main.top);
   carbon.push(main.bot);
 
-  // Multi-element secondary & tertiary flaps
+  // 3-tier cascading secondary & tertiary flaps
   for (const s of [-1, 1]) {
     const flap = (xa: number, le: (u: number) => [number, number], ch: number, aoa: (u: number) => number) => {
       const xb = 0.92;
@@ -579,7 +606,7 @@ function buildFrontWing(hi: boolean): PartMeshes {
     flap(0.12, (u) => [0.108 + 0.07 * u ** 1.6, 2.64 - 0.04 * u], 0.165, (u) => 0.32 + 0.34 * u);
     flap(0.19, (u) => [0.165 + 0.105 * u ** 1.6, 2.54 - 0.03 * u], 0.125, (u) => 0.52 + 0.38 * u);
 
-    // 2026-spec tall sculpted endplate with outward curved camber
+    // W17 outward curved endplate with camber
     const ep = new THREE.Shape();
     ep.moveTo(2.95, 0.025);
     ep.lineTo(2.36, 0.025);
@@ -645,37 +672,65 @@ function buildFloor(hi: boolean): PartMeshes {
     // 4 2026 Venturi inlet fences under nose / leading edge
     const fences = hi ? [0.15, 0.25, 0.35, 0.46] : [0.22, 0.4];
     for (const fx of fences) {
-      parts.push(box(0.009, 0.13, 0.4, [s * fx, 0.105, 1.18], [0, s * 0.08, 0]));
-    }
-
-    // Floor stiffening stay
-    if (hi) {
-      parts.push(rod([s * 0.62, 0.08, 0.95], [s * 0.42, 0.41, 0.65], 0.007, 4));
+      parts.push(box(0.009, 0.12, 0.48, [s * fx, 0.105, 0.95]));
     }
   }
 
-  // Wooden skid plank down centerline
-  parts.push(box(0.29, 0.011, 2.58, [0, 0.034, 0]));
+  // Wooden skid plank (permali)
+  if (hi) {
+    parts.push(box(0.24, 0.01, 2.5, [0, 0.065, 0.0]));
+  }
 
   return [{ mat: 'carbon', geo: merge(parts) }];
 }
 
-/** Right sidepod shell + radiator inlet & cooling louvres. */
+interface PodKey {
+  z: number;
+  xo: number;
+  yt: number;
+  ys: number;
+  yu: number;
+}
+
+function resamplePod(keys: PodKey[], sub: number): PodKey[] {
+  if (sub <= 1) return keys;
+  const out: PodKey[] = [];
+  const K = keys;
+  for (let i = 0; i < K.length - 1; i++) {
+    const k0 = K[Math.max(0, i - 1)];
+    const k1 = K[i];
+    const k2 = K[i + 1];
+    const k3 = K[Math.min(K.length - 1, i + 2)];
+    for (let s = 0; s < sub; s++) {
+      const t = s / sub;
+      out.push({
+        z: k1.z + (k2.z - k1.z) * t,
+        xo: cr(k0.xo, k1.xo, k2.xo, k3.xo, t),
+        yt: cr(k0.yt, k1.yt, k2.yt, k3.yt, t),
+        ys: cr(k0.ys, k1.ys, k2.ys, k3.ys, t),
+        yu: cr(k0.yu, k1.yu, k2.yu, k3.yu, t),
+      });
+    }
+  }
+  out.push(K[K.length - 1]);
+  return out;
+}
+
 function sidepodRight(hi: boolean): { body: THREE.BufferGeometry; carbon: THREE.BufferGeometry | null } {
-  type K = { z: number; xo: number; yt: number; ys: number; yu: number };
-  const keys: K[] = [
-    { z: 0.62, xo: 0.60, yt: 0.64, ys: 0.58, yu: 0.40 }, // front radiator inlet
-    { z: 0.38, xo: 0.71, yt: 0.63, ys: 0.56, yu: 0.33 }, // shoulder swell
-    { z: 0.02, xo: 0.72, yt: 0.59, ys: 0.49, yu: 0.27 }, // waterslide dip
-    { z: -0.48, xo: 0.65, yt: 0.52, ys: 0.41, yu: 0.20 }, // coke bottle start
-    { z: -0.96, xo: 0.49, yt: 0.44, ys: 0.32, yu: 0.14 }, // dramatic waist taper
-    { z: -1.32, xo: 0.33, yt: 0.39, ys: 0.27, yu: 0.11 }, // tight rear waist
+  // W17 waterslide downwash sidepod profiles
+  const keys: PodKey[] = [
+    { z: 0.65, xo: 0.68, yt: 0.58, ys: 0.48, yu: 0.42 }, // high forward inlet mouth
+    { z: 0.42, xo: 0.76, yt: 0.60, ys: 0.51, yu: 0.32 }, // maximum shoulder width
+    { z: 0.05, xo: 0.75, yt: 0.57, ys: 0.46, yu: 0.22 }, // progressive undercut scoop
+    { z: -0.42, xo: 0.67, yt: 0.52, ys: 0.41, yu: 0.16 }, // waterslide gully descent
+    { z: -0.92, xo: 0.52, yt: 0.45, ys: 0.34, yu: 0.13 }, // tight coke-bottle taper
+    { z: -1.32, xo: 0.33, yt: 0.39, ys: 0.27, yu: 0.11 }, // rear waist
     { z: -1.58, xo: 0.21, yt: 0.35, ys: 0.25, yu: 0.10 }, // engine exit duct
   ];
 
-  const R = hi ? 22 : 10;
+  const R = hi ? 20 : 10;
   const xi = 0.12;
-  const rings = resample(keys, hi ? 4 : 1).map((k) => {
+  const rings = resamplePod(keys, hi ? 4 : 1).map((k) => {
     const w = k.xo - xi;
     const ctrl: [number, number][] = [
       [xi, k.yt],
@@ -709,6 +764,7 @@ function sidepodRight(hi: boolean): { body: THREE.BufferGeometry; carbon: THREE.
     m.translate(0, 0, k.z + 0.003);
 
     const louv: THREE.BufferGeometry[] = [m];
+    // 5 W17 shoulder cooling gills
     for (let i = 0; i < 5; i++) {
       louv.push(box(0.19, 0.011, 0.032, [0.39, 0.59 - i * 0.014, -0.34 - i * 0.11], [0.05, 0, -0.12]));
     }
@@ -720,8 +776,8 @@ function sidepodRight(hi: boolean): { body: THREE.BufferGeometry; carbon: THREE.
 function buildIce(hi: boolean): PartMeshes {
   const metal: THREE.BufferGeometry[] = [box(0.33, 0.25, 0.78, [0, 0.38, -0.85])];
 
-  // Turbocharger assembly
-  const turbo = new THREE.CylinderGeometry(0.095, 0.095, 0.21, hi ? 16 : 8);
+  // Turbocharger
+  const turbo = new THREE.CylinderGeometry(0.095, 0.095, 0.21, hi ? 14 : 8);
   turbo.rotateZ(Math.PI / 2);
   turbo.translate(0, 0.46, -1.36);
   metal.push(turbo);
@@ -732,7 +788,7 @@ function buildIce(hi: boolean): PartMeshes {
     new THREE.Vector3(0, 0.44, -1.8),
     new THREE.Vector3(0, 0.45, -2.1),
   ]);
-  metal.push(new THREE.TubeGeometry(ex, hi ? 10 : 3, 0.042, hi ? 10 : 6, false));
+  metal.push(new THREE.TubeGeometry(ex, hi ? 10 : 3, 0.042, hi ? 8 : 6, false));
 
   const out: PartMeshes = [{ mat: 'metal', geo: merge(metal) }];
   if (hi) {
@@ -744,11 +800,9 @@ function buildIce(hi: boolean): PartMeshes {
 }
 
 function buildErs(hi: boolean): PartMeshes {
-  // 350 kW MGU-K motor
-  const mguk = new THREE.CylinderGeometry(0.072, 0.072, 0.15, hi ? 14 : 8);
+  const mguk = new THREE.CylinderGeometry(0.072, 0.072, 0.15, hi ? 12 : 8);
   mguk.translate(0.15, 0.27, -0.6);
 
-  // In low detail, merge into ersCore to ensure car draw calls <= 16
   if (!hi) {
     return [{ mat: 'ersCore', geo: merge([box(0.38, 0.13, 0.55, [0, 0.19, -0.2]), mguk]) }];
   }
@@ -756,42 +810,26 @@ function buildErs(hi: boolean): PartMeshes {
   const out: PartMeshes = [
     { mat: 'ersCore', geo: merge([box(0.37, 0.13, 0.54, [0, 0.19, -0.2])]) },
     { mat: 'ersWarn', geo: merge([mguk]) },
+    { mat: 'carbon', geo: merge([box(0.14, 0.06, 0.19, [-0.12, 0.3, 0.05])]) },
   ];
-  // Control electronics enclosure
-  out.push({ mat: 'carbon', geo: merge([box(0.14, 0.06, 0.19, [-0.12, 0.3, 0.05])]) });
   return out;
 }
 
 function buildGearbox(hi: boolean): PartMeshes {
-  const carbon: THREE.BufferGeometry[] = [
-    loft(
-      [
-        { z: -1.25, hw: 0.145, yb: 0.17, yt: 0.42 },
-        { z: -1.7, hw: 0.115, yb: 0.20, yt: 0.39 },
-        { z: -2.08, hw: 0.065, yb: 0.24, yt: 0.33 },
-      ],
-      hi ? 16 : 8,
-      hi ? 3 : 1,
-      4,
-      4,
-      0,
-    ),
-  ];
+  const carbon: THREE.BufferGeometry[] = [box(0.24, 0.24, 0.62, [0, 0.33, -1.72])];
 
-  // Rear diffuser ramp & strakes
-  const ramp = new THREE.PlaneGeometry(0.98, 0.84, 1, 1);
-  ramp.rotateX(-Math.PI / 2 + 0.32);
-  ramp.translate(0, 0.17, -1.72);
+  // Diffuser exit ramp
+  const rsh = new THREE.Shape();
+  rsh.moveTo(-0.48, 0.07);
+  rsh.lineTo(0.48, 0.07);
+  rsh.lineTo(0.54, 0.31);
+  rsh.lineTo(-0.54, 0.31);
+  rsh.closePath();
+  const ramp = new THREE.ExtrudeGeometry(rsh, { depth: 0.84, bevelEnabled: false });
+  ramp.translate(0, 0, -2.14);
   carbon.push(ramp);
-  const ramp2 = ramp.clone();
-  {
-    const p = ramp2.index!;
-    const a = p.array as Uint16Array;
-    for (let i = 0; i < a.length; i += 3) [a[i + 1], a[i + 2]] = [a[i + 2], a[i + 1]];
-  }
-  carbon.push(ramp2);
 
-  // Diffuser vertical fences
+  // 4 Diffuser vertical guide strakes
   const strakes = hi ? [-0.48, -0.29, -0.1, 0.1, 0.29, 0.48] : [-0.45, 0.45];
   for (const x of strakes) {
     const st = new THREE.Shape();
@@ -805,7 +843,7 @@ function buildGearbox(hi: boolean): PartMeshes {
   // Rear crash structure & FIA rain light
   carbon.push(box(0.095, 0.075, 0.095, [0, 0.29, -2.1]));
 
-  // Rear pull-rod suspension
+  // Pull-rod rear suspension
   const rs = hi ? 6 : 4;
   for (const s of [-1, 1]) {
     const ux = s * 0.58;
@@ -838,7 +876,7 @@ function buildRearWing(hi: boolean): PartMeshes {
   const prof = hi ? 8 : 4;
   const S = 0.5;
 
-  // 2026 curved spoon mainplane
+  // W17 curved spoon mainplane
   const spoon = (x: number) => -0.034 * Math.cos((Math.PI * x) / (2 * S)) ** 2;
   const main = wing({
     x0: -S,
@@ -890,7 +928,7 @@ function buildRearWing(hi: boolean): PartMeshes {
     carbon.push(plateYZ(sw, 0.013, s * 0.06, hi));
   }
 
-  // 2026-spec sculpted endplates
+  // W17 sculpted rear endplates
   const body: THREE.BufferGeometry[] = [];
   for (const s of [-1, 1]) {
     const ep = new THREE.Shape();
@@ -916,7 +954,7 @@ function buildRearWing(hi: boolean): PartMeshes {
 }
 
 /* ------------------------------------------------------------------ */
-/* cache                                                               */
+/* Cache & Public API                                                  */
 /* ------------------------------------------------------------------ */
 
 const cache: Partial<Record<Detail, CarGeometry>> = {};
@@ -947,15 +985,15 @@ export function getCarGeometry(detail: Detail): CarGeometry {
   return g;
 }
 
-/** Triangle / mesh counts for a detail level (dev diagnostics). */
 export function carStats(detail: Detail) {
   const g = getCarGeometry(detail);
   let tris = 0;
   let meshes = 0;
-  for (const part of Object.values(g))
+  for (const part of Object.values(g)) {
     for (const m of part) {
       meshes++;
       tris += (m.geo.index ? m.geo.index.count : m.geo.getAttribute('position').count) / 3;
     }
+  }
   return { tris, meshes };
 }
