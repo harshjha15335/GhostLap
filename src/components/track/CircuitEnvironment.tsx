@@ -97,15 +97,15 @@ export function CircuitEnvironment({
     const std = (p: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial({ vertexColors: true, ...p });
     return {
       grain,
-      terrain: std({ roughness: 1, metalness: 0 }),
-      verges: std({ roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
-      asphalt: std({ roughness: 0.86, metalness: 0.02, map: grain, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
-      kerbs: std({ roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }),
-      lines: std({ roughness: 0.5, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }),
-      walls: std({ roughness: 0.8, side: THREE.DoubleSide }),
-      trees: std({ roughness: 1, flatShading: true }),
-      buildings: std({ roughness: 0.9 }),
-      lights: new THREE.MeshBasicMaterial({ color: '#ff2a2a', toneMapped: false }),
+      terrain: std({ roughness: 0.98, metalness: 0.02 }),
+      verges: std({ roughness: 0.96, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
+      asphalt: std({ roughness: 0.78, metalness: 0.04, map: grain, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+      kerbs: std({ roughness: 0.52, metalness: 0.02, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }),
+      lines: std({ roughness: 0.44, metalness: 0.02, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }),
+      walls: std({ roughness: 0.72, metalness: 0.12, side: THREE.DoubleSide }),
+      trees: std({ roughness: 0.95, flatShading: true }),
+      buildings: std({ roughness: 0.85, metalness: 0.08 }),
+      lights: new THREE.MeshBasicMaterial({ color: '#ff1e1e', toneMapped: false }),
     };
   }, []);
 
@@ -171,6 +171,8 @@ export function CircuitEnvironment({
   const { geos } = built;
   return (
     <group>
+      {/* Ambient sky/ground daylight fill ensuring diorama is crisp and never a dark void */}
+      <hemisphereLight args={['#e8f2ff', '#2d3826', quality === 'high' ? 0.55 : 0.4]} />
       <mesh geometry={geos.terrain} material={mats.terrain} receiveShadow={shadows} />
       <mesh geometry={geos.verges} material={mats.verges} receiveShadow={shadows} />
       <mesh geometry={geos.asphalt} material={mats.asphalt} receiveShadow={shadows} />

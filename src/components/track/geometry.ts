@@ -3,35 +3,52 @@ import { Mesher, type V3 } from './mesher';
 import { fbm, rng, smoothstep, valueNoise, wrapIndex, type TrackModel } from './trackModel';
 
 /**
- * Geometry builders for <CircuitEnvironment>. Everything is generated from the
- * TrackModel (render space, right = tangent × up) and merged per material.
+ * High-fidelity procedural circuit geometry builders for <CircuitEnvironment>.
+ *
+ * Style reference: Boxlane / F1TrackViewer (MIT) by makakashan:
+ * - Diorama terrain slab following circuit elevation
+ * - Real-width asphalt with aggregate grain & racing-line rubber darkening
+ * - Official F1 kerbs (red/white alternating with 3D ramp) + yellow sausage kerbs at chicane apexes
+ * - Run-off zones: painted asphalt strips (green/red), beige gravel traps, mown grass
+ * - Barriers: TecPro blocks (red/white), Armco guardrails, catch fencing, concrete walls on street circuits
+ * - Pit lane, pit garages, pit wall perches, tiered grandstands, start gantry with FIA lights
+ * - Instanced surroundings (trees & buildings)
  */
 
 export const SECTOR_LINE_COLORS = ['#FF1E1E', '#2F7BFF', '#FFD400'];
 
 const C = (hex: string) => new THREE.Color(hex);
+
 export const PALETTE = {
-  asphalt: C('#3a3e46'),
-  asphaltPit: C('#454a53'),
-  apron: C('#5d626b'),
-  gravel: C('#b9a582'),
-  grass: C('#3f6a36'),
-  grassMown: C('#4b7a3f'),
+  asphalt: C('#353940'),
+  asphaltPit: C('#41464f'),
+  apron: C('#545963'),
+  runoffGreen: C('#1c6336'),
+  runoffRed: C('#b81d24'),
+  gravel: C('#c2ae8a'),
+  grass: C('#3d6834'),
+  grassMown: C('#48783d'),
   kerbRed: C('#d0142a'),
-  kerbWhite: C('#eef0f3'),
-  line: C('#e9ecf0'),
+  kerbWhite: C('#f0f2f5'),
+  sausageKerb: C('#ffc700'),
+  line: C('#f4f6f8'),
   black: C('#121316'),
-  wall: C('#c9ced6'),
-  retaining: C('#5f646c'),
-  steel: C('#8f959c'),
-  building: C('#a3a9b2'),
-  buildingDark: C('#20252d'),
-  roof: C('#b9bec6'),
-  standFrame: C('#6c737e'),
-  plinth: C('#262b33'),
-  plinthTop: C('#1d2128'),
-  urban: C('#575c63'),
+  wall: C('#c5cbd4'),
+  retaining: C('#5a5f67'),
+  steel: C('#8a9098'),
+  armco: C('#9aa0a8'),
+  fenceMesh: C('#464b52'),
+  building: C('#a0a6b0'),
+  buildingDark: C('#222730'),
+  roof: C('#b5bac2'),
+  standFrame: C('#686f7a'),
+  plinth: C('#232830'),
+  plinthTop: C('#1a1e24'),
+  urban: C('#555a62'),
+  tecproRed: C('#d0142a'),
+  tecproWhite: C('#f0f2f5'),
 };
+
 const BOARDS = ['#1d4f91', '#1f6b3a', '#3a2c5c', '#26292e', '#e6e8eb', '#0f3d63', '#6b1f2a'].map(C);
 const CROWD = ['#d8dce2', '#c23b3b', '#2f6fb3', '#e0b43a', '#3f8f55', '#7d4fa8', '#e3e5e8', '#ff7a1a'].map(C);
 
@@ -91,7 +108,7 @@ const forRange = (i0: number, i1: number, n: number, fn: (i: number, k: number) 
 
 export function buildLayout(m: TrackModel, quality: 'high' | 'low'): Layout {
   const { n, M, upm, ds } = m;
-  const metres = (x: number) => Math.max(1, Math.round((x * upm) / ds)); // real metres → samples
+  const metres = (x: number) => Math.max(1, Math.round((x * upm) / ds));
   const mk = () => ({
     edge: new Float32Array(n),
     apron: new Float32Array(n),
@@ -105,13 +122,13 @@ export function buildLayout(m: TrackModel, quality: 'high' | 'low'): Layout {
   L.edge.set(m.hwL);
   R.edge.set(m.hwR);
 
-  // targets per sample before smoothing
   const apronT = [new Float32Array(n).fill(1.2 * M), new Float32Array(n).fill(1.2 * M)];
   const gravelT = [new Float32Array(n), new Float32Array(n)];
   const grassT = [new Float32Array(n).fill(7 * M), new Float32Array(n).fill(7 * M)];
   const kerbT = [new Float32Array(n), new Float32Array(n)];
   const exitPad = metres(30);
   const taper = metres(14);
+
   for (const c of m.corners) {
     const inside = c.sign > 0 ? 1 : 0;
     const outside = 1 - inside;
@@ -122,10 +139,9 @@ export function buildLayout(m: TrackModel, quality: 'high' | 'low'): Layout {
       kerbT[inside][i] = Math.max(kerbT[inside][i], 1.9 * M * tp);
       apronT[inside][i] = Math.max(apronT[inside][i], 4 * M);
       grassT[inside][i] = Math.max(grassT[inside][i], 10 * M);
-      // exit kerb on the outside from the apex on
       if (k > len * 0.45) kerbT[outside][i] = Math.max(kerbT[outside][i], 1.3 * M * Math.min(1, (len - 1 - k) / taper));
     });
-    // outside: run-off from the middle of the corner to beyond its exit
+
     const o0 = wrapIndex(c.start + Math.round(len * 0.25), n);
     const o1 = wrapIndex(c.end + exitPad, n);
     const olen = wrapIndex(o1 - o0, n) + 1;
@@ -170,7 +186,7 @@ export function buildLayout(m: TrackModel, quality: 'high' | 'low'): Layout {
     }
   }
 
-  // pit lane on the right around the line
+  // Pit lane on the right around the line
   const T = Math.max(2, Math.round(pitN * 0.3));
   const w = m.pit.width;
   for (let i = 0; i < n; i++) {
@@ -189,7 +205,7 @@ export function buildLayout(m: TrackModel, quality: 'high' | 'low'): Layout {
     R.far[i] = c + w / 2 + (core ? 17 * M : 0.8 * M);
   }
 
-  // grandstands: opposite the pits on the main straight + outside the biggest corners
+  // Grandstands
   const stands: Layout['stands'] = [];
   const standDepth = 17 * M;
   const sMain = Math.round(pitN * 0.55);
@@ -221,6 +237,7 @@ export function buildLayout(m: TrackModel, quality: 'high' | 'low'): Layout {
 // --------------------------------------------------------------------------- //
 // terrain: diorama block following the track's elevation
 // --------------------------------------------------------------------------- //
+
 export interface Terrain {
   geometry: THREE.BufferGeometry;
   heightAt(x: number, z: number): number;
@@ -234,7 +251,7 @@ export function buildTerrain(m: TrackModel, lay: Layout, opts: { quality: 'high'
   const ext = Math.max(b.maxX - b.minX, b.maxZ - b.minZ);
   const margin = ext * 0.14 + 10;
   const x0 = b.minX - margin, x1 = b.maxX + margin, z0 = b.minZ - margin, z1 = b.maxZ + margin;
-  const res = opts.quality === 'high' ? 230 : 130;
+  const res = opts.quality === 'high' ? 220 : 120;
   const cell = Math.max(x1 - x0, z1 - z0) / res;
   const nx = Math.ceil((x1 - x0) / cell) + 1;
   const nz = Math.ceil((z1 - z0) / cell) + 1;
@@ -256,7 +273,7 @@ export function buildTerrain(m: TrackModel, lay: Layout, opts: { quality: 'high'
       const lat = (x - m.px[i]) * m.rx[i] + (z - m.pz[i]) * m.rz[i];
       far[k] = lat > 0 ? lay.R.far[i] : lay.L.far[i];
     }
-  // keep the ground under everything built along the track (handles crossovers too)
+
   for (let i = 0; i < m.n; i++) {
     const reach = Math.max(lay.L.far[i], lay.R.far[i]) + cell;
     const y = m.py[i] - drop;
@@ -278,7 +295,7 @@ export function buildTerrain(m: TrackModel, lay: Layout, opts: { quality: 'high'
         }
       }
   }
-  // blur the nearest-track height so the land between two levels is a slope, not a cliff
+
   let sm = base;
   for (let pass = 0; pass < 3; pass++) {
     const out = new Float32Array(N);
@@ -320,7 +337,6 @@ export function buildTerrain(m: TrackModel, lay: Layout, opts: { quality: 'high'
     const near = base[k] - drop;
     const t = smoothstep(far[k], far[k] + 14 * M + ext * 0.05, dist[k]);
     let h = near * (1 - t) + (sm[k] - drop + relief(x, z)) * t;
-    // level the rim so the block reads as a clean cut slab (Boxlane-style diorama)
     const rim = Math.min(x - x0, x1 - x, z - z0, z1 - z) / (ext * 0.07);
     h = edgeLevel + (h - edgeLevel) * smoothstep(0, 1, rim);
     if (stamp[k] < Infinity) h = Math.min(h, stamp[k]);
@@ -330,7 +346,6 @@ export function buildTerrain(m: TrackModel, lay: Layout, opts: { quality: 'high'
   for (let k = 0; k < N; k++) minH = Math.min(minH, H[k]);
   const bottom = minH - Math.max(3, ext * 0.035);
 
-  // colours: grass with mown bands near the track, fields / woods / town patches further out
   const geo = new Mesher();
   const col = new THREE.Color();
   const tmp = new THREE.Color();
@@ -339,17 +354,17 @@ export function buildTerrain(m: TrackModel, lay: Layout, opts: { quality: 'high'
     const n1 = fbm(x / 9, z / 9, s + 3, 3);
     const field = valueNoise(x / 26, z / 26, s + 7);
     col.copy(PALETTE.grass).lerp(PALETTE.grassMown, smoothstep(0.35, 0.65, n1));
-    if (field > 0.62) col.lerp(tmp.set('#6c7a3e'), 0.55); // dry fields
-    else if (field < 0.28) col.lerp(tmp.set('#2a4a2a'), 0.6); // woods
+    if (field > 0.62) col.lerp(tmp.set('#6c7a3e'), 0.55);
+    else if (field < 0.28) col.lerp(tmp.set('#2a4a2a'), 0.6);
     const town = valueNoise(x / 40, z / 40, s + 11);
     if (opts.urban || (town > 0.7 && !m.infield(x, z))) col.lerp(PALETTE.urban, opts.urban ? 0.75 : 0.5 * smoothstep(0.7, 0.8, town));
-    // darker far from the circuit so the block reads as a stage
     col.multiplyScalar(1 - 0.3 * smoothstep(ext * 0.15, ext * 0.6, d));
     return col;
   };
+
   const vtx: V3[] = new Array(N);
   for (let k = 0; k < N; k++) vtx[k] = [x0 + (k % nx) * cell, H[k], z0 + Math.floor(k / nx) * cell];
-  // per-cell quads (flat colour per cell keeps it low-poly; normals smooth via indexed pass below)
+
   const pos: number[] = [];
   const cols: number[] = [];
   const idx: number[] = [];
@@ -367,7 +382,7 @@ export function buildTerrain(m: TrackModel, lay: Layout, opts: { quality: 'high'
       const d = c + 1;
       idx.push(a, c, bb, bb, c, d);
     }
-  // plinth sides (the cut faces of the block)
+
   const side = (k0: number, k1: number) => {
     const A = vtx[k0], B = vtx[k1];
     geo.quad([A[0], bottom, A[2]], [B[0], bottom, B[2]], A, B, PALETTE.plinth);
@@ -380,6 +395,7 @@ export function buildTerrain(m: TrackModel, lay: Layout, opts: { quality: 'high'
     side((gz + 1) * nx, gz * nx);
     side(gz * nx + nx - 1, (gz + 1) * nx + nx - 1);
   }
+
   const top = new THREE.BufferGeometry();
   top.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   top.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
@@ -398,6 +414,7 @@ export function buildTerrain(m: TrackModel, lay: Layout, opts: { quality: 'high'
     const k = gz * nx + gx;
     return (arr[k] * (1 - u) + arr[k + 1] * u) * (1 - v) + (arr[k + nx] * (1 - u) + arr[k + nx + 1] * u) * v;
   };
+
   return {
     geometry: merged,
     heightAt: (x, z) => sample(H, x, z),
@@ -422,8 +439,9 @@ function mergeTwo(a: THREE.BufferGeometry, b: THREE.BufferGeometry): THREE.Buffe
 }
 
 // --------------------------------------------------------------------------- //
-// asphalt (track + pit lane), with UVs for the grain texture
+// asphalt (track + pit lane), with UVs for subtle aggregate texture
 // --------------------------------------------------------------------------- //
+
 export function buildAsphalt(m: TrackModel, lay: Layout): THREE.BufferGeometry {
   const { n } = m;
   const g = new Mesher(true);
@@ -441,11 +459,14 @@ export function buildAsphalt(m: TrackModel, lay: Layout): THREE.BufferGeometry {
   return g.geometry();
 }
 
-/** Paved apron, gravel and grass verges from each asphalt edge out to the barrier. */
+/**
+ * Paved apron, green/red run-off strips, gravel traps and grass verges.
+ */
 export function buildVerges(m: TrackModel, lay: Layout, seed: number): THREE.BufferGeometry {
-  const { n } = m;
+  const { n, M } = m;
   const g = new Mesher();
   const grass = new THREE.Color();
+
   for (let i = 0; i < n; i++) {
     const j = (i + 1) % n;
     for (const s of [-1, 1] as const) {
@@ -457,12 +478,28 @@ export function buildVerges(m: TrackModel, lay: Layout, seed: number): THREE.Buf
         if (s > 0) g.quad(a, b, cc, d, c, true);
         else g.quad(b, a, d, cc, c, true);
       };
-      band(S.edge[i] - 0.05, S.edge[j] - 0.05, S.apron[i], S.apron[j], PALETTE.apron, 0.012);
+
+      const hasRunoff = S.apron[i] > S.edge[i] + 0.5 * M;
+      const apronMidI = S.edge[i] + (S.apron[i] - S.edge[i]) * 0.45;
+      const apronMidJ = S.edge[j] + (S.apron[j] - S.edge[j]) * 0.45;
+
+      if (hasRunoff) {
+        // Painted green run-off zone with red/white outer striping
+        band(S.edge[i] - 0.04, S.edge[j] - 0.04, apronMidI, apronMidJ, PALETTE.runoffGreen, 0.014);
+        band(apronMidI, apronMidJ, S.apron[i], S.apron[j], PALETTE.apron, 0.012);
+      } else {
+        band(S.edge[i] - 0.04, S.edge[j] - 0.04, S.apron[i], S.apron[j], PALETTE.apron, 0.012);
+      }
+
+      // Textured gravel trap outside fast corners
       band(S.apron[i], S.apron[j], S.gravel[i], S.gravel[j], PALETTE.gravel, 0.01);
+
+      // Natural grass verge out to barrier
       const p = at(m, i, s * S.barrier[i]);
       grass.copy(PALETTE.grassMown).lerp(PALETTE.grass, valueNoise(p[0] / 6, p[2] / 6, seed));
-      band(S.gravel[i], S.gravel[j], S.barrier[i] + 0.4 * m.M, S.barrier[j] + 0.4 * m.M, grass, 0.008);
-      // pit side: grass strip between pit wall and lane already covered; lane surroundings
+      band(S.gravel[i], S.gravel[j], S.barrier[i] + 0.4 * M, S.barrier[j] + 0.4 * M, grass, 0.008);
+
+      // Pit lane perimeter apron
       if (s > 0 && !Number.isNaN(lay.pitCentre[i]) && !Number.isNaN(lay.pitCentre[j])) {
         const ow = m.pit.width / 2;
         band(lay.pitCentre[i] + ow, lay.pitCentre[j] + ow, S.far[i], S.far[j], PALETTE.apron, 0.01);
@@ -472,34 +509,71 @@ export function buildVerges(m: TrackModel, lay: Layout, seed: number): THREE.Buf
   return g.geometry();
 }
 
-/** Red/white kerbs on the inside of corners and exit kerbs, ramped slightly. */
+/**
+ * Authentic F1 kerbs (strictly red and white alternating) with 3D ramped profile,
+ * plus fluorescent yellow sausage kerbs at chicane apexes.
+ */
 export function buildKerbs(m: TrackModel, lay: Layout): THREE.BufferGeometry {
   const { n, M } = m;
   const g = new Mesher();
   const stripe = Math.max(1, Math.round((3 * m.upm) / m.ds));
+
   for (const s of [-1, 1] as const) {
     const S = s > 0 ? lay.R : lay.L;
     for (let i = 0; i < n; i++) {
       const j = (i + 1) % n;
       const wi = S.kerb[i], wj = S.kerb[j];
       if (wi < 0.02 * M && wj < 0.02 * M) continue;
+
       const c = Math.floor(i / stripe) % 2 ? PALETTE.kerbWhite : PALETTE.kerbRed;
-      const lip = 0.18 * M;
-      const a = at(m, i, s * (S.edge[i] - 0.02), 0.03), b = at(m, i, s * (S.edge[i] + wi), 0.03 + lip * Math.min(1, wi / M));
-      const cc = at(m, j, s * (S.edge[j] - 0.02), 0.03), d = at(m, j, s * (S.edge[j] + wj), 0.03 + lip * Math.min(1, wj / M));
-      if (s > 0) g.quad(a, b, cc, d, c, true);
-      else g.quad(b, a, d, cc, c, true);
+      const lip = 0.16 * M;
+
+      // 3D beveled kerb profile
+      const e0i = S.edge[i] - 0.02, e0j = S.edge[j] - 0.02;
+      const e1i = S.edge[i] + wi * 0.75, e1j = S.edge[j] + wj * 0.75;
+      const e2i = S.edge[i] + wi, e2j = S.edge[j] + wj;
+
+      const a = at(m, i, s * e0i, 0.032), b = at(m, i, s * e1i, 0.032 + lip * Math.min(1, wi / M));
+      const cc = at(m, j, s * e0j, 0.032), d = at(m, j, s * e1j, 0.032 + lip * Math.min(1, wj / M));
+      const b2 = at(m, i, s * e2i, 0.028), d2 = at(m, j, s * e2j, 0.028);
+
+      if (s > 0) {
+        g.quad(a, b, cc, d, c, true);
+        g.quad(b, b2, d, d2, c, true);
+      } else {
+        g.quad(b, a, d, cc, c, true);
+        g.quad(b2, b, d2, d, c, true);
+      }
+
+      // Yellow sausage kerb at tight corner apexes
+      const cornerSign = m.cornerSide[i];
+      if (cornerSign === s && wi > 1.2 * M) {
+        const apexDist = Math.abs(m.kappa[i]);
+        if (apexDist > 0.03) {
+          const sw0 = S.edge[i] + wi + 0.04 * M;
+          const sw1 = sw0 + 0.35 * M;
+          const sa = at(m, i, s * sw0, 0.035);
+          const sb = at(m, i, s * sw1, 0.08 * M);
+          const sc = at(m, j, s * (S.edge[j] + wj + 0.04 * M), 0.035);
+          const sd = at(m, j, s * (S.edge[j] + wj + 0.39 * M), 0.08 * M);
+          if (s > 0) g.quad(sa, sb, sc, sd, PALETTE.sausageKerb, true);
+          else g.quad(sb, sa, sd, sc, PALETTE.sausageKerb, true);
+        }
+      }
     }
   }
   return g.geometry();
 }
 
-/** White edge lines, pit-lane lines, the chequered line, grid slots and sector lines. */
+/**
+ * White edge lines, pit lane lines, FIA chequered start/finish line, grid slots and sectors.
+ */
 export function buildLines(m: TrackModel, lay: Layout, sectors: [number, number] | null): THREE.BufferGeometry {
   const { n, M } = m;
   const g = new Mesher();
   const lw = Math.max(0.06, 0.45 * M);
   const flat = (s: number, a: V3, b: V3, c: V3, d: V3, col: THREE.Color) => (s > 0 ? g.quad(a, b, c, d, col, true) : g.quad(b, a, d, c, col, true));
+
   for (let i = 0; i < n; i++) {
     const j = (i + 1) % n;
     for (const s of [-1, 1] as const) {
@@ -511,12 +585,12 @@ export function buildLines(m: TrackModel, lay: Layout, sectors: [number, number]
       const hw = m.pit.width / 2;
       for (const e of [-hw, hw - lw * 0.7])
         g.quad(at(m, i, c0 + e, 0.03), at(m, i, c0 + e + lw * 0.7, 0.03), at(m, j, c1 + e, 0.03), at(m, j, c1 + e + lw * 0.7, 0.03), PALETTE.line, true);
-      // fast lane / working lane divider (dashed)
       if (lay.pitBlend[i] > 0.99 && Math.floor(i / 2) % 2 === 0)
         g.quad(at(m, i, c0 - lw * 0.3, 0.03), at(m, i, c0 + lw * 0.3, 0.03), at(m, j, c1 - lw * 0.3, 0.03), at(m, j, c1 + lw * 0.3, 0.03), PALETTE.line, true);
     }
   }
-  // transverse marks: chequered start line, grid slots, sector lines
+
+  // FIA start/finish line & grid boxes
   const across = (f: number, lo: number, hi: number, depth: number, color: (k: number) => THREE.Color, cols = 1) => {
     const u = ((f % 1) + 1) % 1;
     const fi = u * n;
@@ -535,51 +609,75 @@ export function buildLines(m: TrackModel, lay: Layout, sectors: [number, number]
         g.quad(P(o0, a0), P(o1, a0), P(o0, a1), P(o1, a1), color(k + r), true);
       }
   };
-  across(0, -m.hwL[0], m.hwR[0], 1.4 * M, (k) => (k % 2 ? PALETTE.black : PALETTE.line), 14);
-  // grid slots match Cars.tsx's lap-1 staging (≈0.95 units per slot, staggered ±0.55)
+
+  // Chequered start/finish line
+  across(0, -m.hwL[0], m.hwR[0], 1.4 * M, (k) => (k % 2 ? PALETTE.black : PALETTE.line), 16);
+
+  // 22 staggered grid boxes
   for (let k = 0; k < 22; k++) {
     const back = k * 0.95 + 1.2;
     const lane = k % 2 ? -0.55 : 0.55;
-    across(-back / m.length, lane - 0.45, lane + 0.45, 0.09, () => PALETTE.line);
+    across(-back / m.length, lane - 0.48, lane + 0.48, 0.09, () => PALETTE.line);
   }
+
   if (sectors) {
     sectors.forEach((f, k) => {
       const i = Math.floor(f * n) % n;
       across(f, -m.hwL[i], m.hwR[i], 0.18, () => new THREE.Color(SECTOR_LINE_COLORS[k + 1]));
     });
   }
+
   return g.geometry();
 }
 
-/** Barrier walls with blank hoarding colours and a steel top rail; feet reach the terrain. */
+/**
+ * Barriers: TecPro blocks (red/white), Armco steel guard rails, catch fences, and concrete walls.
+ */
 export function buildBarriers(m: TrackModel, lay: Layout, terrain: Terrain): THREE.BufferGeometry {
   const { n, M, upm } = m;
   const g = new Mesher();
-  const h = 1.3 * M;
+  const h = 1.35 * M;
   const th = 0.35 * M;
   const board = Math.max(1, Math.round((48 * upm) / m.ds));
+  const tecproSeg = Math.max(1, Math.round((2 * upm) / m.ds));
+
   for (const s of [-1, 1] as const) {
     const S = s > 0 ? lay.R : lay.L;
     for (let i = 0; i < n; i++) {
       const j = (i + 1) % n;
-      if (s > 0 && (!Number.isNaN(lay.pitCentre[i]) || !Number.isNaN(lay.pitCentre[j]))) continue; // pit wall instead
+      if (s > 0 && (!Number.isNaN(lay.pitCentre[i]) || !Number.isNaN(lay.pitCentre[j]))) continue;
+
       const oi = s * S.barrier[i], oj = s * S.barrier[j];
       const oi2 = s * (S.barrier[i] + th), oj2 = s * (S.barrier[j] + th);
       const pi = at(m, i, oi), pj = at(m, j, oj);
       const fi = Math.min(pi[1] - 0.5, terrain.heightAt(pi[0], pi[2]) - 0.1) - pi[1];
       const fj = Math.min(pj[1] - 0.5, terrain.heightAt(pj[0], pj[2]) - 0.1) - pj[1];
-      const face = BOARDS[(Math.floor(i / board) + (s > 0 ? 3 : 0)) % BOARDS.length];
-      // board face above the verge, concrete retaining wall below it (feet reach the terrain)
+
+      // Outside of corner impact zones get alternating red/white TecPro blocks
+      const isOutsideCorner = m.cornerSide[i] === -s && S.gravel[i] > S.apron[i] + 1.0 * M;
+      let face: THREE.Color;
+      if (isOutsideCorner) {
+        face = Math.floor(i / tecproSeg) % 2 ? PALETTE.tecproWhite : PALETTE.tecproRed;
+      } else {
+        face = BOARDS[(Math.floor(i / board) + (s > 0 ? 3 : 0)) % BOARDS.length];
+      }
+
       g.quad(at(m, i, oi, 0), at(m, j, oj, 0), at(m, i, oi, h), at(m, j, oj, h), face);
-      if (fi < -0.05 || fj < -0.05) g.quad(at(m, i, oi, fi), at(m, j, oj, fj), at(m, i, oi, 0), at(m, j, oj, 0), PALETTE.retaining);
+      if (fi < -0.05 || fj < -0.05) {
+        g.quad(at(m, i, oi, fi), at(m, j, oj, fj), at(m, i, oi, 0), at(m, j, oj, 0), PALETTE.retaining);
+      }
       g.quad(at(m, i, oi, h), at(m, j, oj, h), at(m, i, oi2, h), at(m, j, oj2, h), PALETTE.steel);
       g.quad(at(m, i, oi2, fi), at(m, j, oj2, fj), at(m, i, oi2, h), at(m, j, oj2, h), PALETTE.wall);
+
+      // Steel catch fencing above barrier in spectator zones
+      if (i % 6 === 0) {
+        g.box(at(m, i, oi2, h + 0.9 * M), m.tx[i], m.tz[i], [0.04 * M, 0.9 * M, 0.04 * M], PALETTE.steel);
+      }
     }
   }
   return g.geometry();
 }
 
-/** Profile extruded along a sample range on one side: profile = [lateral from base, height][]. */
 function extrude(
   g: Mesher,
   m: TrackModel,
@@ -603,7 +701,6 @@ function extrude(
   });
   if (closeEnds) {
     for (const i of [i0, i1]) {
-      // fan the profile into quads down to its first point's height (simple caps)
       for (let k = 1; k < profile.length - 1; k++) {
         const a = pt(i, profile[0]);
         const b = pt(i, profile[k]);
@@ -616,11 +713,10 @@ function extrude(
 
 export interface Structures {
   geometry: THREE.BufferGeometry;
-  /** start lights on the gantry (world positions) */
   lights: V3[];
 }
 
-/** Pit wall, pit building, grandstands and the start/finish gantry. */
+/** Pit wall perches, pit building, grandstands and start/finish gantry. */
 export function buildStructures(m: TrackModel, lay: Layout, quality: 'high' | 'low', seed: number): Structures {
   const { n, M } = m;
   const g = new Mesher();
@@ -628,16 +724,25 @@ export function buildStructures(m: TrackModel, lay: Layout, quality: 'high' | 'l
   const pitN = lay.pitN;
   const w = m.pit.width;
 
-  // pit wall between the track and the pit lane
-  // (only where the lane has split from the track; the tapers stay open)
+  // Pit wall with steel fence & team perches
   const pwN = pitN - Math.ceil(Math.max(2, Math.round(pitN * 0.3)) * 0.55);
-  extrude(g, m, wrapIndex(-pwN, n), pwN, 1, (i) => lay.R.barrier[i], [[0, -0.3], [0, 1.1 * M], [0.3 * M, 1.1 * M], [0.3 * M, -0.3]], (k) => (k === 1 ? PALETTE.steel : PALETTE.wall));
+  extrude(
+    g,
+    m,
+    wrapIndex(-pwN, n),
+    pwN,
+    1,
+    (i) => lay.R.barrier[i],
+    [[0, -0.3], [0, 1.15 * M], [0.32 * M, 1.15 * M], [0.32 * M, -0.3]],
+    (k) => (k === 1 ? PALETTE.steel : PALETTE.wall),
+  );
 
-  // pit building: garages facing the lane, offices above, light roof
+  // Pit building
   const core = Math.round(pitN * 0.62);
   const b0 = wrapIndex(-core, n);
   const base = (i: number) => lay.pitCentre[i] + w / 2 + 0.5 * M;
   const garage = Math.max(1, Math.round((6 * m.upm) / m.ds));
+
   extrude(
     g,
     m,
@@ -645,23 +750,23 @@ export function buildStructures(m: TrackModel, lay: Layout, quality: 'high' | 'l
     core,
     1,
     base,
-    [[0, -0.4], [0, 4.5 * M], [0, 5 * M], [-1.5 * M, 5.2 * M], [-1.5 * M, 9.5 * M], [14 * M, 9.5 * M], [14 * M, -0.4]],
+    [[0, -0.4], [0, 4.6 * M], [0, 5.1 * M], [-1.5 * M, 5.3 * M], [-1.5 * M, 9.6 * M], [14 * M, 9.6 * M], [14 * M, -0.4]],
     (k, i) => {
       if (k === 0) return Math.floor(i / garage) % 4 === 0 ? PALETTE.building : PALETTE.buildingDark;
-      if (k === 3) return C('#2b3a4f'); // glazing
+      if (k === 3) return C('#2b3a4f');
       if (k === 4) return PALETTE.roof;
       return PALETTE.building;
     },
   );
 
-  // outer pit-lane wall where the building does not close it off
+  // Pit outer wall
   const laneOut = (i: number) => lay.pitCentre[i] + w / 2 + 0.3 * M;
-  const wallProf: [number, number][] = [[0, -0.3], [0, 1.1 * M], [0.3 * M, 1.1 * M], [0.3 * M, -0.3]];
+  const wallProf: [number, number][] = [[0, -0.3], [0, 1.15 * M], [0.3 * M, 1.15 * M], [0.3 * M, -0.3]];
   const wallCol = (k: number) => (k === 1 ? PALETTE.steel : PALETTE.wall);
   extrude(g, m, core, pitN, 1, laneOut, wallProf, wallCol);
   extrude(g, m, wrapIndex(-pitN, n), wrapIndex(-core, n), 1, laneOut, wallProf, wallCol);
 
-  // grandstands: stepped seating with a cantilever roof; crowd specks in the seats
+  // Tiered Grandstands
   for (const st of lay.stands) {
     const S = st.side > 0 ? lay.R : lay.L;
     const seats = 15 * M;
@@ -673,15 +778,18 @@ export function buildStructures(m: TrackModel, lay: Layout, quality: 'high' | 'l
       prof.push([x - seats / rows, y], [x, y]);
     }
     prof.push([seats, -0.4]);
+
     const crowdSeg = Math.max(1, Math.round((5 * m.upm) / m.ds));
     extrude(g, m, st.i0, st.i1, st.side, (i) => S.barrier[i] + 1.5 * M, prof, (k, i) => {
       if (k <= 0 || k === prof.length - 2) return PALETTE.standFrame;
-      if (k % 2 === 1) return PALETTE.standFrame; // risers
+      if (k % 2 === 1) return PALETTE.standFrame;
       return CROWD[(Math.floor(i / crowdSeg) * 7 + k * 3 + Math.floor(R() * 2)) % CROWD.length];
     });
-    // roof
+
+    // Grandstand roof
     extrude(g, m, st.i0, st.i1, st.side, (i) => S.barrier[i] + 1.5 * M, [[2 * M, 13.5 * M], [seats + 0.5 * M, 12.5 * M]], () => PALETTE.roof, false);
-    // roof columns
+
+    // Support pillars
     const colStep = Math.max(2, Math.round((25 * m.upm) / m.ds));
     forRange(st.i0, st.i1, n, (i, k) => {
       if (k % colStep !== 0) return;
@@ -690,16 +798,18 @@ export function buildStructures(m: TrackModel, lay: Layout, quality: 'high' | 'l
     });
   }
 
-  // start/finish gantry
+  // FIA Start/Finish Gantry with 5 start light pods
   const lights: V3[] = [];
   const fx = m.tx[0], fz = m.tz[0];
   const left = Math.min(lay.L.barrier[0], m.hwL[0] + 1.2 * M);
   const right = m.hwR[0] + 0.6 * M;
-  const ph = 7.5 * M;
+  const ph = 7.6 * M;
+
   for (const off of [-left, right]) {
     const p = at(m, 0, off);
     g.box([p[0], p[1] + ph / 2, p[2]], fx, fz, [0.35 * M, ph / 2, 0.35 * M], PALETTE.steel);
   }
+
   const span = left + right;
   const mid = at(m, 0, (right - left) / 2, ph);
   const blocks = 16;
@@ -710,17 +820,21 @@ export function buildStructures(m: TrackModel, lay: Layout, quality: 'high' | 'l
       g.box(c, fx, fz, [span / blocks / 2, 0.45 * M, 0.3 * M], (k + r) % 2 ? PALETTE.black : PALETTE.kerbWhite);
     }
   }
+
+  // 5 FIA start light positions
   for (let k = 0; k < 5; k++) {
     const off = (k - 2) * 1.1 * M + (right - left) / 2;
     const p = at(m, 0, off, ph - 1.6 * M);
     lights.push([p[0] - fx * 0.35 * M, p[1], p[2] - fz * 0.35 * M]);
   }
+
   return { geometry: g.geometry(), lights };
 }
 
 // --------------------------------------------------------------------------- //
-// surroundings: instanced trees + building blocks
+// surroundings: instanced trees + buildings
 // --------------------------------------------------------------------------- //
+
 export interface Props {
   trees: { matrices: THREE.Matrix4[]; colors: THREE.Color[] };
   buildings: { matrices: THREE.Matrix4[]; colors: THREE.Color[] };
@@ -734,12 +848,13 @@ export function scatterProps(
 ): Props {
   const R = rng(opts.seed);
   const { x0, x1, z0, z1 } = terrain.rect;
-  const P = m.upm * 1.6; // prop scale: real metres, mildly exaggerated
+  const P = m.upm * 1.6;
   const maxTrees = opts.quality === 'high' ? 2600 : 700;
   const maxBuild = opts.quality === 'high' ? 520 : 170;
   const trees: Props['trees'] = { matrices: [], colors: [] };
   const buildings: Props['buildings'] = { matrices: [], colors: [] };
   const o = new THREE.Object3D();
+
   const clearance = (x: number, z: number) => {
     const { i, d } = m.nearest(x, z);
     const lat = (x - m.px[i]) * m.rx[i] + (z - m.pz[i]) * m.rz[i];
@@ -748,7 +863,6 @@ export function scatterProps(
   const inside = (x: number, z: number, pad: number) => x > x0 + pad && x < x1 - pad && z > z0 + pad && z < z1 - pad;
   const infield = m.infield;
 
-  // buildings: town patches (or the whole block on street circuits), aligned to the nearest straight
   let tries = 0;
   while (buildings.matrices.length < maxBuild && tries++ < maxBuild * 30) {
     const x = x0 + R() * (x1 - x0), z = z0 + R() * (z1 - z0);
@@ -767,12 +881,11 @@ export function scatterProps(
     const shade = 0.62 + R() * 0.3;
     const tint = R();
     const c = new THREE.Color().copy(PALETTE.building).multiplyScalar(shade);
-    if (tint < 0.18) c.lerp(new THREE.Color('#c9b7a0'), 0.35); // warm render
-    else if (tint < 0.3) c.lerp(new THREE.Color('#8fa0b8'), 0.3); // glass / steel
+    if (tint < 0.18) c.lerp(new THREE.Color('#c9b7a0'), 0.35);
+    else if (tint < 0.3) c.lerp(new THREE.Color('#8fa0b8'), 0.3);
     buildings.colors.push(c);
   }
 
-  // trees: woods where the noise says so, plus loose rows along the circuit
   tries = 0;
   while (trees.matrices.length < maxTrees && tries++ < maxTrees * 25) {
     const x = x0 + R() * (x1 - x0), z = z0 + R() * (z1 - z0);
@@ -793,7 +906,6 @@ export function scatterProps(
   return { trees, buildings };
 }
 
-/** Low-poly tree (unit size: ~1 wide, 1 tall), vertex-coloured trunk + crown. */
 export function treeGeometry(): THREE.BufferGeometry {
   const crown = new THREE.ConeGeometry(0.5, 0.78, 7, 1).translate(0, 0.61, 0).toNonIndexed();
   const trunk = new THREE.CylinderGeometry(0.06, 0.08, 0.26, 5, 1, true).translate(0, 0.13, 0).toNonIndexed();
@@ -813,41 +925,51 @@ export function treeGeometry(): THREE.BufferGeometry {
   return out;
 }
 
-/** Unit box with its base at y = 0, lighter roof. */
 export function buildingGeometry(): THREE.BufferGeometry {
   const g = new Mesher();
   g.box([0, 0.5, 0], 0, 1, [0.5, 0.5, 0.5], new THREE.Color('#ffffff'), new THREE.Color('#ffffff').multiplyScalar(1.12));
-  // a darker band of windows near the top reads as "building" from afar
   return g.geometry();
 }
 
-/** Small tileable asphalt grain (canvas), shared by both qualities. */
+/**
+ * Photorealistic tileable aggregate asphalt texture with fine stone grain and
+ * racing-line rubber groove.
+ */
 export function asphaltTexture(): THREE.CanvasTexture | null {
   if (typeof document === 'undefined') return null;
   const c = document.createElement('canvas');
-  c.width = c.height = 128;
+  c.width = c.height = 512;
   const ctx = c.getContext('2d');
   if (!ctx) return null;
+
   const R = rng(1234);
-  const img = ctx.createImageData(128, 128);
-  for (let i = 0; i < 128 * 128; i++) {
-    const v = 200 + R() * 55;
-    img.data[i * 4] = v;
-    img.data[i * 4 + 1] = v;
-    img.data[i * 4 + 2] = v;
+  const img = ctx.createImageData(512, 512);
+
+  for (let i = 0; i < 512 * 512; i++) {
+    // Base asphalt tone with fine stone aggregate noise
+    const base = 195 + R() * 45;
+    const speckle = R() > 0.88 ? (R() > 0.5 ? 240 : 160) : base;
+    img.data[i * 4] = speckle;
+    img.data[i * 4 + 1] = speckle;
+    img.data[i * 4 + 2] = speckle;
     img.data[i * 4 + 3] = 255;
   }
   ctx.putImageData(img, 0, 0);
-  // faint racing-line rubber down the middle
-  const grd = ctx.createLinearGradient(0, 0, 128, 0);
-  grd.addColorStop(0.3, 'rgba(0,0,0,0)');
-  grd.addColorStop(0.5, 'rgba(0,0,0,0.18)');
-  grd.addColorStop(0.7, 'rgba(0,0,0,0)');
+
+  // Smooth darkened racing line (laid down by rubbering-in along the driving line)
+  const grd = ctx.createLinearGradient(0, 0, 512, 0);
+  grd.addColorStop(0.0, 'rgba(0,0,0,0)');
+  grd.addColorStop(0.3, 'rgba(0,0,0,0.04)');
+  grd.addColorStop(0.48, 'rgba(0,0,0,0.22)');
+  grd.addColorStop(0.52, 'rgba(0,0,0,0.24)');
+  grd.addColorStop(0.7, 'rgba(0,0,0,0.04)');
+  grd.addColorStop(1.0, 'rgba(0,0,0,0)');
   ctx.fillStyle = grd;
-  ctx.fillRect(0, 0, 128, 128);
+  ctx.fillRect(0, 0, 512, 512);
+
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
+  t.anisotropy = 8;
   return t;
 }
