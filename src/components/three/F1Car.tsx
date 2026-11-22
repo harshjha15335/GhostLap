@@ -1,6 +1,7 @@
-import { forwardRef, useEffect, useLayoutEffect, useMemo, useReducer, useRef, type ReactNode } from 'react';
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useReducer, useRef, Component, type ErrorInfo, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { useFrame, type ThreeElements } from '@react-three/fiber';
+import { useGLTF } from '@react-three/drei';
 import { getCarGeometry, REAR_AXLE_Z, REAR_TRACK_X, type MatKey, type PartMeshes } from './carGeometry';
 import { cancelTeamLiveryRequest, getLiveryTexture, isSmallScreen, requestTeamLiveryTexture, resolveLivery, type Livery } from './liveries';
 
@@ -107,6 +108,7 @@ export type F1CarProps = ThreeElements['group'] & {
   explode?: number;
   highlight?: CarPartId[];
   onPartHover?: (id: CarPartId | null) => void;
+  useModel?: boolean;
 };
 
 /** Official Pirelli F1 compound colours matching 2D TyreBadge.tsx */
@@ -269,6 +271,39 @@ function PartGroup({
   );
 }
 
+class ModelErrorBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.warn('W17 GLB model load failed, falling back to procedural:', error, errorInfo);
+  }
+  render() {
+    return this.state.hasError ? this.props.fallback : this.props.children;
+  }
+}
+
+function W17GlbModel() {
+  const { scene } = useGLTF('/models/w17.glb');
+  const clone = useMemo(() => {
+    const c = scene.clone(true);
+    c.traverse((node) => {
+      if ((node as THREE.Mesh).isMesh) {
+        node.castShadow = true;
+        node.receiveShadow = true;
+      }
+    });
+    return c;
+  }, [scene]);
+
+  return <primitive object={clone} />;
+}
+
+if (typeof window !== 'undefined') {
+  useGLTF.preload('/models/w17.glb');
+}
+
 export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
   {
     color = '#0B0B0B',
@@ -285,6 +320,7 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
     explode = 0,
     highlight,
     onPartHover,
+    useModel,
     ...group
   },
   ref,
@@ -375,8 +411,11 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
       return <mesh key={i} geometry={g} material={material} castShadow={shadow && mat !== 'ring'} receiveShadow={shadow && mat === 'body'} />;
     });
 
-  return (
-    <group ref={ref} {...group}>
+  const isMercedesHero =
+    (useModel ?? (detail === 'high' && !ghost && explode === 0 && (!teamId || teamId === 'mercedes')));
+
+  const proceduralCar = (
+    <>
       {/* 3 — Underfloor & Venturi tunnels */}
       <PartGroup e={e} onHover={onPartHover} id="floor">
         {meshes('floor', geo.floor)}
@@ -433,6 +472,18 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
       <PartGroup e={e} onHover={onPartHover} id="rearWing">
         {meshes('rearWing', geo.rearWing)}
       </PartGroup>
+    </>
+  );
+
+  return (
+    <group ref={ref} {...group}>
+      {isMercedesHero ? (
+        <ModelErrorBoundary fallback={proceduralCar}>
+          <W17GlbModel />
+        </ModelErrorBoundary>
+      ) : (
+        proceduralCar
+      )}
     </group>
   );
 });
