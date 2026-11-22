@@ -129,13 +129,15 @@ function evalChapter(k: number, t: number, c: Ctx, out: Pose) {
       // frames the car in the free band under the headline
       const fr = c.bus.heroFrame;
       const avail = Math.max(0.22, fr.bottom - fr.top);
-      const d = fitDistance(c.aspect, mobile ? 0.78 : 0.38, avail * 0.66) * (1 - 0.06 * t);
-      const e = mobile ? 0.42 : 0.4;
+      // the kerb ring (Ø ~7.4) must sit fully inside the band, above the scroll cue
+      const d = fitDistance(c.aspect, mobile ? 0.78 : 0.4, avail * 0.9, 5.4, 3.5) * (1 - 0.06 * t);
+      const e = mobile ? 0.42 : 0.36;
       const a = -0.5 + c.px * 0.06 + Math.sin(c.time * 0.15) * 0.03;
       tgt.set(0, 0.55, 0);
       eye.set(Math.sin(a) * Math.cos(e) * d, 0.55 + Math.sin(e) * d - c.py * 0.25, Math.cos(a) * Math.cos(e) * d);
       look(out, eye, tgt);
-      frameAt(out, 0.5, fr.top + (fr.bottom - fr.top) * 0.42, c.aspect);
+      // the ring's near edge projects low, so the car sits a little above the band's centre
+      frameAt(out, 0.5, fr.top + (fr.bottom - fr.top) * 0.36, c.aspect);
       out.focus.set(0, 0, 0);
       out.fog = 0.02;
       return;

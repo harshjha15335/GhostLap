@@ -278,12 +278,12 @@ function Turntable() {
   useEffect(() => () => pool.dispose(), [pool]);
   return (
     <>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.006, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
         <circleGeometry args={[3.08, 64]} />
         <meshStandardMaterial color="#4d545f" roughness={0.62} metalness={0.1} />
       </mesh>
       <Kerb points={ring} colors={['#E10600', '#F2F2F2']} width={0.6} block={0.78} glow={1.0} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]} renderOrder={-1}>
         <planeGeometry args={[20, 20]} />
         <meshBasicMaterial map={pool} transparent depthWrite={false} toneMapped={false} blending={THREE.AdditiveBlending} />
       </mesh>

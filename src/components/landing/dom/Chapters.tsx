@@ -72,7 +72,7 @@ export function HeroChapter({
       <div className="flex-1" />
 
       <div ref={cueRef} className="flex justify-center font-mono text-[10px] uppercase tracking-[0.2em] sm:text-[11px]">
-        <span className="scroll-cue flex items-center gap-2 text-neon">
+        <span className="scroll-cue flex items-center gap-2 rounded-full bg-asphalt/70 px-3 py-1 text-neon backdrop-blur-sm">
           Scroll to drive <span aria-hidden>↓</span>
         </span>
       </div>

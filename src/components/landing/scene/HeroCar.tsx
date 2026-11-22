@@ -182,11 +182,11 @@ export default function HeroCar({ bus, hover }: { bus: LandingBus; hover: Hotspo
         </mesh>
       </group>
       {/* soft contact shadow: a wide penumbra plus a tight core under the floor */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, -0.1]} renderOrder={1}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.07, -0.1]} renderOrder={1}>
         <planeGeometry args={[3.6, 7.6]} />
         <meshBasicMaterial map={shadowTex} transparent depthWrite={false} opacity={0.75} />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.035, -0.1]} renderOrder={1}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.075, -0.1]} renderOrder={1}>
         <planeGeometry args={[2.3, 5.6]} />
         <meshBasicMaterial map={shadowTex} transparent depthWrite={false} opacity={0.9} />
       </mesh>
