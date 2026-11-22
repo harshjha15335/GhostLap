@@ -30,8 +30,8 @@ export interface Livery {
 }
 
 export const LIVERIES: Record<string, Livery> = {
-  // primary / secondary sampled from the team livery sheets (see public/liveries/SOURCES.md)
-  mercedes: { primary: '#ADAAA8', secondary: '#0B0B0B', accent: '#00D7B6', pattern: 'fade' },
+  // primary / secondary sampled from the team livery sheets and 2026 Mercedes W17
+  mercedes: { primary: '#CFD5D4', secondary: '#0E1116', accent: '#00D7B6', pattern: 'fade' },
   ferrari: { primary: '#E20505', secondary: '#F4F4F4', accent: '#131212', pattern: 'split' },
   'red-bull-racing': { primary: '#0B1958', secondary: '#D7192C', accent: '#FFC906', pattern: 'stripe' },
   mclaren: { primary: '#EB7E11', secondary: '#181718', accent: '#EB7E11', pattern: 'split' },
@@ -154,6 +154,15 @@ function bodyColor(l: Required<Livery>, p: { x: number; y: number; z: number }, 
     }
   } else if (l.pattern === 'fade') {
     out.lerpColors(P, S, smooth(0.9, -1.1, p.z));
+    // Petronas emerald flowline stripe along the lower chassis flank / sidepod undercut
+    const ax = Math.abs(p.x);
+    if (ax > 0.11 && ax < 0.38 && p.y > 0.22 && p.y < 0.35 && p.z > -1.2 && p.z < 2.3) {
+      out.copy(A);
+    }
+    // Ineos red roll-hoop cowl accent at the top of the airbox
+    if (p.y > 0.92 && p.z > -0.42 && p.z < -0.14) {
+      out.set('#D6002A');
+    }
   }
   return out;
 }
