@@ -61,7 +61,6 @@ export default function HeroCar({ bus, hover }: { bus: LandingBus; hover: Hotspo
   const group = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const rings = useRef<THREE.Group>(null);
-  const shadow = useRef<THREE.Mesh>(null);
   const tilt = useMemo(() => ({ p: { x: 0, v: 0 }, r: { x: 0, v: 0 }, y: { x: 0, v: 0 } }), []);
   const spin = useRef(SPIN0);
   const canon = useRef(0);
@@ -128,7 +127,6 @@ export default function HeroCar({ bus, hover }: { bus: LandingBus; hover: Hotspo
     spring(tilt.r, -bus.pointer.x * 0.07 * w * inHero, k, c, dt);
     spring(tilt.y, bus.pointer.x * 0.45 * w, k, c, dt);
     b.rotation.set(tilt.p.x, tilt.y.x, tilt.r.x);
-    if (shadow.current) shadow.current.visible = bus.set === 'circuit' || bus.quality.mobile;
 
     // dirty-air plume
     const wakeTarget = inSpec * (hoverRef.current === 'wake' ? 1.2 : 0.28);
@@ -183,9 +181,14 @@ export default function HeroCar({ bus, hover }: { bus: LandingBus; hover: Hotspo
           <planeGeometry args={[2.6, 6, 1, 1]} />
         </mesh>
       </group>
-      <mesh ref={shadow} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]} renderOrder={1}>
-        <planeGeometry args={[3.2, 7.2]} />
-        <meshBasicMaterial map={shadowTex} transparent depthWrite={false} />
+      {/* soft contact shadow: a wide penumbra plus a tight core under the floor */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, -0.1]} renderOrder={1}>
+        <planeGeometry args={[3.6, 7.6]} />
+        <meshBasicMaterial map={shadowTex} transparent depthWrite={false} opacity={0.75} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.035, -0.1]} renderOrder={1}>
+        <planeGeometry args={[2.3, 5.6]} />
+        <meshBasicMaterial map={shadowTex} transparent depthWrite={false} opacity={0.9} />
       </mesh>
     </group>
   );

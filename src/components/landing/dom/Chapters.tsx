@@ -364,7 +364,11 @@ export function DriveChapter({
       let text = 'LOADING SILVERSTONE…';
       if (path) {
         const km = (lap * path.circuit.lengthKm).toFixed(2);
-        text = `${path.circuit.name.toUpperCase()} · SECTOR ${path.sector(lap)} · ${km} / ${path.circuit.lengthKm.toFixed(3)} KM · ${Math.round(lap * 100)}%`;
+        const name = path.circuit.name.toUpperCase();
+        const pct = Math.round(lap * 100);
+        text = L.mobile
+          ? `${name} · S${path.sector(lap)} · ${km} KM · ${pct}%`
+          : `${name} · SECTOR ${path.sector(lap)} · ${km} / ${path.circuit.lengthKm.toFixed(3)} KM · ${pct}%`;
       }
       if (text !== lastText && hudText.current) {
         hudText.current.textContent = text;

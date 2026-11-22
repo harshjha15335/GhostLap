@@ -1,4 +1,4 @@
-import { ContactShadows, Environment, Lightformer, MeshReflectorMaterial } from '@react-three/drei';
+import { Environment, Lightformer, MeshReflectorMaterial } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
@@ -264,10 +264,10 @@ function LightRig({ bus }: { bus: LandingBus }) {
 /* ------------------------------- turntable --------------------------------- */
 
 /** Hero plinth: a slightly lighter asphalt disc ringed by a real red/white kerb, plus a light pool. */
-function Turntable({ shadows }: { shadows: boolean }) {
+function Turntable() {
   const ring = useMemo(() => {
     const pts: THREE.Vector3[] = [];
-    const R = 3.6;
+    const R = 3.38;
     for (let i = 0; i <= 160; i++) {
       const a = (i / 160) * Math.PI * 2;
       pts.push(new THREE.Vector3(Math.cos(a) * R, 0, Math.sin(a) * R));
@@ -279,22 +279,21 @@ function Turntable({ shadows }: { shadows: boolean }) {
   return (
     <>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.006, 0]}>
-        <circleGeometry args={[3.26, 64]} />
+        <circleGeometry args={[3.08, 64]} />
         <meshStandardMaterial color="#4d545f" roughness={0.62} metalness={0.1} />
       </mesh>
-      <Kerb points={ring} colors={['#E10600', '#F2F2F2']} width={0.66} block={0.8} glow={1.0} />
+      <Kerb points={ring} colors={['#E10600', '#F2F2F2']} width={0.6} block={0.78} glow={1.0} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]}>
         <planeGeometry args={[20, 20]} />
         <meshBasicMaterial map={pool} transparent depthWrite={false} toneMapped={false} blending={THREE.AdditiveBlending} />
       </mesh>
-      {shadows && <ContactShadows position={[0, 0.02, 0]} scale={9} resolution={512} blur={2.4} opacity={0.85} far={2.2} frames={Infinity} />}
     </>
   );
 }
 
 /* ---------------------------------- world ---------------------------------- */
 
-export default function World({ bus, studioShadows }: { bus: LandingBus; studioShadows: boolean }) {
+export default function World({ bus }: { bus: LandingBus }) {
   const q = bus.quality;
   const studio = useRef<THREE.Group>(null);
   useFrame(() => {
@@ -315,7 +314,7 @@ export default function World({ bus, studioShadows }: { bus: LandingBus; studioS
 
       <group ref={studio}>
         <Floor reflector={q.reflector} />
-        <Turntable shadows={studioShadows} />
+        <Turntable />
 
         {/* floodlight rigs: hero and flow regions */}
         <Floodlight position={[-16, 0, -14]} aim={0.6} />

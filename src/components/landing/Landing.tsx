@@ -198,7 +198,6 @@ export default function Landing() {
           hover={hover}
           grid={stats.grid}
           path={path}
-          studioShadows={!quality.mobile && choreo.active <= 1}
           live={sceneLive}
         />
         {/* dip-to-black between the studio and circuit sets (opacity driven by the camera rig) */}

@@ -22,7 +22,6 @@ export default function LandingScene({
   hover,
   grid,
   path,
-  studioShadows,
   live = true,
 }: {
   bus: LandingBus;
@@ -30,8 +29,6 @@ export default function LandingScene({
   hover: HotspotId | null;
   grid: FlowCar[];
   path: DrivePath | null;
-  /** soft contact shadow under the hero car (desktop, hero/specimen only) */
-  studioShadows: boolean;
   /** false while DOM-only chapters cover the canvas: stop rendering entirely */
   live?: boolean;
 }) {
@@ -52,7 +49,7 @@ export default function LandingScene({
       {/* rig first so its useFrame runs before anything that projects anchors */}
       <CameraRig bus={bus} layout={layout} />
       <Suspense fallback={null}>
-        <World bus={bus} studioShadows={studioShadows} />
+        <World bus={bus} />
         <HeroCar bus={bus} hover={hover} />
         <SCurveFlow bus={bus} grid={grid} />
       </Suspense>
