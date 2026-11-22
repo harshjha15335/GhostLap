@@ -271,8 +271,8 @@ function PartGroup({
 
 export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
   {
-    color = '#D4FF00',
-    accent = '#D4FF00',
+    color = '#0B0B0B',
+    accent = '#00D7B6',
     teamId,
     livery,
     liveryTexture,
@@ -280,7 +280,7 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
     logoTexture,
     ghost = false,
     tyreGlow = 0.8,
-    tyreColor = '#E8002D',
+    tyreColor = '#00D7B6',
     detail = 'high',
     explode = 0,
     highlight,
@@ -291,7 +291,7 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
 ) {
   const geo = getCarGeometry(detail);
   const hl = useMemo(() => new Set(highlight ?? []), [highlight]);
-  const tid = teamId ?? (typeof livery === 'string' ? livery : undefined);
+  const tid = teamId ?? (typeof livery === 'string' ? livery : (livery ? undefined : 'mercedes'));
   const liv = resolveLivery(livery ?? tid, color, accent);
   const teamTex = useTeamLiveryTexture(ghost || liveryTexture ? undefined : tid, detail === 'low' || isSmallScreen());
 

@@ -514,6 +514,11 @@ function buildMonocoque(hi: boolean): PartMeshes {
   py.scale(0.75, 1, 1);
   acc.push(py);
 
+  // Mercedes W17 halo crown aerodynamic deflector vane
+  if (hi) {
+    acc.push(box(0.18, 0.009, 0.038, [0, 0.942, 0.48], [0.08, 0, 0]));
+  }
+
   // Wheels
   const fl = wheelParts(-FRONT_TRACK_X, FRONT_AXLE_Z, FRONT_W, hi);
   const fr = wheelParts(FRONT_TRACK_X, FRONT_AXLE_Z, FRONT_W, hi);

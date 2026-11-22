@@ -1,6 +1,12 @@
 # 3D Model and Asset Credits
 
-## 3D Car Design Reference
+## 3D Car Design References
+- **Model**: "2026 Mercedes W17"
+- **Author**: Dave Love / Tyler_Dave (https://sketchfab.com/Tyler_Dave)
+- **Source**: https://sketchfab.com/3d-models/2026-mercedes-w17-b806f1e70aa343219e7158169549b97b
+- **License**: Creative Commons Attribution (CC-BY 4.0) (http://creativecommons.org/licenses/by/4.0/)
+- **Usage**: Reference design, Mercedes W17 aerodynamics, halo flow deflector vane, and livery styling.
+
 - **Model**: "F1 2026 concept (polygon model)"
 - **Author**: Qvist_designs (https://sketchfab.com/Qvist_designs)
 - **Source**: https://sketchfab.com/3d-models/f1-2026-concept-polygon-model-ea3bde709b1e4dc9b0ec8557d106ed42
