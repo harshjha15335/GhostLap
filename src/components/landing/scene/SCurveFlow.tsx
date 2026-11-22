@@ -60,10 +60,10 @@ export default function SCurveFlow({ bus, grid }: { bus: LandingBus; grid: FlowC
       // right of travel (+X) is +Z; inside of a +Z peak is -Z => left
       out.push({
         pts: offsetLine(near, -bulge * (HALF_W + 0.75)),
-        colors: ax > 0 ? ['#FF1E1E', '#F2F2F2'] : ['#D4FF00', '#0B0E14'],
+        colors: ['#E10600', '#F2F2F2'],
       });
       // outside: short track-limit kerb
-      out.push({ pts: offsetLine(near.slice(6, -6), bulge * (HALF_W + 0.75)), colors: ['#F2F2F2', '#FF1E1E'] });
+      out.push({ pts: offsetLine(near.slice(6, -6), bulge * (HALF_W + 0.75)), colors: ['#F2F2F2', '#E10600'] });
     });
     return out;
   }, [center]);
@@ -216,7 +216,7 @@ export default function SCurveFlow({ bus, grid }: { bus: LandingBus; grid: FlowC
   useFrame((state, dt) => {
     const s = bus.choreo.current;
     const ch = s.chapters;
-    const near = s.scrollY > ch[3].top - s.vh * 1.6 && s.scrollY < ch[3].top + ch[3].height + s.vh * 0.6;
+    const near = bus.set === 'studio' && s.scrollY > ch[3].top - s.vh * 1.6 && s.scrollY < ch[3].top + ch[3].height + s.vh * 0.6;
     if (root.current) root.current.visible = near;
     if (!near && placed.current) return;
     const reduced = s.reducedMotion;

@@ -109,8 +109,8 @@ function chase(c: Ctx, f: number, out: Pose) {
   }
   p.point(f, carP);
   p.heading(f, head, 34);
-  const H = L.mobile ? 64 : 44;
-  const back = L.mobile ? 18 : 15;
+  const H = L.mobile ? 82 : 64;
+  const back = L.mobile ? 22 : 21;
   eye.copy(carP).addScaledVector(head, -back);
   eye.y += H;
   look(out, eye, carP);
@@ -129,8 +129,8 @@ function evalChapter(k: number, t: number, c: Ctx, out: Pose) {
       // frames the car in the free band under the headline
       const fr = c.bus.heroFrame;
       const avail = Math.max(0.22, fr.bottom - fr.top);
-      const d = fitDistance(c.aspect, mobile ? 0.86 : 0.5, avail * 0.86) * (1 - 0.06 * t);
-      const e = mobile ? 0.2 : 0.17;
+      const d = fitDistance(c.aspect, mobile ? 0.8 : 0.42, avail * 0.8) * (1 - 0.06 * t);
+      const e = mobile ? 0.42 : 0.4;
       const a = -0.5 + c.px * 0.06 + Math.sin(c.time * 0.15) * 0.03;
       tgt.set(0, 0.55, 0);
       eye.set(Math.sin(a) * Math.cos(e) * d, 0.55 + Math.sin(e) * d - c.py * 0.25, Math.cos(a) * Math.cos(e) * d);

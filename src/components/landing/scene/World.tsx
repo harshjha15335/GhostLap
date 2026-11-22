@@ -1,11 +1,10 @@
-import { Environment, Lightformer, MeshReflectorMaterial } from '@react-three/drei';
+import { ContactShadows, Environment, Lightformer, MeshReflectorMaterial } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import type { LandingBus } from '../bus';
 import { S_CENTER_Z, U_CENTER_Z } from '../layout';
-import Kerb, { offsetLine } from './Kerb';
-import { ribbonGeometry } from './geometry';
+import Kerb from './Kerb';
 import { asphaltTextures, radialTexture } from './textures';
 
 const FLOOR_CENTER_Z = 150;
@@ -208,42 +207,104 @@ function Particles({
 
 /* --------------------------------- lights ---------------------------------- */
 
+/**
+ * One fixed light rig for both sets (light count never changes, so no shader
+ * recompiles at the set swap): studio key / rims / fill follow the camera focus,
+ * the hemisphere + sun are retuned for the dusk circuit.
+ */
 function LightRig({ bus }: { bus: LandingBus }) {
   const g = useRef<THREE.Group>(null);
+  const hemi = useRef<THREE.HemisphereLight>(null);
+  const sun = useRef<THREE.DirectionalLight>(null);
+  const studio = useRef<THREE.PointLight[]>([]);
+  const base = [210, 260, 120, 60];
+  const sky = useMemo(() => ({ s: new THREE.Color('#33415a'), c: new THREE.Color('#e3ecff'), gs: new THREE.Color('#06080b'), gc: new THREE.Color('#4d5a3e') }), []);
   useFrame((_, dt) => {
     const o = g.current;
     if (!o) return;
     o.position.x = THREE.MathUtils.damp(o.position.x, bus.focus.x, 2, dt);
     o.position.z = THREE.MathUtils.damp(o.position.z, bus.focus.z, 2, dt);
+    const circuit = bus.set === 'circuit';
+    studio.current.forEach((l, i) => l && (l.intensity = circuit ? 0 : base[i]));
+    const h = hemi.current;
+    if (h) {
+      h.color.copy(circuit ? sky.c : sky.s);
+      h.groundColor.copy(circuit ? sky.gc : sky.gs);
+      h.intensity = circuit ? 1.35 : 0.5;
+    }
+    const d = sun.current;
+    if (d) {
+      d.intensity = circuit ? 2.1 : 0.55;
+      d.color.set(circuit ? '#ffd9b0' : '#9fb4d6');
+      d.position.set(bus.focus.x - 60, 80, bus.focus.z + (circuit ? 40 : 20));
+      d.target.position.copy(bus.focus);
+      d.target.updateMatrixWorld();
+    }
   });
+  const reg = (i: number) => (l: THREE.PointLight | null) => {
+    if (l) studio.current[i] = l;
+  };
   return (
-    <group ref={g}>
-      <pointLight position={[-9, 16, 7]} intensity={230} distance={70} decay={2} color="#e6edff" />
-      <pointLight position={[11, 14, -8]} intensity={170} distance={65} decay={2} color="#ffd9b0" />
-      <pointLight position={[0, 9, -14]} intensity={90} distance={45} decay={2} color="#00F5D4" />
-    </group>
+    <>
+      <hemisphereLight ref={hemi} args={['#33415a', '#06080b', 0.5]} />
+      <directionalLight ref={sun} position={[-30, 50, 20]} intensity={0.55} color="#9fb4d6" />
+      <group ref={g}>
+        {/* key: front-left, high */}
+        <pointLight ref={reg(0)} position={[-7, 10, 8]} intensity={210} distance={70} decay={2} color="#f2f5ff" />
+        {/* rims: behind the car, cool white + warm */}
+        <pointLight ref={reg(1)} position={[6, 6, -9]} intensity={260} distance={60} decay={2} color="#dfe8ff" />
+        <pointLight ref={reg(2)} position={[-9, 4, -7]} intensity={120} distance={45} decay={2} color="#ffcf9e" />
+        {/* soft fill from below-front */}
+        <pointLight ref={reg(3)} position={[3, 2.2, 9]} intensity={60} distance={40} decay={2} color="#c9d6ff" />
+      </group>
+    </>
+  );
+}
+
+/* ------------------------------- turntable --------------------------------- */
+
+/** Hero plinth: a slightly lighter asphalt disc ringed by a real red/white kerb, plus a light pool. */
+function Turntable({ shadows }: { shadows: boolean }) {
+  const ring = useMemo(() => {
+    const pts: THREE.Vector3[] = [];
+    const R = 3.6;
+    for (let i = 0; i <= 160; i++) {
+      const a = (i / 160) * Math.PI * 2;
+      pts.push(new THREE.Vector3(Math.cos(a) * R, 0, Math.sin(a) * R));
+    }
+    return pts;
+  }, []);
+  const pool = useMemo(() => radialTexture('rgba(200,214,240,0.5)', 'rgba(200,214,240,0)'), []);
+  useEffect(() => () => pool.dispose(), [pool]);
+  return (
+    <>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.006, 0]}>
+        <circleGeometry args={[3.26, 64]} />
+        <meshStandardMaterial color="#4d545f" roughness={0.62} metalness={0.1} />
+      </mesh>
+      <Kerb points={ring} colors={['#E10600', '#F2F2F2']} width={0.66} block={0.8} glow={1.0} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]}>
+        <planeGeometry args={[20, 20]} />
+        <meshBasicMaterial map={pool} transparent depthWrite={false} toneMapped={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+      {shadows && <ContactShadows position={[0, 0.02, 0]} scale={9} resolution={512} blur={2.4} opacity={0.85} far={2.2} frames={Infinity} />}
+    </>
   );
 }
 
 /* ---------------------------------- world ---------------------------------- */
 
-export default function World({ bus }: { bus: LandingBus }) {
+export default function World({ bus, studioShadows }: { bus: LandingBus; studioShadows: boolean }) {
   const q = bus.quality;
-  // hero apex kerb + white line, right of the parked car
-  const heroArc = useMemo(() => {
-    const pts: THREE.Vector3[] = [];
-    for (let z = -12; z <= 3; z += 0.5) pts.push(new THREE.Vector3(3.9 + 0.035 * z * z, 0, z));
-    return pts;
-  }, []);
-  const heroLine = useMemo(() => ribbonGeometry(offsetLine(heroArc, -0.95), 0.16, 0, 0.03), [heroArc]);
-  useEffect(() => () => heroLine.dispose(), [heroLine]);
+  const studio = useRef<THREE.Group>(null);
+  useFrame(() => {
+    if (studio.current) studio.current.visible = bus.set === 'studio';
+  });
 
   return (
     <>
-      <color attach="background" args={['#080B10']} />
-      <fogExp2 attach="fog" args={['#0b0f16', 0.02]} />
-      <hemisphereLight args={['#33415a', '#06080b', 0.45]} />
-      <directionalLight position={[-30, 50, 20]} intensity={0.5} color="#9fb4d6" />
+      <color attach="background" args={['#090c12']} />
+      <fogExp2 attach="fog" args={['#090c12', 0.02]} />
       <LightRig bus={bus} />
 
       <Environment resolution={q.envResolution} frames={1} environmentIntensity={0.85}>
@@ -252,26 +313,23 @@ export default function World({ bus }: { bus: LandingBus }) {
         <Lightformer form="rect" intensity={0.6} color="#cfe3ff" position={[10, 3, -6]} rotation-y={-Math.PI / 2.5} scale={[8, 1.5, 1]} />
       </Environment>
 
-      <Floor reflector={q.reflector} />
+      <group ref={studio}>
+        <Floor reflector={q.reflector} />
+        <Turntable shadows={studioShadows} />
 
-      {/* hero apex */}
-      <Kerb points={heroArc} colors={['#FF1E1E', '#F2F2F2']} />
-      <mesh geometry={heroLine}>
-        <meshBasicMaterial color="#e9edf2" toneMapped={false} side={THREE.DoubleSide} />
-      </mesh>
+        {/* floodlight rigs: hero and flow regions */}
+        <Floodlight position={[-16, 0, -14]} aim={0.6} />
+        <Floodlight position={[18, 0, -20]} aim={-0.5} color="#ffe6c7" />
+        <Floodlight position={[-70, 0, S_CENTER_Z - 46]} aim={0.2} />
+        <Floodlight position={[0, 0, S_CENTER_Z - 50]} />
+        <Floodlight position={[70, 0, S_CENTER_Z - 46]} aim={-0.2} color="#ffe6c7" />
+        <Floodlight position={[-30, 0, U_CENTER_Z - 24]} aim={0.15} />
+        <Floodlight position={[34, 0, U_CENTER_Z - 24]} aim={-0.15} color="#ffe6c7" />
 
-      {/* floodlight rigs: hero, flow and undercut regions */}
-      <Floodlight position={[-16, 0, -14]} aim={0.6} />
-      <Floodlight position={[18, 0, -20]} aim={-0.5} color="#ffe6c7" />
-      <Floodlight position={[-70, 0, S_CENTER_Z - 46]} aim={0.2} />
-      <Floodlight position={[0, 0, S_CENTER_Z - 50]} />
-      <Floodlight position={[70, 0, S_CENTER_Z - 46]} aim={-0.2} color="#ffe6c7" />
-      <Floodlight position={[-30, 0, U_CENTER_Z - 24]} aim={0.15} />
-      <Floodlight position={[34, 0, U_CENTER_Z - 24]} aim={-0.15} color="#ffe6c7" />
-
-      {/* rubber dust in the haze + hot sparks near the ground */}
-      <Particles bus={bus} count={q.particles} color="#8a93a3" size={2.2} box={DUST_BOX} speed={DUST_SPEED} additive={false} opacity={0.55} />
-      <Particles bus={bus} count={q.sparks} color="#FF7A00" size={1.6} box={SPARK_BOX} speed={SPARK_SPEED} additive opacity={1} />
+        {/* rubber dust in the haze + hot sparks near the ground */}
+        <Particles bus={bus} count={q.particles} color="#8a93a3" size={2.2} box={DUST_BOX} speed={DUST_SPEED} additive={false} opacity={0.55} />
+        <Particles bus={bus} count={q.sparks} color="#FF7A00" size={1.6} box={SPARK_BOX} speed={SPARK_SPEED} additive opacity={1} />
+      </group>
     </>
   );
 }
