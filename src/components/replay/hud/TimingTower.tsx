@@ -1,23 +1,16 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { CarState, Compound } from '@/types';
-import { COMPOUND_COLORS } from '@/components/three/F1Car';
+import TyreBadge from '@/components/ui/TyreBadge';
 import { useRaceLab } from '@/store/raceLabStore';
 import { useDriverLookup } from '@/store/seasonStore';
 import { useTicker } from '../lib/frame';
 import { COMPOUND_SHORT, fmtGap, ghostProgress, timeAtProgress } from '../lib/raceMath';
 
 export function TyreChip({ compound, age, size = 'sm' }: { compound: Compound; age?: number; size?: 'sm' | 'md' }) {
-  const c = COMPOUND_COLORS[compound];
-  const d = size === 'md' ? 'h-6 w-6 text-[11px]' : 'h-[18px] w-[18px] text-[9px]';
   return (
-    <span className="inline-flex items-center gap-1">
-      <span
-        className={`inline-flex ${d} items-center justify-center rounded-full border-2 bg-asphalt font-mono font-bold leading-none`}
-        style={{ borderColor: c, color: c }}
-      >
-        {COMPOUND_SHORT[compound]}
-      </span>
+    <span className="inline-flex items-center gap-1" title={`${compound.toLowerCase()} · ${COMPOUND_SHORT[compound]}`}>
+      <TyreBadge compound={compound} size={size === 'md' ? 26 : 20} letter />
       {age !== undefined && <span className="w-4 font-mono text-[10px] text-white/45">{age}</span>}
     </span>
   );
