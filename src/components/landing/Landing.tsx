@@ -22,8 +22,7 @@ import { useLandingStats } from './stats';
 const CSS = `
 .kl-ink { color: ${PALETTE.ink}; }
 .kl-cream { color: ${PALETTE.cream}; text-shadow: 0 0.04em 0 ${PALETTE.ink}; }
-.kl-wipe { position:absolute; left:0; right:0; top:0; height:118vh; background: var(--wipe, ${PALETTE.chartreuse}); border-radius: 50% 50% 0 0 / 14vh 14vh 0 0; overflow:hidden; }
-.kl-paper { position:absolute; inset:0; pointer-events:none; background-color: var(--paper, ${PALETTE.chartreuse}); }
+.kl-wipe { position:absolute; left:0; right:0; top:-16vh; height:134vh; background: var(--wipe, ${PALETTE.chartreuse}); border-radius: 50% 50% 0 0 / 14vh 14vh 0 0; overflow:hidden; }
 .kinetic-letter { padding: 0 0.008em; }
 .tele-delta[data-gain="1"] { background: #D4FF00; color: #080B10; }
 .tele-delta[data-gain="0"] { background: #FF1E1E; color: #fff; }

@@ -41,7 +41,7 @@ export const KERB_W = 1.25;
 const KERB_H = 0.12;
 const KERB_BLOCK = 1.5;
 const LINE_W = 0.34;
-const LINE_IN = 0.12;
+const LINE_IN = 0.06;
 
 export interface Frames {
   n: number;

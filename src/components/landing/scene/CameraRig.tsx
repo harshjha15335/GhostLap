@@ -289,7 +289,7 @@ export default function CameraRig({ bus, layout }: { bus: LandingBus; layout: La
     const { a, b, out } = poses;
     evalChapter(k, tOf(k), ctx, out);
     let set = SET_OF[Math.min(k, 3)];
-    // wipe state: cover 0..1 (slides up from below), opacity of the reveal, colour
+    // wipe state: cover 0..1 slides the sheet up to fill the screen, 1..2 carries it off the top
     let cover = 0;
     let wipeO = 0;
     let wipeC = '';
@@ -305,11 +305,12 @@ export default function CameraRig({ bus, layout }: { bus: LandingBus; layout: La
           blend(from, to, w, out);
           return;
         }
-        // a curved paper wipe in the next chapter's colour slides up, the set swaps
-        // under it, then it fades to reveal the new ground (same colour)
+        // a curved paper sheet in the next chapter's colour slides up over the screen,
+        // the set swaps under it, then it carries on up and off (its straight bottom
+        // edge reveals the new ground, which is the same colour)
         wipeC = WIPE_OF[i];
-        cover = w < 0.5 ? smooth01(w / 0.44) : 1;
-        wipeO = w < 0.5 ? 1 : 1 - smooth01((w - 0.56) / 0.44);
+        cover = w < 0.5 ? smooth01(w / 0.44) : 1 + smooth01((w - 0.56) / 0.44);
+        wipeO = cover >= 1.999 ? 0 : 1;
         set = w < 0.5 ? SET_OF[i - 1] : SET_OF[i];
         if (w < 0.5) {
           // push in toward the subject while the wipe rises
@@ -347,7 +348,8 @@ export default function CameraRig({ bus, layout }: { bus: LandingBus; layout: La
       const o = wipeO.toFixed(3);
       if (vl.style.opacity !== o) vl.style.opacity = o;
       if (wipeO > 0) {
-        const tr = `translate3d(0, ${((1 - cover) * 125).toFixed(2)}%, 0)`;
+        const ty = cover <= 1 ? (1 - cover) * 92 : -(cover - 1) * 100;
+        const tr = `translate3d(0, ${ty.toFixed(2)}%, 0)`;
         if (vl.style.transform !== tr) vl.style.transform = tr;
         if (wipeC && vl.dataset.c !== wipeC) {
           vl.dataset.c = wipeC;
