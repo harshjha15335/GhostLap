@@ -82,6 +82,14 @@ export interface CircuitGeometry {
   sectorSplits: [number, number];
   /** raw elevation range in metres (for labels), may be approximate */
   elevationRangeM: number;
+  /**
+   * Optional per-point track half-widths `[left, right]` in render units (same scale as
+   * `points`, one pair per point), relative to the racing direction; right = tangent × up.
+   * Real widths from the TUMFTM racetrack-database where it covers the circuit, aligned
+   * to this centre line; otherwise a uniform default (~12 m). Real-world scale, so
+   * renderers usually exaggerate it.
+   */
+  widths?: [number, number][];
 }
 
 export interface Stint {

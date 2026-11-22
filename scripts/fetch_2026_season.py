@@ -12,6 +12,9 @@ Outputs
   src/data/seed/season.json             copy of season.json (embedded fallback)
   src/data/seed/<slug>.json             RaceBundle for the seed races
 
+Circuit widths come from the TUMFTM racetrack-database (LGPL-3.0) via
+scripts/track_widths.py, which can also patch existing bundles on its own.
+
 Usage
   python3 scripts/fetch_2026_season.py            # use cache where present
   python3 scripts/fetch_2026_season.py --refresh  # ignore cache
@@ -34,6 +37,10 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+
+sys.dont_write_bytecode = True  # keep scripts/ free of __pycache__
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from track_widths import attach_widths  # noqa: E402  (sibling module, stdlib only)
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / "scripts" / ".cache"
@@ -939,6 +946,8 @@ def process_race(meeting, race_sess, quali_sess, round_no, slug, drivers_meta):
             circuit = q_circuit
     if circuit:
         circuit.pop("_quality", None)
+        # per-point track widths (TUMFTM racetrack-database where it covers the circuit)
+        attach_widths(circuit, slug, refresh=REFRESH)
     if circuit is None:
         qa["strategy"].append("WARNING: no location data — fallback oval geometry")
         circuit = fallback_circuit(slug, race_sess["circuit_short_name"])
