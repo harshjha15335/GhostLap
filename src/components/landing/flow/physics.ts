@@ -95,6 +95,9 @@ export function step(world: World, dt: number) {
           const sum = ia + ib;
           if (sum === 0) continue;
           const pen = rr - d;
+          // rolling resistance between touching discs
+          a.va *= 0.97;
+          b.va *= 0.97;
           a.x -= nx * pen * (ia / sum);
           a.y -= ny * pen * (ia / sum);
           b.x += nx * pen * (ib / sum);
@@ -108,10 +111,12 @@ export function step(world: World, dt: number) {
             a.vy -= j * ny * ia;
             b.vx += j * nx * ib;
             b.vy += j * ny * ib;
-            // tangential velocity spins the discs a little
-            const vt = rvx * -ny + rvy * nx;
-            a.va -= (vt / a.r) * 0.08 * (ia ? 1 : 0);
-            b.va += (vt / b.r) * 0.08 * (ib ? 1 : 0);
+            // real impacts (not resting contact) spin the discs a little
+            if (vn < -60) {
+              const vt = rvx * -ny + rvy * nx;
+              a.va -= (vt / a.r) * 0.08 * (ia ? 1 : 0);
+              b.va += (vt / b.r) * 0.08 * (ib ? 1 : 0);
+            }
             // contact friction
             a.vx *= 0.995;
             b.vx *= 0.995;

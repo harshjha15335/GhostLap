@@ -149,9 +149,11 @@ export default function PitExit({
       L.last = now;
       step(w, dt);
       render();
-      const moving = w.bodies.some((b) => b.held || Math.abs(b.vx) + Math.abs(b.vy) > 8 || b.y < 0);
+      // resting contacts jitter a few px/s under gravity: treat that as asleep
+      const moving = w.bodies.some((b) => b.held || Math.abs(b.vx) + Math.abs(b.vy) > 45 || Math.abs(b.va) > 0.25 || b.y < 0);
       L.calm = moving ? 0 : L.calm + dt;
-      if (L.calm < 1.2) L.raf = requestAnimationFrame(tick);
+      if (L.calm < 0.8) L.raf = requestAnimationFrame(tick);
+      else w.bodies.forEach((b) => (b.vx = b.vy = b.va = 0));
     };
     L.raf = requestAnimationFrame(tick);
   }, [reduced, render]);
@@ -265,7 +267,7 @@ export default function PitExit({
       {/* physics pile */}
       <div
         ref={layer}
-        className="absolute inset-x-0 top-0"
+        className="absolute inset-x-0 top-0 z-[2]"
         style={{ height: height - floorPad }}
         onPointerMove={onMove}
         onPointerUp={onUp}
