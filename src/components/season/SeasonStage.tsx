@@ -3,8 +3,12 @@ import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, MeshReflectorMaterial, SpotLight } from '@react-three/drei';
 import { CAR_PARTS, EXPLODE_VECTORS, F1Car, PART_ANCHORS, type CarPartId } from '@/components/three/F1Car';
+import { DriverFigure, type DriverPose } from '@/components/three/DriverFigure';
+import { LIVERIES } from '@/components/three/liveries';
 import { useCanvasDpr, useInView, useIsMobile } from '@/components/ui/hooks';
-import type { Entity } from './seasonStats';
+import { useSeason } from '@/store/seasonStore';
+import type { Driver } from '@/types';
+import { teamDrivers, type Entity } from './seasonStats';
 
 /**
  * ONE <Canvas> for the whole /season page. Two stages live side by side in
@@ -110,12 +114,28 @@ const TIERS = [
 const TIER_W = 5.6;
 const TIER_D = 4.4;
 
+const POSES: Record<number, DriverPose> = { 1: 'celebrate', 2: 'wave', 3: 'stand' };
+
+/** The driver(s) to stand on a tier: the driver in drivers mode, both race drivers in teams mode. */
+function usePodiumDrivers(entity?: Entity): Driver[] {
+  const season = useSeason();
+  return useMemo(() => {
+    if (!entity || !season) return [];
+    if (entity.mode === 'drivers') return season.drivers.filter((d) => String(d.number) === entity.key);
+    return teamDrivers(season, entity.teamId).slice(0, 2);
+  }, [entity, season]);
+}
+
 function Tier({ place, x, h, entity, selected, onSelect }: { place: number; x: number; h: number; entity?: Entity; selected: boolean; onSelect: (k: string) => void }) {
   const tex = useNumberTexture(String(place), place === 1 ? '#D4FF00' : '#E8ECF2');
   const car = useRef<THREE.Group>(null);
   const [target] = useState(() => new THREE.Object3D());
-  useFrame((_, dt) => {
-    if (car.current) car.current.rotation.y += dt * 0.25 * (place === 2 ? -1 : 1);
+  const drivers = usePodiumDrivers(entity);
+  const side = place === 2 ? -1 : 1;
+  // the car sits angled at the back of the tier and sways gently; drivers stand in front of it
+  const baseYaw = side * (Math.PI / 2 - 0.55);
+  useFrame(({ clock }) => {
+    if (car.current) car.current.rotation.y = baseYaw + Math.sin(clock.elapsedTime * 0.45 + place) * 0.22;
   });
   return (
     <group position={[x, 0, 0]}>
@@ -141,9 +161,7 @@ function Tier({ place, x, h, entity, selected, onSelect }: { place: number; x: n
       </mesh>
       {entity && (
         <group
-          ref={car}
           position={[0, h + 0.12, 0]}
-          scale={0.78}
           onClick={(e) => {
             e.stopPropagation();
             onSelect(entity.key);
@@ -151,11 +169,27 @@ function Tier({ place, x, h, entity, selected, onSelect }: { place: number; x: n
           onPointerOver={() => (document.body.style.cursor = 'pointer')}
           onPointerOut={() => (document.body.style.cursor = '')}
         >
-          <F1Car color={entity.color} accent={entity.color} tyreGlow={0.4} tyreColor="#D4FF00" />
+          <group ref={car} position={[0, 0, -0.75]} scale={0.74}>
+            <F1Car teamId={entity.teamId} color={entity.color} accent={entity.color} number={entity.number} tyreGlow={0.4} tyreColor="#D4FF00" />
+          </group>
+          {drivers.map((d, i) => (
+            <DriverFigure
+              key={d.number}
+              livery={LIVERIES[d.teamId] ? d.teamId : undefined}
+              teamColor={d.color}
+              accent={entity.color}
+              number={d.number}
+              code={d.code}
+              pose={POSES[place] ?? 'stand'}
+              position={[drivers.length > 1 ? (i ? 0.95 : -0.95) : side * 0.6, 0, 1.25]}
+              rotation={[0, drivers.length > 1 ? (i ? -0.2 : 0.2) : -side * 0.15, 0]}
+              scale={0.86}
+            />
+          ))}
         </group>
       )}
       {entity && (
-        <Html position={[0, h + 2.25, 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
+        <Html position={[0, h + 2.45, 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
           <div className="whitespace-nowrap text-center font-mono leading-tight">
             <div className="text-[11px] font-semibold text-white" style={{ textShadow: '0 1px 6px #000' }}>
               <span className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: entity.color }} />
@@ -221,7 +255,7 @@ function HeroTurntable({ entity }: { entity: Entity | null }) {
       </mesh>
       <group ref={group}>
         <group ref={car} position={[0, 0.09, 0]}>
-          {shown && <F1Car color={shown.color} accent={shown.color} tyreGlow={0.7} tyreColor="#00F5D4" />}
+          {shown && <F1Car teamId={shown.teamId} color={shown.color} accent={shown.color} number={shown.number} tyreGlow={0.7} tyreColor="#00F5D4" />}
         </group>
       </group>
       <primitive object={target} position={[0, 0, 0]} />
@@ -363,7 +397,8 @@ function Exploded({
   hoveredPart,
   yaw,
   mobile,
-}: Pick<SeasonStageProps, 'carColor' | 'explode' | 'highlight' | 'onPartHover' | 'hoveredPart'> & { yaw: MutableRefObject<number>; mobile: boolean }) {
+  teamId,
+}: Pick<SeasonStageProps, 'carColor' | 'explode' | 'highlight' | 'onPartHover' | 'hoveredPart'> & { yaw: MutableRefObject<number>; mobile: boolean; teamId?: string }) {
   const spin = useRef<THREE.Group>(null);
   const hl = useMemo(() => new Set(highlight), [highlight]);
   useFrame((_, dt) => {
@@ -383,7 +418,7 @@ function Exploded({
         <meshBasicMaterial color="#00F5D4" transparent opacity={0.5} toneMapped={false} />
       </mesh>
       <group ref={spin} position={[0, 0, 0]}>
-        <F1Car color={carColor} accent={carColor} explode={explode} highlight={highlight} onPartHover={onPartHover} tyreGlow={0.5} tyreColor="#00F5D4" />
+        <F1Car teamId={teamId} color={carColor} accent={carColor} explode={explode} highlight={highlight} onPartHover={onPartHover} tyreGlow={0.5} tyreColor="#00F5D4" />
         <Leaders explode={explode} highlight={hl} hovered={hoveredPart} mobile={mobile} />
       </group>
       <spotLight position={[3, 9, 6]} angle={0.6} penumbra={0.6} intensity={140} distance={30} color="#eaf6ff" />
@@ -459,6 +494,7 @@ export default function SeasonStage(props: SeasonStageProps) {
               hoveredPart={props.hoveredPart}
               yaw={yaw}
               mobile={mobile}
+              teamId={props.selected?.teamId}
             />
           </StageVisibility>
         </Suspense>

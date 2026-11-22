@@ -142,10 +142,10 @@ export const Cars = memo(function Cars({ bundle, timeline, curve }: CarsProps) {
     const found = new Set<THREE.MeshStandardMaterial>();
     g.traverse((o) => {
       const m = o as THREE.Mesh;
-      if (m.isMesh && m.geometry?.type === 'TorusGeometry') {
-        const mat = m.material as THREE.MeshStandardMaterial;
-        if (mat && mat.toneMapped === false) found.add(mat);
-      }
+      if (!m.isMesh) return;
+      const mat = m.material as THREE.MeshStandardMaterial;
+      // F1Car tags its compound-ring material (rings are merged, so not a TorusGeometry any more)
+      if (mat && (mat.userData?.tyreRing === true || (m.geometry?.type === 'TorusGeometry' && mat.toneMapped === false))) found.add(mat);
     });
     return [...found];
   };
@@ -269,7 +269,7 @@ export const Cars = memo(function Cars({ bundle, timeline, curve }: CarsProps) {
           scale={CAR_SCALE}
           visible={false}
         >
-          <F1Car detail="low" color={lookup.color(c.driverNumber)} accent="#D4FF00" tyreGlow={0.8} tyreColor="#FFD400" />
+          <F1Car detail="low" teamId={lookup.driver(c.driverNumber)?.teamId} color={lookup.color(c.driverNumber)} accent="#D4FF00" tyreGlow={0.8} tyreColor="#FFD400" />
           <mesh geometry={shared.haloGeo} material={shared.haloMats[i]} />
           <mesh ref={(m) => (wakes.current[i] = m)} geometry={shared.wakeGeo} material={shared.wakeMats[i]} visible={false} />
           <mesh
