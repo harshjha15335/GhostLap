@@ -6,7 +6,7 @@ import type { CarPartId } from '@/components/three/F1Car';
 import { useSeason } from '@/store/seasonStore';
 import Loader from '@/components/ui/Loader';
 import { useRaceBundles } from '@/components/ui/hooks';
-import { Segmented, SectionHeading } from '@/components/ui/primitives';
+import { CurvedSheet, PageTitle, Segmented, SectionHeading } from '@/components/ui/primitives';
 import {
   UPGRADE_AREA_PARTS,
   buildEntities,
@@ -18,7 +18,7 @@ import {
   type Entity,
   type EntityMode,
 } from './seasonStats';
-import type { StageId } from './SeasonStage';
+import { STAGE_BG, type StageId } from './SeasonStage';
 import PartsAllocationPanel from './PartsAllocationPanel';
 import { DriverBlueprint, TeamBlueprint } from './BlueprintSheet';
 import { LineChart, UpgradeBadges, type Series } from './Charts';
@@ -48,7 +48,7 @@ function Carousel({ entities, selectedKey, onSelect }: { entities: Entity[]; sel
     }
   }, [selectedKey]);
   return (
-    <div ref={ref} className="scrollbar-thin flex snap-x gap-2 overflow-x-auto pb-2" role="listbox" aria-label="Showroom selector">
+    <div ref={ref} className="scrollbar-thin -mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-4 pt-2" role="listbox" aria-label="Showroom selector">
       {entities.map((e) => {
         const active = e.key === selectedKey;
         return (
@@ -59,15 +59,15 @@ function Carousel({ entities, selectedKey, onSelect }: { entities: Entity[]; sel
             role="option"
             aria-selected={active}
             onClick={() => onSelect(e.key)}
-            className={`group relative flex w-[132px] shrink-0 snap-start flex-col overflow-hidden rounded border bg-panel px-3 pb-2 pt-3 text-left transition-all ${
-              active ? 'border-neon/80 bg-[#151c12] shadow-[0_0_24px_-8px_#D4FF00]' : 'border-line hover:-translate-y-0.5 hover:border-white/30'
+            className={`group relative flex w-[132px] shrink-0 snap-start flex-col overflow-hidden rounded-xl border-2 border-ink px-3 pb-2 pt-4 text-left text-ink transition-transform ${
+              active ? '-translate-y-1 -rotate-1 bg-neon shadow-sticker' : 'bg-cream shadow-sticker-sm hover:-translate-y-0.5'
             }`}
           >
-            <span className="absolute inset-x-0 top-0 h-[3px]" style={{ background: e.color }} />
-            <span className="font-mono text-[10px] text-white/40">{e.position != null ? `P${e.position}` : '—'}{e.number != null && ` · #${e.number}`}</span>
-            <span className="truncate font-display text-xl uppercase leading-tight tracking-wide text-white">{e.label}</span>
-            <span className="truncate font-mono text-[10px] text-white/45">{e.mode === 'drivers' ? e.title : ''}</span>
-            <span className={`mt-1 font-mono text-[11px] tabular-nums ${active ? 'text-neon' : 'text-white/75'}`}>{e.points} pts</span>
+            <span className="absolute inset-x-0 top-0 h-[7px] border-b-2 border-ink" style={{ background: e.color }} />
+            <span className="font-mono text-[10px] font-semibold text-ink/70">{e.position != null ? `P${e.position}` : '—'}{e.number != null && ` · #${e.number}`}</span>
+            <span className="truncate font-display text-[22px] uppercase leading-tight tracking-wide">{e.label}</span>
+            <span className="truncate font-mono text-[10px] text-ink/70">{e.mode === 'drivers' ? e.title : ''}</span>
+            <span className={`mt-1 font-mono text-[11px] font-bold tabular-nums ${active ? 'text-ink' : 'text-ink-green'}`}>{e.points} pts</span>
           </button>
         );
       })}
@@ -171,8 +171,8 @@ function SeasonIntel({ season }: { season: SeasonData }) {
     const me = list.find((s) => s.key === selected.key);
     const rival = list.find((s) => s.pos === (selected.position === 1 ? 2 : 1));
     const rivalEntity = entities.find((e) => e.key === rival?.key);
-    const out: Series[] = [{ id: selected.label, label: selected.title, color: '#D4FF00', values: pick(me?.pbr) }];
-    if (rival && rivalEntity) out.push({ id: rivalEntity.label, label: `${rivalEntity.title} (P${rival.pos})`, color: '#8b97a8', values: pick(rival.pbr), dashed: true });
+    const out: Series[] = [{ id: selected.label, label: selected.title, color: '#1D47D6', values: pick(me?.pbr) }];
+    if (rival && rivalEntity) out.push({ id: rivalEntity.label, label: `${rivalEntity.title} (P${rival.pos})`, color: '#6B7280', values: pick(rival.pbr), dashed: true });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, mode, season, done, entities]);
@@ -193,17 +193,16 @@ function SeasonIntel({ season }: { season: SeasonData }) {
   const selDriver = mode === 'drivers' ? season.drivers.find((d) => String(d.number) === selected.key) : undefined;
 
   return (
-    <main className="mx-auto max-w-[1600px] px-4 pb-24 pt-16 sm:px-6">
-      <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="font-mono text-[10px] uppercase tracking-[0.28em] text-neon/80">
-            Drivers & teams intelligence · after R{season.races[done[done.length - 1]]?.round}
-          </div>
-          <h1 className="font-display text-5xl uppercase leading-none tracking-wide sm:text-6xl">
-            Season <span className="text-neon">Showroom</span>
-          </h1>
-        </div>
-        <div className="flex flex-wrap gap-2">
+    <main className="theme-paper min-h-screen overflow-x-clip bg-paper-green">
+      {/* ---------------- orange showroom sheet ---------------- */}
+      <section className="paper-tex bg-paper-orange pb-24 pt-16 sm:pb-28">
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-6">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <PageTitle kicker={<>Drivers & teams intelligence · after R{season.races[done[done.length - 1]]?.round}</>}>
+          Season <br className="sm:hidden" />
+          Showroom
+        </PageTitle>
+        <div className="flex flex-wrap gap-2 pb-2">
           <Segmented<EntityMode>
             label="Drivers or teams"
             value={mode}
@@ -226,8 +225,8 @@ function SeasonIntel({ season }: { season: SeasonData }) {
       </header>
 
       {/* ---------------- 3D stage ---------------- */}
-      <section className="overflow-hidden rounded border border-line bg-panel lg:grid lg:grid-cols-[1fr_360px]">
-        <div ref={stageRef} className="relative h-[58vh] min-h-[380px] select-none lg:h-[600px]">
+      <section className="overflow-hidden rounded-[22px] border-[3px] border-ink bg-cream shadow-sticker-lg lg:grid lg:grid-cols-[1fr_360px]">
+        <div ref={stageRef} className="relative h-[58vh] min-h-[380px] select-none lg:h-[600px]" style={{ background: STAGE_BG[stage] }}>
           <Suspense fallback={<Loader label="Lighting the showroom…" />}>
             <SeasonStage
               stage={stage}
@@ -241,45 +240,47 @@ function SeasonIntel({ season }: { season: SeasonData }) {
               hoveredPart={hoveredPart}
             />
           </Suspense>
-          <div className="pointer-events-none absolute left-3 top-3 font-mono text-[10px] uppercase tracking-[0.22em] text-white/55">
+          <div className="pointer-events-none absolute left-3 top-3 max-w-[calc(100%-24px)] -rotate-1 rounded-md border-2 border-ink bg-cream px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ink shadow-sticker-sm">
             {stage === 'showroom' ? (
               <>Podium showroom · {mode === 'drivers' ? "drivers' championship" : "constructors' championship"}</>
             ) : (
               <>
-                Exploded assembly · <span style={{ color: team?.color }}>{team?.name}</span> · R{race?.round}
+                Exploded assembly ·{' '}
+                <span className="mx-0.5 inline-block h-2 w-2 rounded-full align-middle ring-1 ring-ink" style={{ background: team?.color }} />
+                {team?.name} · R{race?.round}
                 <span className="hidden sm:inline"> · drag to rotate</span>
               </>
             )}
           </div>
           {stage === 'exploded' && hoveredPart && (
-            <div className="pointer-events-none absolute right-3 top-3 rounded-sm border border-ghost/50 bg-asphalt/80 px-2 py-1 font-mono text-[10px] text-ghost">
+            <div className="pointer-events-none absolute right-3 top-12 rounded-md border-2 border-ink bg-paper-yellow px-2 py-1 font-mono text-[10px] font-bold uppercase text-ink shadow-sticker-sm sm:top-3">
               {PART_LABEL[hoveredPart]}
             </div>
           )}
           {stage === 'exploded' && (
-            <div className="absolute bottom-3 left-3 right-3 max-w-md rounded-sm border border-white/10 bg-asphalt/80 p-2.5 font-mono text-[10px] backdrop-blur sm:right-auto">
+            <div className="absolute bottom-3 left-3 right-3 max-w-md rounded-lg border-2 border-ink bg-cream p-2.5 font-mono text-[10px] text-ink shadow-sticker sm:right-auto">
               {activeUpgrades.length ? (
                 activeUpgrades.map((u) => (
                   <div key={u.title}>
-                    <div className="flex items-center gap-2 text-ghost">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-ghost" />
+                    <div className="flex items-center gap-2 font-bold text-ink-blue">
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-paper-yellow ring-1 ring-ink" />
                       R{u.round} · {upgradeTitle(u)} · {u.source === 'detected' ? 'area unknown' : u.area}
                     </div>
-                    <div className="mt-0.5 text-white/80">
+                    <div className="mt-0.5 text-ink">
                       Fuel-corrected race pace {u.paceBefore?.toFixed(2) ?? '—'}% → {u.paceAfter?.toFixed(2) ?? '—'}% to fastest
-                      {u.paceDelta != null && <span className="text-ghost"> ({u.paceDelta.toFixed(2)} pp)</span>}
+                      {u.paceDelta != null && <span className="font-bold text-ink-blue"> ({u.paceDelta.toFixed(2)} pp)</span>}
                     </div>
-                    <div className="text-white/40">
+                    <div className="text-ink/70">
                       Highlighting {UPGRADE_AREA_PARTS[u.area].map((p) => PART_LABEL[p]).join(' + ')}
                       {u.source === 'detected' && ' as candidate areas — not confirmed by the team'}
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="flex flex-wrap items-center gap-x-2 text-white/55">
+                <div className="flex flex-wrap items-center gap-x-2 text-ink/75">
                   No upgrade marker for {team?.name} at R{race?.round}.
                   {nextUpgrade && (
-                    <button type="button" className="text-ghost underline-offset-2 hover:underline" onClick={() => jumpToRound(nextUpgrade.round)}>
+                    <button type="button" className="font-bold text-ink-blue underline underline-offset-2" onClick={() => jumpToRound(nextUpgrade.round)}>
                       Jump to R{nextUpgrade.round} →
                     </button>
                   )}
@@ -290,19 +291,19 @@ function SeasonIntel({ season }: { season: SeasonData }) {
         </div>
 
         {/* sidebar */}
-        <aside className="max-h-none border-t border-line p-4 lg:max-h-[600px] lg:overflow-y-auto lg:border-l lg:border-t-0 scrollbar-thin">
+        <aside className="paper-tex max-h-none border-t-[3px] border-ink bg-cream p-4 text-ink lg:max-h-[600px] lg:overflow-y-auto lg:border-l-[3px] lg:border-t-0 scrollbar-thin">
           {stage === 'exploded' ? (
             <PartsAllocationPanel season={season} drivers={partsDrivers} raceIndex={raceIndex} />
           ) : (
             <div className="flex h-full flex-col gap-4">
               <div>
-                <div className="font-mono text-[10px] uppercase tracking-[0.24em] text-neon/80">Centre spotlight</div>
+                <div className="inline-block -rotate-1 rounded-[4px] bg-ink px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-neon">Centre spotlight</div>
                 <div className="mt-2 flex items-center gap-3">
-                  <span className="font-display text-6xl leading-none text-white/90">{selected.position != null ? `P${selected.position}` : '—'}</span>
+                  <span className="font-display text-7xl leading-none text-paper-green">{selected.position != null ? `P${selected.position}` : '—'}</span>
                   <div className="min-w-0">
                     <div className="truncate font-display text-2xl uppercase leading-tight tracking-wide">{selected.title}</div>
-                    <div className="font-mono text-[11px] text-white/50">
-                      <span className="mr-1 inline-block h-2 w-2 rounded-full" style={{ background: selected.color }} />
+                    <div className="font-mono text-[11px] text-ink/70">
+                      <span className="mr-1 inline-block h-2 w-2 rounded-full ring-1 ring-ink" style={{ background: selected.color }} />
                       {mode === 'drivers' ? `${team?.name} · #${selected.number}` : `${teamDrivers(season, teamId).map((d) => d.code).join(' · ')}`}
                     </div>
                   </div>
@@ -327,20 +328,20 @@ function SeasonIntel({ season }: { season: SeasonData }) {
                       ];
                     })()
                 ).map(([k, v]) => (
-                  <div key={k} className="border border-line bg-asphalt/60 px-2 py-2">
-                    <dt className="text-[9px] uppercase tracking-widest text-white/40">{k}</dt>
-                    <dd className="text-lg tabular-nums text-white">{v}</dd>
+                  <div key={k} className="rounded-md border-2 border-ink bg-white px-2 py-2 shadow-sticker-sm">
+                    <dt className="text-[9px] font-semibold uppercase tracking-widest text-ink/70">{k}</dt>
+                    <dd className="text-xl font-bold tabular-nums text-ink">{v}</dd>
                   </div>
                 ))}
               </dl>
-              <p className="font-mono text-[10px] leading-relaxed text-white/40">
+              <p className="font-mono text-[10px] leading-relaxed text-ink/70">
                 Top three by points stand on the podium. Pick any {mode === 'drivers' ? 'driver' : 'team'} below (or click a podium car) to
                 spring it onto the centre spotlight.
               </p>
               <button
                 type="button"
                 onClick={() => setStage('exploded')}
-                className="mt-auto flex items-center justify-center gap-2 rounded-sm border border-ghost/50 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.18em] text-ghost hover:bg-ghost/10"
+                className="mt-auto flex items-center justify-center gap-2 rounded-full border-2 border-ink bg-ghost px-3 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink shadow-sticker transition-transform hover:-translate-y-0.5"
               >
                 <Boxes size={14} /> Explode {teamEntity?.label ?? 'car'} assembly <ChevronRight size={14} />
               </button>
@@ -350,11 +351,11 @@ function SeasonIntel({ season }: { season: SeasonData }) {
 
         {/* exploded controls */}
         {stage === 'exploded' && (
-          <div className="grid gap-4 border-t border-line p-4 lg:col-span-2 lg:grid-cols-[minmax(220px,320px)_1fr]">
+          <div className="grid gap-4 border-t-[3px] border-ink bg-cream-light p-4 text-ink lg:col-span-2 lg:grid-cols-[minmax(220px,320px)_1fr]">
             <div>
-              <div className="mb-1 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.2em] text-white/55">
+              <div className="mb-1 flex items-center justify-between font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-ink/75">
                 <label htmlFor="explode">Explode assembly</label>
-                <span className="tabular-nums text-neon">{Math.round(explode * 100)}%</span>
+                <span className="rounded-[3px] bg-ink px-1 tabular-nums text-neon">{Math.round(explode * 100)}%</span>
               </div>
               <input
                 id="explode"
@@ -366,17 +367,17 @@ function SeasonIntel({ season }: { season: SeasonData }) {
                   setScrollLink(false);
                   setExplode(Number(e.target.value) / 100);
                 }}
-                className="w-full accent-[#D4FF00]"
+                className="w-full accent-[#0A3A12]"
               />
-              <label className="mt-1 flex items-center gap-2 font-mono text-[10px] text-white/45">
-                <input type="checkbox" checked={scrollLink} onChange={(e) => setScrollLink(e.target.checked)} className="accent-[#00F5D4]" />
+              <label className="mt-1 flex items-center gap-2 font-mono text-[10px] text-ink/75">
+                <input type="checkbox" checked={scrollLink} onChange={(e) => setScrollLink(e.target.checked)} className="accent-[#0A3A12]" />
                 Link expansion to page scroll
               </label>
             </div>
             <div className="min-w-0">
-              <div className="mb-1 flex items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/55">
+              <div className="mb-1 flex items-center justify-between gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-ink/75">
                 <label htmlFor="round">Round scrubber</label>
-                <span className="truncate normal-case tracking-normal text-white/85">
+                <span className="truncate normal-case tracking-normal text-ink">
                   R{race?.round} {race?.name}
                 </span>
               </div>
@@ -387,7 +388,7 @@ function SeasonIntel({ season }: { season: SeasonData }) {
                 max={done.length - 1}
                 value={scrubPos}
                 onChange={(e) => setRaceIndex(done[Number(e.target.value)])}
-                className="w-full accent-[#00F5D4]"
+                className="w-full accent-[#1D47D6]"
               />
               <div className="relative mt-1 h-4">
                 {done.map((idx, k) => {
@@ -400,7 +401,7 @@ function SeasonIntel({ season }: { season: SeasonData }) {
                       type="button"
                       onClick={() => setRaceIndex(idx)}
                       title={`R${r.round} ${r.circuitName}${up ? ' · pace step' : ''}`}
-                      className={`absolute top-0 -translate-x-1/2 font-mono text-[8px] ${idx === raceIndex ? 'text-white' : up ? 'text-ghost' : 'text-white/30'} ${
+                      className={`absolute top-0 -translate-x-1/2 font-mono text-[8px] ${idx === raceIndex ? 'font-bold text-ink' : up ? 'text-ink-blue' : 'text-ink/60'} ${
                         k % 2 && !up && idx !== raceIndex ? 'hidden sm:block' : ''
                       }`}
                       style={{ left: `${left}%` }}
@@ -416,12 +417,16 @@ function SeasonIntel({ season }: { season: SeasonData }) {
       </section>
 
       {/* ---------------- selector ---------------- */}
-      <div className="mt-4">
+      <div className="mt-5">
         <Carousel entities={entities} selectedKey={selected.key} onSelect={select} />
       </div>
+      </div>
+      </section>
 
-      {/* ---------------- blueprint ---------------- */}
-      <div className="mt-12">
+      {/* ---------------- yellow data sheet: blueprint + charts ---------------- */}
+      <CurvedSheet bg="bg-paper-yellow" depth={72} className="pb-24">
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-6">
+      <div>
         <SectionHeading kicker="Blueprint" title="Spec sheet" />
         {mode === 'drivers' ? (
           <DriverBlueprint entity={selected} sheet={driverSheet(season, Number(selected.key), bundleList)} teamName={team?.name ?? ''} />
@@ -448,8 +453,8 @@ function SeasonIntel({ season }: { season: SeasonData }) {
             yFormat={(v) => `${v.toFixed(1)}%`}
             markers={upgradeMarkers}
             series={[
-              { id: 'Q', label: 'Qualifying', color: '#D4FF00', values: pick(pace?.qualifying) },
-              { id: 'R', label: 'Race (fuel-corrected)', color: '#00F5D4', values: pick(pace?.raceFuelCorrected), dashed: true },
+              { id: 'Q', label: 'Qualifying', color: '#1D47D6', values: pick(pace?.qualifying) },
+              { id: 'R', label: 'Race (fuel-corrected)', color: '#D45500', values: pick(pace?.raceFuelCorrected), dashed: true },
             ]}
             footnote={
               <>
@@ -472,17 +477,27 @@ function SeasonIntel({ season }: { season: SeasonData }) {
         </div>
       </div>
 
-      {/* ---------------- penalties ---------------- */}
-      <div className="mt-12">
-        <SectionHeading kicker="FIA stewards" title="Penalties & incidents" />
-        <PenaltyLog season={season} />
       </div>
+      </CurvedSheet>
+
+      {/* ---------------- racing-green sheet: penalties ---------------- */}
+      <CurvedSheet bg="bg-paper-green" depth={72} className="pb-24">
+        <div className="mx-auto max-w-[1600px] px-4 sm:px-6">
+          <SectionHeading kicker="FIA stewards" title="Penalties & incidents" tone="lime" />
+          <PenaltyLog season={season} />
+        </div>
+      </CurvedSheet>
     </main>
   );
 }
 
 export default function SeasonPage() {
   const season = useSeason();
-  if (!season) return <main className="pt-12"><Loader label="Loading season…" /></main>;
+  if (!season)
+    return (
+      <main className="theme-paper paper-tex min-h-screen bg-paper-orange pt-12">
+        <Loader label="Loading season…" />
+      </main>
+    );
   return <SeasonIntel season={season} />;
 }

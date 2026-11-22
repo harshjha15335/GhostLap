@@ -19,6 +19,13 @@ import { teamDrivers, type Entity } from './seasonStats';
 export type StageId = 'showroom' | 'exploded';
 const EXPLODED_X = 70;
 
+/** Studio colours: a bright lilac cyclorama for the podium, blueprint blue for the drafting table. */
+export const STAGE_BG: Record<StageId, string> = { showroom: '#B7A3FF', exploded: '#2C5CFF' };
+const PODIUM_FLOOR = '#A28CF5';
+const TIER_COLORS: Record<number, string> = { 1: '#D4FF00', 2: '#F6F1E3', 3: '#FF7A00' };
+const INK = '#0F1A12';
+const HIGHLIGHT = '#FFD400';
+
 export interface SeasonStageProps {
   stage: StageId;
   podium: Entity[];
@@ -36,17 +43,16 @@ export interface SeasonStageProps {
 /* helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-function useNumberTexture(text: string, color = '#E8ECF2') {
+function useNumberTexture(text: string, color = INK) {
   const tex = useMemo(() => {
     const c = document.createElement('canvas');
     c.width = 256;
     c.height = 128;
     const g = c.getContext('2d')!;
-    g.fillStyle = '#0b0e14';
+    g.fillStyle = INK;
     g.fillRect(0, 0, 256, 128);
-    g.strokeStyle = 'rgba(0,245,212,0.35)';
-    g.lineWidth = 2;
-    g.strokeRect(6, 6, 244, 116);
+    g.fillStyle = '#F6F1E3';
+    g.fillRect(8, 8, 240, 112);
     g.fillStyle = color;
     g.font = '96px Anton, Impact, sans-serif';
     g.textAlign = 'center';
@@ -127,7 +133,7 @@ function usePodiumDrivers(entity?: Entity): Driver[] {
 }
 
 function Tier({ place, x, h, entity, selected, onSelect }: { place: number; x: number; h: number; entity?: Entity; selected: boolean; onSelect: (k: string) => void }) {
-  const tex = useNumberTexture(String(place), place === 1 ? '#D4FF00' : '#E8ECF2');
+  const tex = useNumberTexture(String(place));
   const car = useRef<THREE.Group>(null);
   const [target] = useState(() => new THREE.Object3D());
   const drivers = usePodiumDrivers(entity);
@@ -139,20 +145,25 @@ function Tier({ place, x, h, entity, selected, onSelect }: { place: number; x: n
   });
   return (
     <group position={[x, 0, 0]}>
-      {/* metal body */}
+      {/* flat-colour plinth (lime / cream / orange) */}
       <mesh position={[0, h / 2, 0]}>
         <boxGeometry args={[TIER_W, h, TIER_D]} />
-        <meshStandardMaterial color="#10141b" metalness={0.85} roughness={0.28} />
+        <meshStandardMaterial color={TIER_COLORS[place] ?? '#F6F1E3'} metalness={0.05} roughness={0.62} />
       </mesh>
-      {/* illuminated glass top */}
+      {/* cream top slab (glows cyan under the spotlight selection) */}
       <mesh position={[0, h + 0.06, 0]}>
         <boxGeometry args={[TIER_W + 0.12, 0.12, TIER_D + 0.12]} />
-        <meshPhysicalMaterial color="#9fe9ff" transparent opacity={0.22} roughness={0.08} metalness={0.1} emissive="#00F5D4" emissiveIntensity={selected ? 0.55 : 0.18} />
+        <meshStandardMaterial color="#FFFCF3" roughness={0.6} emissive={selected ? '#00F5D4' : '#000000'} emissiveIntensity={selected ? 0.3 : 0} />
       </mesh>
-      {/* edge light strip */}
+      {/* ink keyline under the top slab */}
+      <mesh position={[0, h - 0.005, 0]}>
+        <boxGeometry args={[TIER_W + 0.16, 0.03, TIER_D + 0.16]} />
+        <meshBasicMaterial color={INK} />
+      </mesh>
+      {/* edge strip: cyan when this tier holds the spotlight selection */}
       <mesh position={[0, h + 0.005, TIER_D / 2 + 0.07]}>
-        <boxGeometry args={[TIER_W + 0.1, 0.03, 0.03]} />
-        <meshBasicMaterial color={selected ? '#00F5D4' : place === 1 ? '#D4FF00' : '#5b6676'} toneMapped={false} />
+        <boxGeometry args={[TIER_W + 0.1, 0.05, 0.05]} />
+        <meshBasicMaterial color={selected ? '#00F5D4' : INK} toneMapped={false} />
       </mesh>
       {/* number plinth face */}
       <mesh position={[0, h / 2, TIER_D / 2 + 0.005]}>
@@ -190,12 +201,12 @@ function Tier({ place, x, h, entity, selected, onSelect }: { place: number; x: n
       )}
       {entity && (
         <Html position={[0, h + 2.45, 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
-          <div className="whitespace-nowrap text-center font-mono leading-tight">
-            <div className="text-[11px] font-semibold text-white" style={{ textShadow: '0 1px 6px #000' }}>
-              <span className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: entity.color }} />
+          <div className="-rotate-2 whitespace-nowrap rounded-md border-2 border-ink bg-cream px-1.5 py-0.5 text-center font-mono leading-tight text-ink shadow-sticker-sm">
+            <div className="text-[11px] font-bold">
+              <span className="mr-1 inline-block h-2 w-2 rounded-full align-middle ring-1 ring-ink" style={{ background: entity.color }} />
               {entity.label}
             </div>
-            <div className="text-[9px] tracking-widest text-white/60">{entity.points} PTS</div>
+            <div className="text-[9px] font-semibold tracking-widest text-ink/70">{entity.points} PTS</div>
           </div>
         </Html>
       )}
@@ -211,8 +222,8 @@ function Tier({ place, x, h, entity, selected, onSelect }: { place: number; x: n
         anglePower={4.5}
         radiusTop={0.25}
         radiusBottom={3.2}
-        opacity={place === 1 ? 0.32 : 0.2}
-        color={place === 1 ? '#f4ffd0' : '#dff7ff'}
+        opacity={place === 1 ? 0.2 : 0.12}
+        color={place === 1 ? '#fbffe0' : '#ffffff'}
       />
     </group>
   );
@@ -247,7 +258,11 @@ function HeroTurntable({ entity }: { entity: Entity | null }) {
     <group position={[0, 0, 5.6]} scale={0.82}>
       <mesh position={[0, 0.04, 0]}>
         <cylinderGeometry args={[3.1, 3.25, 0.08, 64]} />
-        <meshPhysicalMaterial color="#0e131b" metalness={0.9} roughness={0.25} />
+        <meshStandardMaterial color="#F6F1E3" metalness={0.05} roughness={0.5} />
+      </mesh>
+      <mesh position={[0, 0.03, 0]}>
+        <cylinderGeometry args={[3.3, 3.32, 0.06, 64]} />
+        <meshBasicMaterial color={INK} />
       </mesh>
       <mesh position={[0, 0.085, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[2.95, 3.05, 96]} />
@@ -270,8 +285,8 @@ function HeroTurntable({ entity }: { entity: Entity | null }) {
         anglePower={5}
         radiusTop={0.2}
         radiusBottom={3.4}
-        opacity={0.22}
-        color="#c9fff6"
+        opacity={0.12}
+        color="#ffffff"
       />
     </group>
   );
@@ -283,28 +298,28 @@ function Showroom({ podium, selected, onSelect, mobile }: Pick<SeasonStageProps,
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
         <planeGeometry args={[80, 60]} />
         {mobile ? (
-          <meshStandardMaterial color="#07090d" metalness={0.6} roughness={0.5} />
+          <meshStandardMaterial color={PODIUM_FLOOR} metalness={0.05} roughness={0.7} />
         ) : (
           <MeshReflectorMaterial
             resolution={512}
-            mirror={0.45}
+            mirror={0.25}
             blur={[260, 80]}
             mixBlur={1}
-            mixStrength={2.2}
+            mixStrength={0.7}
             depthScale={0.6}
             minDepthThreshold={0.6}
             maxDepthThreshold={1.2}
-            color="#07090d"
-            metalness={0.6}
-            roughness={0.75}
+            color={PODIUM_FLOOR}
+            metalness={0.1}
+            roughness={0.8}
           />
         )}
       </mesh>
       {/* back wall light slits */}
       {[-12, -6, 0, 6, 12].map((x) => (
         <mesh key={x} position={[x, 5, -9]}>
-          <planeGeometry args={[0.06, 10]} />
-          <meshBasicMaterial color="#1d2735" toneMapped={false} />
+          <planeGeometry args={[0.08, 10]} />
+          <meshBasicMaterial color="#E4DBFF" toneMapped={false} />
         </mesh>
       ))}
       {TIERS.map((t, i) => (
@@ -338,8 +353,8 @@ function Leaders({ explode, highlight, hovered, mobile }: { explode: number; hig
   const { geom, tags } = useMemo(() => {
     const pos: number[] = [];
     const col: number[] = [];
-    const white = new THREE.Color('#d8e2ee');
-    const cyan = new THREE.Color('#00F5D4');
+    const white = new THREE.Color('#ffffff');
+    const cyan = new THREE.Color(HIGHLIGHT);
     const tags: { id: CarPartId; at: THREE.Vector3; anchor: THREE.Vector3 }[] = [];
     for (const p of CAR_PARTS) {
       const a = PART_ANCHORS[p.id];
@@ -359,7 +374,7 @@ function Leaders({ explode, highlight, hovered, mobile }: { explode: number; hig
     return { geom: g, tags };
   }, [e, highlight, hovered]);
   useEffect(() => () => geom.dispose(), [geom]);
-  const lines = useMemo(() => new THREE.LineSegments(geom, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.75, toneMapped: false })), [geom]);
+  const lines = useMemo(() => new THREE.LineSegments(geom, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, toneMapped: false })), [geom]);
   useEffect(() => () => (lines.material as THREE.Material).dispose(), [lines]);
   const tagOpacity = Math.min(1, Math.max(0, (explode - 0.08) / 0.25));
   return (
@@ -368,18 +383,18 @@ function Leaders({ explode, highlight, hovered, mobile }: { explode: number; hig
       {tags.map((t, i) => (
         <mesh key={t.id} position={t.anchor}>
           <sphereGeometry args={[0.035, 8, 6]} />
-          <meshBasicMaterial color={highlight.has(t.id) ? '#00F5D4' : '#ffffff'} toneMapped={false} />
+          <meshBasicMaterial color={highlight.has(t.id) ? HIGHLIGHT : '#ffffff'} toneMapped={false} />
           {tagOpacity > 0.02 && (
             <Html position={[t.at.x - t.anchor.x, t.at.y - t.anchor.y, t.at.z - t.anchor.z]} center zIndexRange={[20, 0]} style={{ pointerEvents: 'none', opacity: tagOpacity }}>
               <div
-                className={`whitespace-nowrap border px-1.5 py-0.5 font-mono leading-tight backdrop-blur-sm ${
-                  highlight.has(t.id) || hovered === t.id ? 'border-ghost bg-ghost/15 text-ghost' : 'border-white/30 bg-asphalt/70 text-white/85'
+                className={`whitespace-nowrap rounded-[4px] border-[1.5px] border-ink px-1.5 py-0.5 font-mono leading-tight text-ink shadow-sticker-sm ${
+                  highlight.has(t.id) || hovered === t.id ? 'bg-paper-yellow' : 'bg-cream'
                 }`}
               >
-                <div className="text-[9px] font-semibold tracking-wider">
+                <div className="text-[9px] font-bold tracking-wider">
                   {String(i + 1).padStart(2, '0')} · {CAR_PARTS[i].callout.split(' · ')[0]}
                 </div>
-                {!mobile && <div className="text-[8px] text-white/55">{CAR_PARTS[i].label}</div>}
+                {!mobile && <div className="text-[8px] text-ink/70">{CAR_PARTS[i].label}</div>}
               </div>
             </Html>
           )}
@@ -407,27 +422,41 @@ function Exploded({
   });
   return (
     <group position={[EXPLODED_X, 0, 0]}>
-      {/* blueprint floor */}
-      <gridHelper args={[24, 48, '#1f6f68', '#122029']} position={[0, -1.05, 0]} />
+      {/* blueprint drafting table: white grid on blueprint blue */}
+      <gridHelper args={[24, 48, '#C9D7FF', '#5F86FF']} position={[0, -1.05, 0]} />
       <mesh position={[0, -1.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[6.5, 64]} />
-        <meshBasicMaterial color="#0a1018" />
+        <meshBasicMaterial color="#2451E8" />
       </mesh>
       <mesh position={[0, -1.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[6.4, 6.46, 128]} />
-        <meshBasicMaterial color="#00F5D4" transparent opacity={0.5} toneMapped={false} />
+        <ringGeometry args={[6.4, 6.5, 128]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.85} toneMapped={false} />
       </mesh>
       <group ref={spin} position={[0, 0, 0]}>
         <F1Car teamId={teamId} color={carColor} accent={carColor} explode={explode} highlight={highlight} onPartHover={onPartHover} tyreGlow={0.5} tyreColor="#00F5D4" />
         <Leaders explode={explode} highlight={hl} hovered={hoveredPart} mobile={mobile} />
       </group>
-      <spotLight position={[3, 9, 6]} angle={0.6} penumbra={0.6} intensity={140} distance={30} color="#eaf6ff" />
-      <pointLight position={[-6, 3, -4]} intensity={25} color="#00F5D4" distance={18} />
+      <spotLight position={[3, 9, 6]} angle={0.6} penumbra={0.6} intensity={140} distance={30} color="#ffffff" />
+      <pointLight position={[-6, 3, -4]} intensity={25} color="#cfe0ff" distance={18} />
     </group>
   );
 }
 
 /* ------------------------------------------------------------------ */
+
+/** Blends the studio background + fog from lilac (podium) to blueprint blue as the camera glides across. */
+function Backdrop() {
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  const [a, b] = useMemo(() => [new THREE.Color(STAGE_BG.showroom), new THREE.Color(STAGE_BG.exploded)], []);
+  useFrame(() => {
+    const t = THREE.MathUtils.smoothstep(camera.position.x, EXPLODED_X * 0.15, EXPLODED_X * 0.85);
+    const bg = scene.background as THREE.Color | null;
+    if (bg && (bg as THREE.Color).isColor) bg.lerpColors(a, b, t);
+    if (scene.fog) (scene.fog as THREE.Fog).color.lerpColors(a, b, t);
+  });
+  return null;
+}
 
 function StageVisibility({ stage, children }: { stage: StageId; children: [JSX.Element, JSX.Element] }) {
   // hide the far stage once the camera has arrived (saves draw calls)
@@ -476,12 +505,13 @@ export default function SeasonStage(props: SeasonStageProps) {
         gl={{ antialias: true, powerPreference: 'high-performance' }}
         onPointerMissed={() => props.onPartHover(null)}
       >
-        <color attach="background" args={['#06080c']} />
-        <fog attach="fog" args={['#06080c', 22, 48]} />
-        <ambientLight intensity={0.45} />
-        <hemisphereLight args={['#9fb7d6', '#05070a', 0.5]} />
-        <directionalLight position={[-6, 8, 10]} intensity={1.3} />
-        <directionalLight position={[8, 4, -6]} intensity={0.5} color="#00F5D4" />
+        <color attach="background" args={[STAGE_BG.showroom]} />
+        <fog attach="fog" args={[STAGE_BG.showroom, 22, 48]} />
+        <Backdrop />
+        <ambientLight intensity={0.7} />
+        <hemisphereLight args={['#ffffff', '#8f7ad9', 0.85]} />
+        <directionalLight position={[-6, 8, 10]} intensity={1.5} color="#fffaf0" />
+        <directionalLight position={[8, 4, -6]} intensity={0.6} color="#ffe9c7" />
         <CameraRig stage={props.stage} />
         <Suspense fallback={null}>
           <StageVisibility stage={props.stage}>

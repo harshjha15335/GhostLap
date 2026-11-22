@@ -37,7 +37,7 @@ export function PageTitle({ kicker, children, className = '' }: { kicker: ReactN
         <span className="h-1.5 w-1.5 rounded-full bg-ink" />
         {kicker}
       </div>
-      <h1 className="mt-2 font-display text-[clamp(3.4rem,11vw,9.5rem)] uppercase leading-[0.84] tracking-[0.005em] text-paper-green">{children}</h1>
+      <h1 className="mt-2 font-display text-[clamp(3.4rem,9vw,8rem)] uppercase leading-[0.84] tracking-[0.005em] text-paper-green">{children}</h1>
     </div>
   );
 }

@@ -3,47 +3,39 @@ import { StatPlate, fmtPct } from '@/components/ui/primitives';
 import type { DriverSheet, Entity, TeamSheet } from './seasonStats';
 import { upgradeTitle } from './seasonStats';
 
-/** CAD-style blueprint spec sheet: hairline grid, dimension line, callout leaders, monospace stat plates. */
+/** CAD-style blueprint spec sheet on light drafting paper: blue hairline grid, dimension line, callout leaders, sticker stat plates. */
 
 const ordinal = (n: number | null) => (n == null ? '—' : `P${n}`);
 
 function Frame({ entity, kicker, children, dimension }: { entity: Entity; kicker: string; children: ReactNode; dimension: string }) {
   return (
-    <section
-      className="relative overflow-hidden rounded border border-ghost/25 p-4 sm:p-6"
-      style={{
-        backgroundColor: '#0a1220',
-        backgroundImage:
-          'linear-gradient(rgba(0,245,212,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(0,245,212,0.07) 1px, transparent 1px), linear-gradient(rgba(0,245,212,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,245,212,0.035) 1px, transparent 1px)',
-        backgroundSize: '80px 80px, 80px 80px, 16px 16px, 16px 16px',
-      }}
-    >
+    <section className="drafting-grid relative overflow-hidden rounded-[20px] border-[3px] border-ink bg-cream-light p-4 text-ink shadow-sticker-lg sm:p-6">
       {/* title block */}
       <div className="relative mb-6 flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <div className="font-mono text-[10px] uppercase tracking-[0.28em] text-ghost/80">{kicker}</div>
+          <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.24em] text-ink-blue">{kicker}</div>
           <h3 className="mt-1 flex items-center gap-3 font-display text-4xl uppercase leading-none tracking-wide sm:text-5xl">
-            <span className="h-9 w-1.5 shrink-0" style={{ background: entity.color }} />
+            <span className="h-9 w-2.5 shrink-0 rounded-[2px] ring-2 ring-ink" style={{ background: entity.color }} />
             <span className="truncate">{entity.title}</span>
           </h3>
           {/* dimension line */}
-          <div className="mt-3 flex items-center gap-2 font-mono text-[10px] text-ghost/80">
-            <span className="h-3 w-px bg-ghost/70" />
-            <span className="h-px w-8 bg-ghost/60 sm:w-24" />
+          <div className="mt-3 flex items-center gap-2 font-mono text-[10px] font-semibold text-ink-blue">
+            <span className="h-3 w-px bg-ink-blue" />
+            <span className="h-px w-8 bg-ink-blue sm:w-24" />
             <span className="whitespace-nowrap">{dimension}</span>
-            <span className="h-px w-8 bg-ghost/60 sm:w-24" />
-            <span className="h-3 w-px bg-ghost/70" />
+            <span className="h-px w-8 bg-ink-blue sm:w-24" />
+            <span className="h-3 w-px bg-ink-blue" />
           </div>
         </div>
-        <table className="border border-ghost/30 font-mono text-[9px] uppercase text-white/55">
+        <table className="border-2 border-ink bg-white font-mono text-[9px] uppercase text-ink/70">
           <tbody>
             <tr>
-              <td className="border border-ghost/30 px-2 py-1">DWG</td>
-              <td className="border border-ghost/30 px-2 py-1 text-white/85">GL-26-{entity.key.toUpperCase().slice(0, 6)}</td>
+              <td className="border border-ink/40 px-2 py-1">DWG</td>
+              <td className="border border-ink/40 px-2 py-1 font-semibold text-ink">GL-26-{entity.key.toUpperCase().slice(0, 6)}</td>
             </tr>
             <tr>
-              <td className="border border-ghost/30 px-2 py-1">Source</td>
-              <td className="border border-ghost/30 px-2 py-1 text-white/85">OpenF1 · 2026</td>
+              <td className="border border-ink/40 px-2 py-1">Source</td>
+              <td className="border border-ink/40 px-2 py-1 font-semibold text-ink">OpenF1 · 2026</td>
             </tr>
           </tbody>
         </table>
@@ -56,12 +48,12 @@ function Frame({ entity, kicker, children, dimension }: { entity: Entity; kicker
 function Callout({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="relative pl-4">
-      <svg className="absolute left-0 top-1 h-4 w-4 text-ghost/70" viewBox="0 0 16 16" aria-hidden="true">
+      <svg className="absolute left-0 top-1 h-4 w-4 text-ink-blue" viewBox="0 0 16 16" aria-hidden="true">
         <circle cx="2" cy="2" r="1.6" fill="currentColor" />
         <path d="M2 2 L10 10 L16 10" stroke="currentColor" fill="none" strokeWidth="0.8" />
       </svg>
-      <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-ghost/70">{label}</div>
-      <div className="font-mono text-[11px] leading-relaxed text-white/75">{children}</div>
+      <div className="font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-ink-blue">{label}</div>
+      <div className="font-mono text-[11px] leading-relaxed text-ink/80">{children}</div>
     </div>
   );
 }
@@ -71,7 +63,7 @@ export function DriverBlueprint({ entity, sheet, teamName }: { entity: Entity; s
   return (
     <Frame entity={entity} kicker={`Driver spec · #${entity.number} · ${teamName}`} dimension={`${ordinal(sheet.position)} · ${sheet.points} PTS`}>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        <StatPlate label="Points" value={sheet.points} accent="#D4FF00" />
+        <StatPlate label="Points" value={sheet.points} accent="#0A6B2A" />
         <StatPlate label="Championship" value={ordinal(sheet.position)} />
         <StatPlate label="Wins" value={sheet.wins} />
         <StatPlate label="Podiums" value={sheet.podiums} />
@@ -83,10 +75,10 @@ export function DriverBlueprint({ entity, sheet, teamName }: { entity: Entity; s
           label="Race − quali"
           value={sheet.paceDelta == null ? '—' : `${sheet.paceDelta > 0 ? '+' : ''}${sheet.paceDelta.toFixed(2)}pp`}
           sub={sheet.paceDelta == null ? undefined : sheet.paceDelta < 0 ? 'stronger on Sunday' : 'stronger on Saturday'}
-          accent={sheet.paceDelta != null && sheet.paceDelta < 0 ? '#00F5D4' : '#FF7A00'}
+          accent={sheet.paceDelta != null && sheet.paceDelta < 0 ? '#00725F' : '#9C4400'}
         />
         <StatPlate label="DNFs" value={sheet.dnfs} sub={pending ? 'from incidents' : sheet.starts != null ? `${sheet.starts} starts` : undefined} />
-        <StatPlate label="Penalties" value={sheet.sanctions} sub="time / DT / SG / grid" accent={sheet.sanctions ? '#FF1E1E' : undefined} />
+        <StatPlate label="Penalties" value={sheet.sanctions} sub="time / DT / SG / grid" accent={sheet.sanctions ? '#C8102E' : undefined} />
         <StatPlate label="Warnings" value={sheet.warnings} sub={`${sheet.investigations} investigations`} />
       </div>
       <div className="mt-5 grid gap-4 sm:grid-cols-3">
@@ -103,7 +95,7 @@ export function TeamBlueprint({ entity, sheet }: { entity: Entity; sheet: TeamSh
   return (
     <Frame entity={entity} kicker="Constructor spec" dimension={`${ordinal(sheet.position)} · ${sheet.points} PTS`}>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        <StatPlate label="Constructor pts" value={sheet.points} accent="#D4FF00" />
+        <StatPlate label="Constructor pts" value={sheet.points} accent="#0A6B2A" />
         <StatPlate label="Championship" value={ordinal(sheet.position)} />
         <StatPlate label="Wins" value={sheet.wins} />
         <StatPlate label="Podiums" value={sheet.podiums} />
@@ -111,7 +103,7 @@ export function TeamBlueprint({ entity, sheet }: { entity: Entity; sheet: TeamSh
           label="Reliability"
           value={pending ? '…' : sheet.reliability == null ? '—' : `${(sheet.reliability * 100).toFixed(1)}%`}
           sub={pending ? 'loading race bundles' : `${sheet.classified}/${sheet.starts} classified`}
-          accent={sheet.reliability != null && sheet.reliability < 0.85 ? '#FF7A00' : '#00F5D4'}
+          accent={sheet.reliability != null && sheet.reliability < 0.85 ? '#9C4400' : '#00725F'}
         />
         <StatPlate
           label="Avg pit lane"
@@ -120,22 +112,22 @@ export function TeamBlueprint({ entity, sheet }: { entity: Entity; sheet: TeamSh
         />
       </div>
       <div className="mt-5">
-        <div className="mb-2 font-mono text-[9px] uppercase tracking-[0.22em] text-ghost/70">Upgrade timeline</div>
+        <div className="mb-2 font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-ink-blue">Upgrade timeline</div>
         {sheet.upgrades.length ? (
-          <ol className="relative flex flex-wrap gap-x-6 gap-y-3 border-t border-dashed border-ghost/30 pt-3">
+          <ol className="relative flex flex-wrap gap-x-6 gap-y-3 border-t-2 border-dashed border-ink-blue/50 pt-3">
             {sheet.upgrades.map((u) => (
               <li key={`${u.round}-${u.title}`} className="font-mono text-[11px]">
-                <div className="text-ghost">R{u.round} · {upgradeTitle(u)}</div>
-                <div className="text-white/80 tabular-nums">
+                <div className="font-bold text-ink-blue">R{u.round} · {upgradeTitle(u)}</div>
+                <div className="tabular-nums text-ink">
                   {u.paceBefore?.toFixed(2) ?? '—'}% → {u.paceAfter?.toFixed(2) ?? '—'}%{' '}
-                  <span className="text-white/45">({u.paceDelta != null ? `${u.paceDelta > 0 ? '+' : ''}${u.paceDelta.toFixed(2)}pp` : '—'})</span>
+                  <span className="text-ink/70">({u.paceDelta != null ? `${u.paceDelta > 0 ? '+' : ''}${u.paceDelta.toFixed(2)}pp` : '—'})</span>
                 </div>
-                <div className="text-[9px] text-white/35">{u.source === 'detected' ? 'area unknown · detected' : `${u.area} · editorial`}</div>
+                <div className="text-[9px] text-ink/70">{u.source === 'detected' ? 'area unknown · detected' : `${u.area} · editorial`}</div>
               </li>
             ))}
           </ol>
         ) : (
-          <div className="font-mono text-[11px] text-white/45">No upgrade markers.</div>
+          <div className="font-mono text-[11px] text-ink/70">No upgrade markers.</div>
         )}
       </div>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
