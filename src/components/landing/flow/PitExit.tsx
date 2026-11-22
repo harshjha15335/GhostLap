@@ -57,7 +57,8 @@ export default function PitExit({
   );
 
   const depth = Math.round(vp.w * (mobile ? 0.14 : 0.1));
-  const height = Math.max(vp.h, mobile ? 700 : 760) + Math.round(depth * 0.75);
+  // at the very end of the page the CTA's curved hem still shows under the top bar
+  const height = Math.max(vp.h, mobile ? 700 : 760);
   const rd = mobile ? Math.round(vp.w * 0.155) : Math.round(Math.min(vp.w / 1440, vp.h / 820) * 132);
   const rb = Math.round(rd * (mobile ? 0.72 : 0.66));
   const floorPad = mobile ? 46 : 52;
@@ -81,7 +82,7 @@ export default function PitExit({
   }, [toast]);
 
   const items = useMemo<Item[]>(() => {
-    const disc = (c: CompoundKey, extra?: { color?: string; label?: string; ring?: string }): Item => ({
+    const disc = (c: CompoundKey, extra?: { color?: string; label?: string; ring?: string; letter?: string }): Item => ({
       key: `d-${c}-${extra?.label ?? ''}`,
       kind: 'disc',
       r: rd,
@@ -100,7 +101,7 @@ export default function PitExit({
     ];
     if (stats.leader) {
       // team-colour variant: the real championship leader
-      list.splice(5, 0, disc('SOFT', { color: stats.leader.color, label: `P1 ${stats.leader.code}`, ring: `CHAMPIONSHIP LEADER · ${stats.leader.code} · ${stats.leader.points} PTS · ` }));
+      list.splice(5, 0, disc('SOFT', { color: stats.leader.color, letter: '1', label: `LEADER ${stats.leader.code}`, ring: `CHAMPIONSHIP LEADER · ${stats.leader.code} · ${stats.leader.points} PTS · ` }));
     }
     return list;
   }, [rd, rb, navigate, share, reduced, stats.leader]);
@@ -239,7 +240,7 @@ export default function PitExit({
         <div className="fl-paper" style={{ opacity: 0.5 }} />
         <div className="fl-grain" />
       </div>
-      <div className="relative" style={{ paddingTop: depth * 0.75 + (mobile ? 36 : 56) }}>
+      <div className="relative" style={{ paddingTop: depth + (mobile ? 30 : 44) }}>
         <nav aria-label="Footer" className="fl-nav flex items-start justify-between px-4 font-display uppercase sm:px-6" style={{ fontSize: mobile ? 20 : Math.min(40, vp.w * 0.028) }}>
           {NAV.map((n) => (
             <Link key={n.label} to={n.to} className="leading-none transition-transform hover:-translate-y-0.5">
@@ -253,12 +254,10 @@ export default function PitExit({
             style={{ borderColor: C.neon, background: C.greenDeep, fontSize: mobile ? 28 : Math.min(54, vp.w * 0.036) }}
           >
             GHOST<span style={{ color: '#fff' }}>LAP</span>
-            <span className="absolute -right-2 -top-1 font-mono text-[10px] text-white/70">26</span>
           </div>
-          <div className="-mt-[0.12em] text-center font-display leading-[0.8]" style={{ fontSize: mobile ? vp.w * 0.27 : Math.min(250, vp.w * 0.165) }}>
-            <ArchWord text="REWRITE" color={C.neon} />
-            <br />
-            <ArchWord text="THE RACE" color={C.neon} />
+          <div className="-mt-[0.1em] flex flex-col items-center font-display leading-[1.02]" style={{ fontSize: mobile ? vp.w * 0.25 : Math.min(200, vp.w * 0.13) }}>
+            <ArchWord text="REWRITE" color={C.neon} amount={0.16} />
+            <ArchWord text="THE RACE" color={C.neon} amount={0.16} />
           </div>
         </div>
       </div>

@@ -181,7 +181,13 @@ export function VerdictSticker({ race }: { race: FeatureRace | null }) {
     <div className="rotate-[-6deg] rounded-[0.5em] border-[0.12em] border-[#080B10] bg-white px-[0.6em] py-[0.4em] text-[#080B10] shadow-[0_0.4em_1em_rgba(0,0,0,0.25)]">
       <div className="font-display text-[2.2em] leading-[0.95]">{p ? `${p.gained > 0 ? '+' : ''}${p.gained} POS` : 'GHOST'}</div>
       <div className="mt-[0.2em] font-mono text-[0.55em] font-semibold uppercase tracking-[0.1em]">
-        {p ? `${p.code} P${p.from ?? '—'} → P${p.to} · ${p.delta.toFixed(2)}s` : 'computing what-if…'}
+        {p ? (
+          <>
+            {p.code} P{p.from ?? '—'} → P{p.to} · <span className="normal-case">{p.delta > 0 ? '+' : ''}{p.delta.toFixed(2)}s</span>
+          </>
+        ) : (
+          'computing what-if…'
+        )}
       </div>
     </div>
   );

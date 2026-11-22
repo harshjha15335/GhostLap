@@ -53,6 +53,8 @@ export const FLOW_CSS = `
 .fl-draw path.fl-ink { stroke-dasharray: var(--len, 600); stroke-dashoffset: calc(var(--len, 600) * (1 - var(--draw, 1))); }
 .fl-link { transition: transform .35s cubic-bezier(.2,.8,.2,1), filter .35s; }
 .fl-link:hover { transform: translateY(-3px) rotate(-1deg); }
+.fl-tag { opacity: 0; transition: opacity .25s; }
+.fl-word:hover .fl-tag, .fl-word:focus-visible .fl-tag { opacity: 1; }
 .fl-word:hover .fl-verb { -webkit-text-stroke: 0; color: transparent; -webkit-text-stroke-width: 3px; -webkit-text-stroke-color: ${C.green}; }
 .fl-nav a { position:relative; }
 .fl-nav a::after { content:''; position:absolute; left:50%; bottom:-14px; width:8px; height:8px; margin-left:-4px; border-radius:50%; background:${C.neon}; transition: transform .3s; }

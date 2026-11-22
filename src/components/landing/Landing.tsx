@@ -142,15 +142,16 @@ export default function Landing() {
       </div>
 
       {/* chapter rail */}
-      <nav aria-label="Chapters" className="pointer-events-none fixed right-4 top-1/2 z-30 hidden -translate-y-1/2 flex-col items-end gap-2 lg:flex">
+      <nav
+        aria-label="Chapters"
+        className={`pointer-events-none fixed right-4 top-1/2 z-30 hidden -translate-y-1/2 flex-col items-end gap-2 transition-opacity duration-300 lg:flex ${choreo.active >= SCENE_CHAPTERS ? 'opacity-0' : 'opacity-100'}`}
+      >
         {CHAPTER_LABELS.map((label, i) => {
           const on = choreo.active === i;
-          // dark ink over the orange / chartreuse paper chapters
-          const light = choreo.active >= SCENE_CHAPTERS && choreo.active < CHAPTER_COUNT - 1;
           return (
             <div key={label} className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em]">
-              <span className={`transition ${on ? (light ? 'text-[#0A3A12]' : 'text-white') : 'text-transparent'}`}>{label}</span>
-              <span className={`block h-px transition-all ${on ? (light ? 'w-8 bg-[#0A3A12]' : 'w-8 bg-neon') : light ? 'w-4 bg-[#0A3A12]/35' : 'w-4 bg-white/30'}`} />
+              <span className={`transition ${on ? 'text-white' : 'text-transparent'}`}>{label}</span>
+              <span className={`block h-px transition-all ${on ? 'w-8 bg-neon' : 'w-4 bg-white/30'}`} />
             </div>
           );
         })}

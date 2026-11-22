@@ -49,7 +49,7 @@ const ROWS: RowDef[] = [
     label: 'What If',
     note: ['+0.4s undercut', 'the call nobody', 'made — until now'],
     floaters: [
-      { compound: 'SOFT', fx: 0.2, fy: 0.62, d: 0.62, k: 0.18, spin: 0.1 },
+      { compound: 'SOFT', fx: 0.5, fy: 0.66, d: 0.6, k: 0.18, spin: 0.1 },
       { compound: 'INTER', fx: 0.74, fy: -0.36, d: 0.58, k: -0.16, spin: -0.08 },
     ],
   },
@@ -99,14 +99,14 @@ function catmull(pts: [number, number][], per = 60) {
 
 function computeGeo(vp: Vp, widths: number[]): Geo {
   const mobile = vp.w < 820;
-  const F = mobile ? Math.min(vp.h * 0.3, vp.w * 0.6) : Math.max(260, vp.h * 0.52);
+  const F = mobile ? Math.min(vp.h * 0.3, vp.w * 0.6) : Math.max(260, vp.h * 0.48);
   const H = F * 0.86;
   const headF = mobile ? vp.w * 0.105 : Math.min(96, vp.w * 0.058);
   const x1 = mobile ? vp.w * 0.12 : vp.w * 0.1;
   const y1 = mobile ? vp.h * 0.64 : vp.h * 0.74;
-  const gap = mobile ? vp.w * 0.55 : vp.w * 0.32;
+  const gap = mobile ? vp.w * 0.3 : vp.w * 0.32;
   const x2 = x1 + widths[0] + gap;
-  const y2 = y1 + vp.h * (mobile ? 0.42 : 0.52);
+  const y2 = y1 + vp.h * (mobile ? 0.34 : 0.52);
   const x3 = x2 + widths[1] + gap;
   const y3 = y1 - vp.h * 0.02;
   const rows = [
@@ -149,7 +149,7 @@ function computeGeo(vp: Vp, widths: number[]): Geo {
     {
       x: rows[1].x + rows[1].w + F * 0.05,
       y: rows[1].y - F * 0.05,
-      w: rows[2].x - (rows[1].x + rows[1].w) - F * 0.25,
+      w: rows[2].x - (rows[1].x + rows[1].w) - F * 0.7,
       h: rows[2].y - rows[1].y + H * 0.15,
       bend: -0.22,
     },
@@ -202,7 +202,7 @@ export default function EveryLap({
   const [widths, setWidths] = useState<number[] | null>(null);
   const mobile = vp.w < 820;
   const geo = useMemo(() => (widths ? computeGeo(vp, widths) : null), [vp, widths]);
-  const F = geo?.F ?? (mobile ? Math.min(vp.h * 0.3, vp.w * 0.6) : Math.max(260, vp.h * 0.52));
+  const F = geo?.F ?? (mobile ? Math.min(vp.h * 0.3, vp.w * 0.6) : Math.max(260, vp.h * 0.48));
 
   const bind = useCallback(
     (el: HTMLElement | null) => {
@@ -289,7 +289,7 @@ export default function EveryLap({
   let fi = 0;
 
   const headline = (
-    <div className="text-center" style={{ color: C.green }}>
+    <div className="w-max text-center" style={{ color: C.green }}>
       <span className="fl-pill rotate-[-2deg] px-[0.8em] py-[0.55em] text-[14px]" style={{ background: C.green, color: C.neon }}>
         Why GhostLap
       </span>
@@ -311,8 +311,8 @@ export default function EveryLap({
       style={{ height: height ?? (staticMode ? undefined : vp.h * 4), background: C.neon }}
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="fl-paper" />
-        <div className="fl-grain" />
+        <div className="fl-paper" style={{ opacity: 0.22 }} />
+        <div className="fl-grain" style={{ opacity: 0.1 }} />
       </div>
       {staticMode ? (
         <div className="relative px-4 pb-16" style={{ paddingTop: vp.h * 0.18 }}>
@@ -354,7 +354,7 @@ export default function EveryLap({
                     <Note lines={row.note} size={Math.max(16, F * 0.075)} style={{ left: -F * 0.28, top: F * 0.98 }} />
                   </span>
                   <span className="fl-verb">{row.verb}</span>
-                  <span className="pointer-events-none absolute -top-[0.04em] right-0 translate-y-[-100%] rounded-md px-2 py-1 font-mono text-[12px] uppercase tracking-[0.18em]" style={{ background: C.green, color: C.neon }}>
+                  <span className="fl-tag pointer-events-none absolute -top-[0.04em] right-0 translate-y-[-100%] rounded-md px-2 py-1 font-mono text-[12px] uppercase tracking-[0.18em]" style={{ background: C.green, color: C.neon }}>
                     open {row.label} →
                   </span>
                   {row.floaters.map((fl, k) => {

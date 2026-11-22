@@ -56,13 +56,13 @@ export default function LaunchCard({
           top: -2,
           left: '-25%',
           width: '150%',
-          height: height + depth * 0.75 + 2,
+          height: height + depth + 2,
           background: C.neon,
           borderRadius: `0 0 50% 50% / 0 0 ${Math.round(depth / 0.255)}px ${Math.round(depth / 0.255)}px`,
         }}
       >
-        <div className="fl-paper" />
-        <div className="fl-grain" />
+        <div className="fl-paper" style={{ opacity: 0.22 }} />
+        <div className="fl-grain" style={{ opacity: 0.1 }} />
       </div>
       <div className="relative flex justify-center px-4" style={{ paddingTop: mobile ? vp.h * 0.1 : vp.h * 0.12 }}>
         <div ref={card} className={`fl-will relative grid w-full max-w-[1200px] ${mobile ? 'grid-cols-1 gap-3' : 'grid-cols-[0.95fr_1fr] gap-6'}`}>
