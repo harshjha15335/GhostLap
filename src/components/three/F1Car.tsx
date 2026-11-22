@@ -2,10 +2,10 @@ import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode
 import * as THREE from 'three';
 import { useFrame, type ThreeElements } from '@react-three/fiber';
 import { getCarGeometry, REAR_AXLE_Z, REAR_TRACK_X, type MatKey, type PartMeshes } from './carGeometry';
-import { makeLiveryMaterial, resolveLivery, type Livery } from './liveries';
+import { getLiveryTexture, resolveLivery, type Livery } from './liveries';
 
 export type { Livery, LiveryPattern } from './liveries';
-export { LIVERIES } from './liveries';
+export { LIVERIES, LIVERY_ATLAS, paintLiveryCanvas } from './liveries';
 
 /**
  * Procedural 2026-spec F1 car (no licensed model). Smooth lofted chassis, undercut
@@ -22,6 +22,8 @@ export { LIVERIES } from './liveries';
  *   color        team / body colour (fallback when no `livery`)
  *   accent       wing + halo accent (fallback when no `livery`)
  *   livery       team livery (object or teamId, see liveries.ts) — zones on body, accent on wings/halo
+ *   liveryTexture optional baked atlas texture (see LIVERY_ATLAS) — replaces the painted livery;
+ *                still a single body material, so zero extra draw calls
  *   number       optional car number panel on the nose (detail="high" only)
  *   logoTexture  optional decal for the nose + sidepod decal slots (hidden when absent)
  *   ghost        translucent emissive "Ghost Car" look (cyan)
@@ -91,6 +93,7 @@ export type F1CarProps = ThreeElements['group'] & {
   color?: string;
   accent?: string;
   livery?: Livery | string;
+  liveryTexture?: THREE.Texture;
   number?: number;
   logoTexture?: THREE.Texture;
   ghost?: boolean;
@@ -144,7 +147,7 @@ function getNumberTexture(n: number) {
 
 /** nose slope (rad) used to lay decals on the nose top */
 const NOSE_LOGO = { pos: [0, 0.372, 2.12] as const, rot: -Math.PI / 2 + 0.25, size: [0.16, 0.2] as const };
-const NOSE_NUMBER = { pos: [0, 0.535, 1.42] as const, rot: -Math.PI / 2 + 0.2, size: [0.2, 0.15] as const };
+const NOSE_NUMBER = { pos: [0, 0.545, 1.4] as const, rot: -Math.PI / 2 + 0.2, size: [0.24, 0.18] as const };
 const POD_DECAL = { pos: [0.738, 0.455, 0.0] as const, size: [0.34, 0.13] as const };
 
 /**
@@ -182,6 +185,7 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
     color = '#D4FF00',
     accent = '#D4FF00',
     livery,
+    liveryTexture,
     number,
     logoTexture,
     ghost = false,
@@ -204,9 +208,8 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
   const mats = useMemo(() => {
     const body = ghost
       ? new THREE.MeshStandardMaterial({ color: GHOST, emissive: GHOST, emissiveIntensity: 0.9, transparent: true, opacity: 0.55, depthWrite: false })
-      : makeLiveryMaterial(liv, { metalness: 0.35, roughness: 0.32 });
+      : new THREE.MeshStandardMaterial({ map: liveryTexture ?? getLiveryTexture(liv, detail === 'low'), metalness: 0.35, roughness: 0.32 });
     const carbon = ghost ? body : new THREE.MeshStandardMaterial({ color: '#15181d', metalness: 0.25, roughness: 0.55 });
-    const acc = ghost ? body : new THREE.MeshStandardMaterial({ color: liv.accent, emissive: liv.accent, emissiveIntensity: 0.12, metalness: 0.25, roughness: 0.4 });
     const tyre = ghost ? body : new THREE.MeshStandardMaterial({ color: '#111113', roughness: 0.85 });
     const metal = ghost ? body : new THREE.MeshStandardMaterial({ color: '#9aa3ad', metalness: 0.85, roughness: 0.3 });
     const ring = new THREE.MeshStandardMaterial({ toneMapped: false });
@@ -214,10 +217,11 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
     const ersCore = new THREE.MeshStandardMaterial({ color: '#0a1a1a', emissive: GHOST, emissiveIntensity: ghost ? 0.9 : 0.6, toneMapped: false });
     const ersWarn = new THREE.MeshStandardMaterial({ color: '#1a0f05', emissive: new THREE.Color('#FF7A00'), emissiveIntensity: 0.7, toneMapped: false });
     const pulse = new THREE.MeshStandardMaterial({ color: GHOST, emissive: GHOST, emissiveIntensity: 1.2, transparent: true, opacity: 0.9, toneMapped: false });
-    return { body, carbon, acc, tyre, metal, ring, ersCore, ersWarn, pulse } satisfies Record<MatKey | 'pulse', THREE.Material>;
+    return { body, carbon, tyre, metal, ring, ersCore, ersWarn, pulse } satisfies Record<MatKey | 'pulse', THREE.Material>;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liv.primary, liv.secondary, liv.accent, liv.pattern, ghost]);
+  }, [liv.primary, liv.secondary, liv.accent, liv.pattern, ghost, liveryTexture, detail]);
 
+  // (textures are shared / caller-owned and are not disposed here)
   useEffect(
     () => () => {
       new Set(Object.values(mats)).forEach((mat) => mat.dispose());

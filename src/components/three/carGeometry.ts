@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { atlasUV, type AtlasRegionId } from './liveries';
 
 /**
  * Procedural geometry for F1Car — built once per detail level and cached at module level,
@@ -11,7 +12,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
  */
 
 export type Detail = 'high' | 'low';
-export type MatKey = 'body' | 'carbon' | 'acc' | 'tyre' | 'metal' | 'ring' | 'ersCore' | 'ersWarn';
+export type MatKey = 'body' | 'carbon' | 'tyre' | 'metal' | 'ring' | 'ersCore' | 'ersWarn';
 export type PartKey = 'frontWing' | 'monocoque' | 'floor' | 'sidepodR' | 'sidepodL' | 'ice' | 'ers' | 'gearbox' | 'rearWing';
 export type PartMeshes = { mat: MatKey; geo: THREE.BufferGeometry }[];
 export type CarGeometry = Record<PartKey, PartMeshes>;
@@ -32,14 +33,50 @@ const REAR_W = 0.375;
 /* helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-/** Normalise a geometry for merging: non-indexed, position + normal only. */
+/** Normalise a geometry for merging: non-indexed, position + normal (+ uv when painted). */
 function prep(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  if (!g.getAttribute('normal')) g.computeVertexNormals();
   const n = g.index ? g.toNonIndexed() : g;
-  for (const k of Object.keys(n.attributes)) if (k !== 'position' && k !== 'normal') n.deleteAttribute(k);
-  if (!n.getAttribute('normal')) n.computeVertexNormals();
+  const keepUV = n.userData.atlas === true;
+  for (const k of Object.keys(n.attributes)) if (k !== 'position' && k !== 'normal' && !(keepUV && k === 'uv')) n.deleteAttribute(k);
   n.clearGroups();
   return n;
 }
+
+/**
+ * Give a body surface UVs into the livery atlas (see LIVERY_ATLAS in liveries.ts). The
+ * chooser picks a region per triangle from its face normal and centroid.
+ */
+type Chooser = (n: THREE.Vector3, c: THREE.Vector3) => AtlasRegionId;
+function paint(src: THREE.BufferGeometry, choose: Chooser | AtlasRegionId): THREE.BufferGeometry {
+  const g = prep(src);
+  const p = g.getAttribute('position') as THREE.BufferAttribute;
+  const uv = new Float32Array(p.count * 2);
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  const n = new THREE.Vector3(), ctr = new THREE.Vector3();
+  const out: [number, number] = [0, 0];
+  for (let i = 0; i < p.count; i += 3) {
+    a.fromBufferAttribute(p, i);
+    b.fromBufferAttribute(p, i + 1);
+    c.fromBufferAttribute(p, i + 2);
+    n.subVectors(c, b).cross(a.clone().sub(b)).normalize();
+    ctr.copy(a).add(b).add(c).multiplyScalar(1 / 3);
+    const id = typeof choose === 'string' ? choose : choose(n, ctr);
+    for (let k = 0; k < 3; k++) {
+      const v = k === 0 ? a : k === 1 ? b : c;
+      atlasUV(id, v.x, v.y, v.z, out);
+      uv[(i + k) * 2] = out[0];
+      uv[(i + k) * 2 + 1] = out[1];
+    }
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  g.userData.atlas = true;
+  return g;
+}
+
+/** Body shell: tops → noseTop, bottoms → underside, the rest → side by x sign. */
+const chooseBody: Chooser = (n, c) => (n.y > 0.72 ? 'noseTop' : n.y < -0.6 ? 'underside' : c.x >= 0 ? 'bodySideR' : 'bodySideL');
+const choosePod: Chooser = (n, c) => (n.y > 0.8 ? (c.x >= 0 ? 'sidepodTopR' : 'sidepodTopL') : n.y < -0.75 ? 'underside' : c.x >= 0 ? 'sidepodR' : 'sidepodL');
 
 function merge(list: THREE.BufferGeometry[]): THREE.BufferGeometry {
   const g = mergeGeometries(list.map(prep), false);
@@ -52,14 +89,15 @@ function merge(list: THREE.BufferGeometry[]): THREE.BufferGeometry {
 /** Mirror across the YZ plane (left side from right side) keeping outward-facing winding. */
 function mirrorX(src: THREE.BufferGeometry): THREE.BufferGeometry {
   const g = prep(src.clone());
-  g.scale(-1, 1, 1);
-  const p = g.getAttribute('position') as THREE.BufferAttribute;
-  for (let i = 0; i < p.count; i += 3) {
-    const x = p.getX(i + 1), y = p.getY(i + 1), z = p.getZ(i + 1);
-    p.setXYZ(i + 1, p.getX(i + 2), p.getY(i + 2), p.getZ(i + 2));
-    p.setXYZ(i + 2, x, y, z);
+  g.scale(-1, 1, 1); // also flips normal.x
+  for (const name of ['position', 'normal'] as const) {
+    const p = g.getAttribute(name) as THREE.BufferAttribute;
+    for (let i = 0; i < p.count; i += 3) {
+      const x = p.getX(i + 1), y = p.getY(i + 1), z = p.getZ(i + 1);
+      p.setXYZ(i + 1, p.getX(i + 2), p.getY(i + 2), p.getZ(i + 2));
+      p.setXYZ(i + 2, x, y, z);
+    }
   }
-  g.computeVertexNormals();
   return g;
 }
 
@@ -322,10 +360,10 @@ const AIRBOX_KEYS: Sec[] = [
 function buildMonocoque(hi: boolean): PartMeshes {
   const R = hi ? 28 : 12;
   const sub = hi ? 4 : 1;
-  const body = [loft(BODY_KEYS, R, sub), loft(AIRBOX_KEYS, hi ? 20 : 8, sub, 2.2, 3, 0.25)];
+  const body = [paint(loft(BODY_KEYS, R, sub), chooseBody), paint(loft(AIRBOX_KEYS, hi ? 20 : 8, sub, 2.2, 3, 0.25), chooseBody)];
   if (hi) {
     // mirrors: housing (body colour) — stalks go in carbon
-    for (const s of [-1, 1]) body.push(box(0.15, 0.06, 0.04, [s * 0.47, 0.73, 0.6], [0, s * 0.25, 0]));
+    for (const s of [-1, 1]) body.push(paint(box(0.15, 0.06, 0.04, [s * 0.47, 0.73, 0.6], [0, s * 0.25, 0]), chooseBody));
   }
 
   const carbon: THREE.BufferGeometry[] = [];
@@ -367,7 +405,7 @@ function buildMonocoque(hi: boolean): PartMeshes {
   // T-cam
   if (hi) carbon.push(box(0.16, 0.025, 0.05, [0, 1.06, -0.3]), box(0.03, 0.03, 0.03, [0, 1.04, -0.3]));
 
-  // halo (accent): hoop + centre pylon
+  // halo (accent region of the atlas): hoop + centre pylon
   const acc: THREE.BufferGeometry[] = [];
   const hoop = new THREE.CatmullRomCurve3(
     [
@@ -395,9 +433,8 @@ function buildMonocoque(hi: boolean): PartMeshes {
   carbon.push(fl.cover, fr.cover);
 
   const out: PartMeshes = [
-    { mat: 'body', geo: merge(body) },
+    { mat: 'body', geo: merge([...body, ...acc.map((g) => paint(g, 'halo'))]) },
     { mat: 'carbon', geo: merge(carbon) },
-    { mat: 'acc', geo: merge(acc) },
     { mat: 'tyre', geo: merge([fl.tyre, fr.tyre]) },
     { mat: 'ring', geo: merge([fl.ring, fr.ring]) },
   ];
@@ -410,6 +447,7 @@ function buildFrontWing(hi: boolean): PartMeshes {
   const prof = hi ? 10 : 4;
   const tops: THREE.BufferGeometry[] = [];
   const carbon: THREE.BufferGeometry[] = [];
+  const plates: THREE.BufferGeometry[] = [];
   // mainplane across the full span
   const S = 0.93;
   const main = wing({
@@ -422,7 +460,8 @@ function buildFrontWing(hi: boolean): PartMeshes {
     aoa: (x) => 0.05 + 0.12 * (x / S) ** 2,
     thick: 0.09,
   });
-  carbon.push(main.top, main.bot);
+  tops.push(main.top);
+  carbon.push(main.bot);
   // two flaps per side, rising outboard to the endplates
   for (const s of [-1, 1]) {
     const flap = (xa: number, le: (u: number) => [number, number], ch: number, aoa: (u: number) => number) => {
@@ -451,7 +490,7 @@ function buildFrontWing(hi: boolean): PartMeshes {
     ep.quadraticCurveTo(2.5, 0.44, 2.64, 0.35);
     ep.quadraticCurveTo(2.86, 0.2, 2.93, 0.1);
     ep.closePath();
-    carbon.push(plateYZ(ep, 0.018, s * 0.935, hi));
+    plates.push(paint(plateYZ(ep, 0.018, s * 0.935, hi), s > 0 ? 'frontEndplateR' : 'frontEndplateL'));
     // little foot / canard at the endplate base
     if (hi) carbon.push(box(0.1, 0.012, 0.36, [s * 0.88, 0.035, 2.62]));
   }
@@ -459,7 +498,7 @@ function buildFrontWing(hi: boolean): PartMeshes {
   for (const s of [-1, 1]) carbon.push(box(0.012, 0.08, 0.18, [s * 0.04, 0.12, 2.7]));
   return [
     { mat: 'carbon', geo: merge(carbon) },
-    { mat: 'acc', geo: merge(tops) },
+    { mat: 'body', geo: merge([...tops.map((g) => paint(g, 'frontWing')), ...plates]) },
   ];
 }
 
@@ -498,13 +537,14 @@ function buildFloor(hi: boolean): PartMeshes {
   return [{ mat: 'carbon', geo: merge(parts) }];
 }
 
+/** Right sidepod shell (unpainted) + optional dark inlet / louvres. */
 function sidepodRight(hi: boolean): { body: THREE.BufferGeometry; carbon: THREE.BufferGeometry | null } {
   type K = { z: number; xo: number; yt: number; ys: number; yu: number };
   const keys: K[] = [
-    { z: 0.62, xo: 0.6, yt: 0.6, ys: 0.54, yu: 0.34 },
-    { z: 0.4, xo: 0.71, yt: 0.6, ys: 0.54, yu: 0.3 },
-    { z: 0.05, xo: 0.73, yt: 0.58, ys: 0.5, yu: 0.26 },
-    { z: -0.45, xo: 0.66, yt: 0.52, ys: 0.42, yu: 0.2 },
+    { z: 0.62, xo: 0.6, yt: 0.64, ys: 0.58, yu: 0.4 },
+    { z: 0.4, xo: 0.71, yt: 0.63, ys: 0.56, yu: 0.34 },
+    { z: 0.05, xo: 0.73, yt: 0.6, ys: 0.5, yu: 0.28 },
+    { z: -0.45, xo: 0.66, yt: 0.53, ys: 0.42, yu: 0.21 },
     { z: -0.95, xo: 0.5, yt: 0.45, ys: 0.33, yu: 0.15 },
     { z: -1.3, xo: 0.34, yt: 0.4, ys: 0.28, yu: 0.12 },
     { z: -1.55, xo: 0.22, yt: 0.36, ys: 0.26, yu: 0.11 },
@@ -517,8 +557,8 @@ function sidepodRight(hi: boolean): { body: THREE.BufferGeometry; carbon: THREE.
     const ctrl: [number, number][] = [
       [xi, k.yt],
       [xi, 0.095],
-      [xi + 0.35 * w, 0.11],
-      [k.xo - 0.08 * w, k.yu],
+      [xi + 0.22 * w, 0.115],
+      [k.xo - 0.16 * w, k.yu - 0.02],
       [k.xo, k.ys - 0.05],
       [k.xo - 0.1 * w, k.ys + 0.01],
       [xi + 0.5 * w, k.yt - 0.025 * (k.yt / 0.6)],
@@ -536,15 +576,15 @@ function sidepodRight(hi: boolean): { body: THREE.BufferGeometry; carbon: THREE.
     // dark radiator inlet mouth + cooling louvres
     const k = keys[0];
     const mouth = new THREE.Shape();
-    mouth.moveTo(0.27, 0.56);
-    mouth.quadraticCurveTo(0.56, 0.57, 0.585, 0.5);
-    mouth.quadraticCurveTo(0.6, 0.42, 0.5, 0.4);
-    mouth.lineTo(0.3, 0.42);
+    mouth.moveTo(0.27, 0.6);
+    mouth.quadraticCurveTo(0.56, 0.61, 0.585, 0.54);
+    mouth.quadraticCurveTo(0.6, 0.46, 0.5, 0.44);
+    mouth.lineTo(0.3, 0.46);
     mouth.closePath();
     const m = new THREE.ShapeGeometry(mouth, 6);
     m.translate(0, 0, k.z + 0.004);
     const louv: THREE.BufferGeometry[] = [m];
-    for (let i = 0; i < 5; i++) louv.push(box(0.2, 0.012, 0.035, [0.4, 0.57 - i * 0.012, -0.35 - i * 0.11], [0.05, 0, -0.12]));
+    for (let i = 0; i < 5; i++) louv.push(box(0.2, 0.012, 0.035, [0.4, 0.595 - i * 0.014, -0.35 - i * 0.11], [0.05, 0, -0.12]));
     carbon = merge(louv);
   }
   return { body, carbon };
@@ -653,16 +693,14 @@ function buildRearWing(hi: boolean): PartMeshes {
   // swan-neck pillars
   for (const s of [-1, 1]) {
     const sw = new THREE.Shape();
-    sw.moveTo(-1.9, 0.4);
-    sw.lineTo(-1.95, 0.86);
-    sw.quadraticCurveTo(-1.98, 1.02, -2.1, 1.01);
-    sw.lineTo(-2.17, 0.97);
-    sw.lineTo(-2.15, 0.93);
-    sw.lineTo(-2.08, 0.94);
-    sw.quadraticCurveTo(-2.03, 0.94, -2.03, 0.86);
-    sw.lineTo(-1.99, 0.4);
+    sw.moveTo(-1.92, 0.42);
+    sw.quadraticCurveTo(-1.98, 0.9, -2.08, 0.985);
+    sw.lineTo(-2.15, 0.975);
+    sw.lineTo(-2.14, 0.94);
+    sw.lineTo(-2.08, 0.945);
+    sw.quadraticCurveTo(-2.02, 0.86, -1.98, 0.42);
     sw.closePath();
-    carbon.push(plateYZ(sw, 0.022, s * 0.07, hi));
+    carbon.push(plateYZ(sw, 0.014, s * 0.06, hi));
   }
   // endplates (body colour) with rounded top
   const body: THREE.BufferGeometry[] = [];
@@ -675,12 +713,11 @@ function buildRearWing(hi: boolean): PartMeshes {
     ep.lineTo(-2.12, 1.15);
     ep.quadraticCurveTo(-1.98, 1.1, -1.96, 0.95);
     ep.closePath();
-    body.push(plateYZ(ep, 0.02, s * 0.515, hi));
+    body.push(paint(plateYZ(ep, 0.02, s * 0.515, hi), s > 0 ? 'rearEndplateR' : 'rearEndplateL'));
   }
   return [
-    { mat: 'acc', geo: merge([main.top, flap.top]) },
+    { mat: 'body', geo: merge([paint(main.top, 'rearWing'), paint(flap.top, 'rearWing'), ...body]) },
     { mat: 'carbon', geo: merge(carbon) },
-    { mat: 'body', geo: merge(body) },
   ];
 }
 
@@ -695,8 +732,8 @@ export function getCarGeometry(detail: Detail): CarGeometry {
   if (hit) return hit;
   const hi = detail === 'high';
   const pod = sidepodRight(hi);
-  const podR: PartMeshes = [{ mat: 'body', geo: merge([pod.body]) }];
-  const podL: PartMeshes = [{ mat: 'body', geo: mirrorX(pod.body) }];
+  const podR: PartMeshes = [{ mat: 'body', geo: merge([paint(pod.body, choosePod)]) }];
+  const podL: PartMeshes = [{ mat: 'body', geo: merge([paint(mirrorX(pod.body), choosePod)]) }];
   if (pod.carbon) {
     podR.push({ mat: 'carbon', geo: pod.carbon });
     podL.push({ mat: 'carbon', geo: mirrorX(pod.carbon) });
