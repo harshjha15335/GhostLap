@@ -2,6 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { memo, useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import * as THREE from 'three';
 import { F1Car, REAR_TYRE_OFFSETS, type CarPartId } from '@/components/three/F1Car';
+import { useSeasonStore } from '@/store/seasonStore';
 import { range01, smooth01 } from '@/hooks/useScrollChoreography';
 import { placeAnchor, type HotspotId, type LandingBus } from '../bus';
 import { DRIVE_LEN, driveCarZ, pathX, pathYaw, type LandingLayout } from '../layout';
@@ -23,7 +24,12 @@ const HIGHLIGHTS: Record<HotspotId, CarPartId[] | undefined> = {
 };
 
 const HeroModel = memo(function HeroModel({ highlight }: { highlight?: CarPartId[] }) {
-  return <F1Car color="#D4FF00" accent="#11151b" tyreColor="#FF1E1E" tyreGlow={0.9} detail="high" highlight={highlight} />;
+  // wear the championship leader's real livery once season data is in
+  const leaderTeam = useSeasonStore((st) => {
+    const n = st.season?.driverStandings[0]?.driverNumber;
+    return n != null ? st.driversByNumber.get(n)?.teamId : undefined;
+  });
+  return <F1Car teamId={leaderTeam} color="#D4FF00" accent="#11151b" tyreColor="#FF1E1E" tyreGlow={0.9} detail="high" highlight={highlight} />;
 });
 
 /* ------------------------------ skid ribbons ------------------------------ */
