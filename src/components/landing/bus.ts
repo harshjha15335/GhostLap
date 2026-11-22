@@ -2,8 +2,12 @@ import type { MutableRefObject } from 'react';
 import * as THREE from 'three';
 import type { ChoreoState } from '@/hooks/useScrollChoreography';
 import type { Quality } from './quality';
+import type { DrivePath } from './scene/drivePath';
 
 export type HotspotId = 'aero' | 'halo' | 'wake' | 'tyres';
+
+/** Which 3D "set" is on stage: the dark studio (hero, specimen, S-curve) or the Silverstone circuit (drive). */
+export type SceneSet = 'studio' | 'circuit';
 
 /**
  * Mutable, render-free channel between the DOM chapters and the 3D scene.
@@ -19,6 +23,18 @@ export interface LandingBus {
   anchors: Record<string, HTMLElement | null>;
   /** camera focus point (lights + particles follow it) */
   focus: THREE.Vector3;
+  /** set by the camera rig every frame */
+  set: SceneSet;
+  /** hide the hero car (S-curve chapter) */
+  showCar: boolean;
+  /** damped lap fraction of the drive (0..1), written by the camera rig */
+  lapT: number;
+  /** Silverstone drive path once the race bundle has loaded */
+  path: DrivePath | null;
+  /** hero framing: viewport fractions (0 top .. 1 bottom) of the free area under the headline */
+  heroFrame: { top: number; bottom: number };
+  /** full-viewport dip-to-black used to hide set changes */
+  veil: HTMLElement | null;
 }
 
 const v = new THREE.Vector3();

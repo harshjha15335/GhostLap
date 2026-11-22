@@ -1,16 +1,13 @@
 /**
  * Shared DOM <-> 3D layout for the landing page.
  *
- * Chapter 3 ("scroll drive") is a lockstep section: a top-down camera is placed so
- * that 1 world unit == `ppw` CSS px, then translated in exact proportion to scrollY.
- * World geometry laid along +Z therefore scrolls with the DOM, and the editorial
- * cards (positioned in px by the same numbers) stay glued to the tyre marks.
+ * Chapter 3 ("scroll drive") laps a real circuit: after a short intro (overview of
+ * the whole circuit) the chapter's scroll maps linearly to lap fraction 0..1, then an
+ * outro pulls back to the overview. The editorial cards live in a sticky stage and
+ * travel past the car on the sides, each tied to a point of the lap.
  */
 
 export const FOV = 40;
-export const CAR_LEN = 5.2;
-/** world-unit length of the lockstep drive */
-export const DRIVE_LEN = 96;
 /** world z where the S-curve region (ch.4) is centred */
 export const S_CENTER_Z = 190;
 /** world z of the ghost undercut straight (ch.5) */
@@ -22,110 +19,46 @@ export const SCENE_CHAPTERS = 4;
 export const CHAPTER_IDS = ['hero', 'specimen', 'drive', 'flow', 'strategist', 'everylap', 'launch', 'pit-exit'] as const;
 export const CHAPTER_LABELS = ['Hero', 'Specimen', 'Scroll Drive', '22-Car Flow', 'Strategist', 'Every Lap', 'Launch', 'Pit Exit'];
 
-/** card anchor fractions along the drive */
-export const CARD_FRACS = [0.06, 0.22, 0.38, 0.54, 0.7, 0.86];
-/** -1 = card on the left (tyre marks swing right), +1 = card on the right */
-export const CARD_SIDES: (1 | -1)[] = [-1, 1, -1, 1, -1, 1];
-
-export interface PathKey {
-  z: number;
-  x: number;
-}
+/** lap fraction each editorial card is centred on */
+export const CARD_LAPS = [0.1, 0.26, 0.42, 0.58, 0.74, 0.9];
+/** half-width (lap fraction) of the scroll window in which a card is on screen */
+export const CARD_HALF = 0.09;
 
 export interface LandingLayout {
   vw: number;
   vh: number;
   mobile: boolean;
-  /** px per world unit in the drive section */
-  ppw: number;
-  /** top-down camera height for the drive section */
-  camH: number;
-  /** px of scroll spent rotating the camera into top-down before the car moves */
-  rotatePx: number;
-  /** px of scroll during which the car drives DRIVE_LEN world units */
-  lockPx: number;
+  /** px of scroll from the drive section top before the lap starts (overview + dive) */
+  introPx: number;
+  /** px of scroll for one full lap */
+  drivePx: number;
+  /** px of scroll pulling back to the overview after the flag */
+  outroPx: number;
   /** total drive section height, px */
   sectionPx: number;
   /** screen y fraction where the car sits while driving */
   carScreenY: number;
   cardW: number;
-  /** card top (px, relative to the drive section top) and left (px, viewport) */
-  cards: { top: number; left: number; side: 1 | -1 }[];
-  keys: PathKey[];
+  /** card left (px) for side -1 (left) and +1 (right) */
+  cardLeft: { [side: number]: number };
+  /** mobile: resting top of the card dock (px) */
+  dockTop: number;
 }
-
-const tanHalf = Math.tan(((FOV / 2) * Math.PI) / 180);
 
 export function computeLayout(vw: number, vh: number): LandingLayout {
   const mobile = vw < 768;
-  const carPx = Math.min(150, Math.max(104, vh * 0.16));
-  const ppw = carPx / CAR_LEN;
-  const visibleH = vh / ppw;
-  const camH = visibleH / (2 * tanHalf);
-  const rotatePx = vh * 0.9;
-  const lockPx = DRIVE_LEN * ppw;
-  const carScreenY = 0.4;
-  const sectionPx = Math.round(rotatePx + carScreenY * vh + lockPx + vh * 0.7);
-
-  const cardW = mobile ? Math.round(vw * 0.76) : Math.round(Math.min(440, Math.max(340, vw * 0.3)));
-  // lateral swing of the path (px from centre)
-  const amp = mobile ? vw / 2 - 12 - (vw - 24 - cardW) / 2 : Math.min(260, vw * 0.17);
-
-  const cards = CARD_FRACS.map((f, i) => {
-    const side = CARD_SIDES[i];
-    const anchorY = rotatePx + carScreenY * vh + f * lockPx; // doc offset where the car is level with this anchor
-    const top = Math.round(anchorY - vh * 0.12);
-    let left: number;
-    if (mobile) {
-      left = side < 0 ? 12 : vw - 12 - cardW;
-    } else {
-      // card's inner edge stops ~90px short of the tyre-mark centreline, so the
-      // incoming swing passes under its corner
-      const pathX = vw / 2 - side * amp;
-      left = side < 0 ? pathX - 92 - cardW : pathX + 92;
-      left = Math.max(16, Math.min(vw - 16 - cardW, left));
-    }
-    return { top, left: Math.round(left), side };
-  });
-
-  const keys: PathKey[] = [{ z: 0, x: 0 }];
-  CARD_FRACS.forEach((f, i) => {
-    keys.push({ z: f * DRIVE_LEN + (vh * 0.1) / ppw, x: (-CARD_SIDES[i] * amp) / ppw });
-  });
-  keys.push({ z: DRIVE_LEN + 6, x: 0 });
-  keys.push({ z: DRIVE_LEN + 400, x: 0 });
-
-  return { vw, vh, mobile, ppw, camH, rotatePx, lockPx, sectionPx, carScreenY, cardW, cards, keys };
+  const introPx = Math.round(vh * 1.5);
+  const drivePx = Math.round(vh * (mobile ? 8 : 9));
+  const outroPx = Math.round(vh * 0.9);
+  const sectionPx = introPx + drivePx + outroPx + Math.round(vh * 0.65);
+  const carScreenY = mobile ? 0.3 : 0.56;
+  const cardW = mobile ? vw - 24 : Math.round(Math.max(250, Math.min(400, vw / 2 - 150)));
+  const cardLeft = mobile ? { [-1]: 12, [1]: 12 } : { [-1]: Math.max(16, Math.round(vw * 0.035)), [1]: Math.round(vw - Math.max(16, vw * 0.035) - cardW) };
+  return { vw, vh, mobile, introPx, drivePx, outroPx, sectionPx, carScreenY, cardW, cardLeft, dockTop: Math.round(vh * 0.45) };
 }
 
-/** Lateral path offset (world x) at world z — cosine-eased between keys (zero slope at each key). */
-export function pathX(keys: PathKey[], z: number): number {
-  if (z <= keys[0].z) return keys[0].x;
-  for (let i = 0; i < keys.length - 1; i++) {
-    const a = keys[i];
-    const b = keys[i + 1];
-    if (z <= b.z) {
-      const u = (z - a.z) / (b.z - a.z);
-      return a.x + (b.x - a.x) * (1 - Math.cos(Math.PI * u)) * 0.5;
-    }
-  }
-  return keys[keys.length - 1].x;
-}
-
-/** Heading (rotation about +Y) of a car following the path at z; forward = +Z. */
-export function pathYaw(keys: PathKey[], z: number): number {
-  const d = 0.25;
-  const dx = pathX(keys, z + d) - pathX(keys, z - d);
-  return Math.atan2(dx, 2 * d);
-}
-
-/** Car z for a given scrollY in the drive chapter (clamped 0..DRIVE_LEN). */
-export function driveCarZ(l: LandingLayout, scrollY: number, sectionTop: number): number {
-  const z = (scrollY - sectionTop - l.rotatePx) / l.ppw;
-  return Math.max(0, Math.min(DRIVE_LEN, z));
-}
-
-/** Camera z (unclamped) so world geometry scrolls 1:1 with the DOM. */
-export function driveCamZ(l: LandingLayout, scrollY: number, sectionTop: number): number {
-  return (scrollY - sectionTop - l.rotatePx) / l.ppw + ((0.5 - l.carScreenY) * l.vh) / l.ppw;
+/** Lap fraction (0..1, clamped) for a given scrollY in the drive chapter. */
+export function driveLapT(l: LandingLayout, scrollY: number, sectionTop: number): number {
+  const t = (scrollY - sectionTop - l.introPx) / l.drivePx;
+  return t < 0 ? 0 : t > 1 ? 1 : t;
 }
