@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useScrollChoreography } from '@/hooks/useScrollChoreography';
-import { loadRace } from '@/engine/dataLoader';
 import { useSeason } from '@/store/seasonStore';
 import type { HotspotId, LandingBus } from './bus';
 import { DriveChapter, FlowChapter, HeroChapter, HotspotPins, SpecimenChapter } from './dom/Chapters';
@@ -15,13 +14,16 @@ import Strategist from './flow/Strategist';
 import { FLOW_CSS } from './flow/theme';
 import { CHAPTER_COUNT, CHAPTER_LABELS, SCENE_CHAPTERS, computeLayout } from './layout';
 import { detectQuality } from './quality';
-import { DRIVE_SLUG, buildDrivePath, type DrivePath } from './scene/drivePath';
+import { PALETTE } from './palette';
+import { buildDrivePath } from './scene/drivePath';
 import LandingScene from './scene/LandingScene';
 import { useLandingStats } from './stats';
 
 const CSS = `
-.kl-white { color: #F4F6F0; -webkit-text-stroke: 0; text-shadow: 0 0.035em 0 #080B10, 0 0.07em 0 rgba(0,0,0,.35); }
-.kl-neon { color: #D4FF00; text-shadow: 0 0.035em 0 #080B10, 0 0.07em 0 rgba(0,0,0,.35); }
+.kl-ink { color: ${PALETTE.ink}; }
+.kl-cream { color: ${PALETTE.cream}; text-shadow: 0 0.04em 0 ${PALETTE.ink}; }
+.kl-wipe { position:absolute; left:0; right:0; top:0; height:118vh; background: var(--wipe, ${PALETTE.chartreuse}); border-radius: 50% 50% 0 0 / 14vh 14vh 0 0; overflow:hidden; }
+.kl-paper { position:absolute; inset:0; pointer-events:none; background-color: var(--paper, ${PALETTE.chartreuse}); }
 .kinetic-letter { padding: 0 0.008em; }
 .tele-delta[data-gain="1"] { background: #D4FF00; color: #080B10; }
 .tele-delta[data-gain="0"] { background: #FF1E1E; color: #fff; }
@@ -87,40 +89,19 @@ export default function Landing() {
       showCar: true,
       lapT: 0,
       path: null,
-      heroFrame: { top: 0.5, bottom: 0.94 },
+      heroFrame: { top: 500, bottom: 820 },
+      horizon: { y: 800, sag: 160 },
       veil: null,
     };
   }
   const bus = busRef.current;
 
-  // Silverstone (~75 KB) loads lazily: once the browser is idle after the hero, or as
-  // soon as the reader scrolls on — whichever comes first
-  const [wantTrack, setWantTrack] = useState(false);
-  const [path, setPath] = useState<DrivePath | null>(null);
-  useEffect(() => {
-    if (choreo.active >= 1) setWantTrack(true);
-  }, [choreo.active]);
-  useEffect(() => {
-    const t = window.setTimeout(() => setWantTrack(true), 2500);
-    return () => window.clearTimeout(t);
-  }, []);
-  useEffect(() => {
-    if (!wantTrack) return;
-    let alive = true;
-    loadRace(DRIVE_SLUG)
-      .then((b) => {
-        if (alive && b.circuit?.points?.length) setPath(buildDrivePath(b.circuit));
-      })
-      .catch(() => {
-        /* the drive chapter keeps its loading state; nothing to fabricate */
-      });
-    return () => {
-      alive = false;
-    };
-  }, [wantTrack]);
+  // the drive chapter's winding road (procedural, built once)
+  const path = useMemo(buildDrivePath, []);
   bus.path = path;
 
-  // hero framing: the car is centred in the free band between the headline and the scroll cue
+  // hero framing: the car sits just under the headline (document px); on phones it must
+  // also clear the scroll cue
   const heroHead = useRef<HTMLDivElement>(null);
   const heroCue = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -130,10 +111,10 @@ export default function Landing() {
       if (!h) return;
       const vh = window.innerHeight || 1;
       const y = window.scrollY;
-      const top = (h.getBoundingClientRect().bottom + y + 8) / vh;
-      const bottom = c ? (c.getBoundingClientRect().top + y - 6) / vh : 0.95;
-      bus.heroFrame.top = Math.min(0.75, top);
-      bus.heroFrame.bottom = Math.max(bus.heroFrame.top + 0.2, Math.min(0.98, bottom));
+      const top = h.getBoundingClientRect().bottom + y;
+      const bottom = c ? c.getBoundingClientRect().top + y - 4 : vh * 0.96;
+      bus.heroFrame.top = top;
+      bus.heroFrame.bottom = Math.max(top + 80, bottom);
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -187,7 +168,7 @@ export default function Landing() {
   const reg = choreo.register;
 
   return (
-    <div className={`relative bg-asphalt text-white ${fine ? 'landing-fine' : ''}`} style={{ overflowX: 'clip' }}>
+    <div className={`relative text-white ${fine ? 'landing-fine' : ''}`} style={{ overflowX: 'clip', background: PALETTE.chartreuse }}>
       <style>{FLOW_CSS + CSS}</style>
 
       {/* the one persistent WebGL world */}
@@ -200,16 +181,18 @@ export default function Landing() {
           path={path}
           live={sceneLive}
         />
-        {/* dip-to-black between the studio and circuit sets (opacity driven by the camera rig) */}
-        <div
-          ref={(el) => {
-            bus.veil = el;
-          }}
-          className="pointer-events-none absolute inset-0 bg-asphalt"
-          style={{ opacity: 0 }}
-        />
-        {/* editorial vignette + grain over the canvas */}
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_60%,rgba(8,11,16,0.6)_100%)]" />
+        {/* curved paper wipe between sets (position / opacity / colour driven by the camera rig) */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div
+            ref={(el) => {
+              bus.veil = el;
+            }}
+            className="kl-wipe"
+            style={{ opacity: 0, transform: 'translate3d(0,125%,0)' }}
+          >
+            <div className="fl-paper" />
+          </div>
+        </div>
       </div>
 
       {/* projected 3D labels */}
@@ -226,8 +209,8 @@ export default function Landing() {
           const on = choreo.active === i;
           return (
             <div key={label} className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em]">
-              <span className={`transition ${on ? 'text-white' : 'text-transparent'}`}>{label}</span>
-              <span className={`block h-px transition-all ${on ? 'w-8 bg-neon' : 'w-4 bg-white/30'}`} />
+              <span className={`rounded-[3px] px-1.5 py-0.5 transition ${on ? 'bg-asphalt text-neon' : 'text-transparent'}`}>{label}</span>
+              <span className={`block h-[2px] transition-all ${on ? 'w-8 bg-asphalt' : 'w-4 bg-asphalt/35'}`} />
             </div>
           );
         })}

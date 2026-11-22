@@ -4,8 +4,9 @@ import * as THREE from 'three';
 import type { LandingBus } from '../bus';
 import { S_CENTER_Z } from '../layout';
 import type { FlowCar } from '../stats';
-import Kerb, { offsetLine } from './Kerb';
+import { PALETTE } from '../palette';
 import { miniCarGeometry, ribbonGeometry, samplePoints } from './geometry';
+import Road, { PaperGround, autoKerbs, buildFrames } from './Road';
 import { trackTextTexture, wakeTexture } from './textures';
 
 const HALF_W = 10;
@@ -44,46 +45,29 @@ export default function SCurveFlow({ bus, grid }: { bus: LandingBus; grid: FlowC
   const center = useMemo(() => samplePoints(curve, 420), [curve]);
 
   const geo = useMemo(() => {
-    const track = ribbonGeometry(center, HALF_W * 2, 0, 0.03);
-    const lineL = ribbonGeometry(center, 0.38, -HALF_W - 0.1, 0.045);
-    const lineR = ribbonGeometry(center, 0.38, HALF_W + 0.1, 0.045);
-    const text = ribbonGeometry(center, TEXT_H, HALF_W + 5.6, 0.04);
-    return { track, lineL, lineR, text };
+    const text = ribbonGeometry(center, TEXT_H, HALF_W + 7.8, 0.02);
+    return { text };
   }, [center]);
 
-  const kerbs = useMemo(() => {
-    // apexes at x = ±40 (sin extremes); inside of the bend is opposite the bulge
-    const out: { pts: THREE.Vector3[]; colors: [string, string] }[] = [];
-    [-40, 40].forEach((ax) => {
-      const near = center.filter((p) => Math.abs(p.x - ax) < 15);
-      const bulge = Math.sin((Math.PI * ax) / 80) > 0 ? 1 : -1; // +1: peak toward +Z
-      // right of travel (+X) is +Z; inside of a +Z peak is -Z => left
-      out.push({
-        pts: offsetLine(near, -bulge * (HALF_W + 0.75)),
-        colors: ['#E10600', '#F2F2F2'],
-      });
-      // outside: short track-limit kerb
-      out.push({ pts: offsetLine(near.slice(6, -6), bulge * (HALF_W + 0.75)), colors: ['#F2F2F2', '#E10600'] });
-    });
-    return out;
+  const road = useMemo(() => {
+    const frames = buildFrames(center);
+    return { points: center, width: HALF_W * 2, kerbs: autoKerbs(frames, 70), runoff: 2.6, runoffColor: '#2FA84F' };
   }, [center]);
 
   const mats = useMemo(() => {
-    const textTex = trackTextTexture(TEXT, '#D4FF00');
+    const textTex = trackTextTexture(TEXT, PALETTE.ink);
     textTex.flipY = false;
     textTex.repeat.set(1 / (TEXT_H * (2048 / 160)), 1);
     const wakeTex = wakeTexture();
     return {
-      track: new THREE.MeshStandardMaterial({ color: '#1b2130', roughness: 0.42, metalness: 0.2, envMapIntensity: 0.4 }),
-      line: new THREE.MeshBasicMaterial({ color: '#f1f3f6', toneMapped: false }),
-      text: new THREE.MeshBasicMaterial({ map: textTex, transparent: true, depthWrite: false, toneMapped: false, opacity: 0.92 }),
+      text: new THREE.MeshBasicMaterial({ map: textTex, transparent: true, depthWrite: false, toneMapped: false, opacity: 0.95 }),
       car: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.35, envMapIntensity: 1.2 }),
       wake: new THREE.MeshBasicMaterial({
         alphaMap: wakeTex,
         transparent: true,
         depthWrite: false,
-        blending: THREE.AdditiveBlending,
         toneMapped: false,
+        opacity: 0.6,
         side: THREE.DoubleSide,
       }),
       textTex,
@@ -103,8 +87,6 @@ export default function SCurveFlow({ bus, grid }: { bus: LandingBus; grid: FlowC
       Object.values(geo).forEach((g) => g.dispose());
       carGeo.dispose();
       wakeGeo.dispose();
-      mats.track.dispose();
-      mats.line.dispose();
       mats.text.dispose();
       mats.car.dispose();
       mats.wake.dispose();
@@ -194,7 +176,7 @@ export default function SCurveFlow({ bus, grid }: { bus: LandingBus; grid: FlowC
       p.z += t.x * a.lane;
       // hide near the wrap seam (off-screen anyway)
       const edge = u < 0.015 || u > 0.985 ? 0 : 1;
-      o.position.set(p.x, 0.02, p.z);
+      o.position.set(p.x, 0.036, p.z);
       o.rotation.set(0, yaw, 0);
       o.scale.setScalar(SCALE * edge);
       o.updateMatrix();
@@ -204,7 +186,7 @@ export default function SCurveFlow({ bus, grid }: { bus: LandingBus; grid: FlowC
       o.scale.set(1.7 * edge, 1, len);
       o.updateMatrix();
       wm.setMatrixAt(i, o.matrix);
-      c.copy(colors[i] ?? amber).lerp(amber, 0.25 + a.dirty * 0.55).multiplyScalar(0.35 + a.dirty * 0.8);
+      c.copy(colors[i] ?? amber).lerp(amber, 0.15 + a.dirty * 0.6);
       wm.setColorAt(i, c);
     }
     cm.instanceMatrix.needsUpdate = true;
@@ -227,13 +209,9 @@ export default function SCurveFlow({ bus, grid }: { bus: LandingBus; grid: FlowC
 
   return (
     <group ref={root}>
-      <mesh geometry={geo.track} material={mats.track} />
-      <mesh geometry={geo.lineL} material={mats.line} />
-      <mesh geometry={geo.lineR} material={mats.line} />
+      <PaperGround color={PALETTE.lilac} center={[0, S_CENTER_Z]} size={[900, 700]} />
+      <Road spec={road} />
       <mesh geometry={geo.text} material={mats.text} renderOrder={3} />
-      {kerbs.map((k, i) => (
-        <Kerb key={i} points={k.pts} colors={k.colors} width={1.3} block={1.6} />
-      ))}
       <instancedMesh ref={cars} args={[carGeo, mats.car, N]} frustumCulled={false} />
       <instancedMesh ref={wakes} args={[wakeGeo, mats.wake, N]} frustumCulled={false} renderOrder={4} />
     </group>

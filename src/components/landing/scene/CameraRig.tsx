@@ -4,15 +4,15 @@ import * as THREE from 'three';
 import { range01, smooth01 } from '@/hooks/useScrollChoreography';
 import type { LandingBus, SceneSet } from '../bus';
 import { FOV, SCENE_CHAPTERS, S_CENTER_Z, driveLapT, type LandingLayout } from '../layout';
+import { PALETTE } from '../palette';
 
 interface Pose {
   pos: THREE.Vector3;
   quat: THREE.Quaternion;
   focus: THREE.Vector3;
-  fog: number;
 }
 
-const mkPose = (): Pose => ({ pos: new THREE.Vector3(), quat: new THREE.Quaternion(), focus: new THREE.Vector3(), fog: 0.01 });
+const mkPose = (): Pose => ({ pos: new THREE.Vector3(), quat: new THREE.Quaternion(), focus: new THREE.Vector3() });
 
 /** [before, after] blend window around each chapter boundary, in viewport heights. */
 const WINDOWS: [number, number][] = [
@@ -23,15 +23,10 @@ const WINDOWS: [number, number][] = [
 ];
 /** set on stage per scene chapter */
 const SET_OF: SceneSet[] = ['studio', 'studio', 'circuit', 'studio'];
-
-/** per-set atmosphere: background / fog colour */
-const ATMOS: Record<SceneSet, THREE.Color> = {
-  studio: new THREE.Color('#090c12'),
-  circuit: new THREE.Color('#6d7c8f'),
-};
+/** paper colour of the wipe that hides the set change INTO chapter i (matches that chapter's ground) */
+const WIPE_OF = ['', '', PALETTE.chartreuse, PALETTE.lilac];
 
 const UP = new THREE.Vector3(0, 1, 0);
-const DOWN_UP = new THREE.Vector3(0, 0, 1);
 const AX = new THREE.Vector3(1, 0, 0);
 const AY = new THREE.Vector3(0, 1, 0);
 const m4 = new THREE.Matrix4();
@@ -80,43 +75,76 @@ function fitDistance(aspect: number, frac: number, vfrac: number, carW = 5.4, ca
   return Math.max(dW, dH);
 }
 
-function overview(c: Ctx, out: Pose, zoom = 1) {
-  const p = c.bus.path;
-  const mobile = c.layout.mobile;
-  if (!p) {
-    eye.set(0, 420 * zoom, 0);
-    tgt.set(0, 0, 0);
-    look(out, eye, tgt, DOWN_UP);
-    out.fog = 0.0004;
-    return;
+/**
+ * Hero geometry (document px): the car sits centred just under the headline, and the
+ * backdrop's curved horizon runs through its lower body, like a product on a paper set.
+ */
+export function heroGeom(c: { aspect: number; vh: number; bus: LandingBus }) {
+  const portrait = c.aspect < 0.9;
+  const vw = c.vh * c.aspect;
+  const fr = c.bus.heroFrame;
+  let frac = portrait ? 0.9 : Math.min(0.46, 0.34 + 0.06 / c.aspect);
+  // projected 3/4 car height relative to its width
+  const hRatio = 0.5;
+  let hPx = frac * vw * hRatio;
+  const gap = c.vh * (portrait ? 0.03 : 0.015);
+  if (portrait) {
+    // phones: the whole car must sit between the headline and the scroll cue
+    const room = Math.max(60, fr.bottom - fr.top - gap * 2);
+    if (hPx > room) {
+      frac *= room / hPx;
+      hPx = room;
+    }
   }
-  const b = p.bounds;
-  // screen up = +Z, screen right = -X; leave headroom for the chapter title
-  const h = Math.max((b.hz * 1.22) / tanHalf, (b.hx * (mobile ? 1.1 : 1.3)) / (tanHalf * c.aspect)) * zoom;
-  eye.set(b.cx, h, b.cz - (mobile ? 0 : b.hz * 0.06));
-  tgt.set(eye.x, 0, eye.z);
-  look(out, eye, tgt, DOWN_UP);
-  out.focus.set(b.cx, 0, b.cz);
-  out.fog = 0.00022;
+  // desktop: tucked right under the headline (it may run off the first screen, like the
+  // reference); phones: a little lower, in the upper part of the free band
+  const band = fr.bottom - fr.top;
+  const cy = fr.top + Math.max(gap + hPx / 2, portrait ? band * 0.4 : 0);
+  return { frac, cy, hPx, horizon: cy + hPx * 0.16, sag: portrait ? c.vh * 0.075 : c.vh * 0.2 };
 }
 
 function chase(c: Ctx, f: number, out: Pose) {
   const p = c.bus.path;
   const L = c.layout;
-  if (!p) {
-    overview(c, out);
-    return;
-  }
+  if (!p) return;
   p.point(f, carP);
-  p.heading(f, head, 34);
-  const H = L.mobile ? 138 : 64;
-  const back = L.mobile ? 34 : 21;
+  p.heading(f, head, 18);
+  const portrait = c.aspect < 0.9;
+  const H = portrait ? 76 : 60;
+  const back = 20;
   eye.copy(carP).addScaledVector(head, -back);
   eye.y += H;
   look(out, eye, carP);
   frameAt(out, 0.5, L.carScreenY, c.aspect);
   out.focus.copy(carP);
-  out.fog = 0.0019;
+}
+
+/** drive intro: high above the start line, looking down the road winding away */
+function roadIntro(c: Ctx, out: Pose) {
+  const p = c.bus.path;
+  if (!p) return;
+  const portrait = c.aspect < 0.9;
+  p.point(0, carP);
+  p.heading(0, head, 4);
+  p.point(0.055, tgt);
+  eye.copy(carP).addScaledVector(head, portrait ? -46 : -52);
+  eye.y += portrait ? 150 : 96;
+  look(out, eye, tgt);
+  out.focus.copy(carP);
+}
+
+/** after the flag: rise above the car and look back over the tyre marks */
+function roadOutro(c: Ctx, out: Pose) {
+  const p = c.bus.path;
+  if (!p) return;
+  const portrait = c.aspect < 0.9;
+  // straight down, road still running up the screen: the finish line and the marks behind it
+  p.point(0.985, carP);
+  p.heading(0.97, head, 30);
+  eye.copy(carP);
+  eye.y += portrait ? 190 : 125;
+  look(out, eye, carP, head);
+  out.focus.copy(carP);
 }
 
 /** pose for scene chapter k at local progress t */
@@ -125,21 +153,17 @@ function evalChapter(k: number, t: number, c: Ctx, out: Pose) {
   const mobile = L.mobile || c.aspect < 0.9;
   switch (k) {
     case 0: {
-      // hero: the car turns on its turntable (HeroCar); camera holds a low 3/4 view and
-      // frames the car in the free band under the headline
-      const fr = c.bus.heroFrame;
-      const avail = Math.max(0.22, fr.bottom - fr.top);
-      // the kerb ring (Ø ~7.4) must sit fully inside the band, above the scroll cue
-      const d = fitDistance(c.aspect, mobile ? 0.78 : 0.4, avail * 0.9, 5.4, 3.5) * (1 - 0.06 * t);
-      const e = mobile ? 0.42 : 0.36;
+      // hero: the car turns slowly (HeroCar) centred under the headline and rides the
+      // page up as it scrolls, on the backdrop's curved horizon
+      const g = heroGeom({ aspect: c.aspect, vh: L.vh, bus: c.bus });
+      const d = fitDistance(c.aspect, g.frac, 1) * (1 - 0.04 * t);
+      const e = mobile ? 0.34 : 0.3;
       const a = -0.5 + c.px * 0.06 + Math.sin(c.time * 0.15) * 0.03;
-      tgt.set(0, 0.55, 0);
-      eye.set(Math.sin(a) * Math.cos(e) * d, 0.55 + Math.sin(e) * d - c.py * 0.25, Math.cos(a) * Math.cos(e) * d);
+      tgt.set(0, 0.5, 0);
+      eye.set(Math.sin(a) * Math.cos(e) * d, 0.5 + Math.sin(e) * d - c.py * 0.2, Math.cos(a) * Math.cos(e) * d);
       look(out, eye, tgt);
-      // the ring's near edge projects low, so the car sits a little above the band's centre
-      frameAt(out, 0.5, fr.top + (fr.bottom - fr.top) * 0.36, c.aspect);
+      frameAt(out, 0.5, (g.cy - c.scrollY) / L.vh, c.aspect);
       out.focus.set(0, 0, 0);
-      out.fog = 0.02;
       return;
     }
     case 1: {
@@ -151,31 +175,29 @@ function evalChapter(k: number, t: number, c: Ctx, out: Pose) {
       look(out, eye, tgt);
       frameAt(out, mobile ? 0.5 : 0.64, mobile ? 0.3 : 0.5, c.aspect);
       out.focus.set(0, 0, 0);
-      out.fog = 0.022;
       return;
     }
     case 2: {
       const d = c.scrollY - c.driveTop;
       const end = L.introPx + L.drivePx;
       if (d <= end) {
-        // overview hold, then a dive into the chase
-        const w = smooth01(range01(d, L.introPx * 0.35, L.introPx));
+        // hold above the start, then dive into the chase
+        const w = smooth01(range01(d, L.introPx * 0.3, L.introPx));
         if (w <= 0) {
-          overview(c, out, 1 + 0.18 * (1 - range01(d, -0.5 * L.vh, L.introPx * 0.35)));
+          roadIntro(c, out);
           return;
         }
         chase(c, c.bus.lapT, out);
         if (w < 1) {
-          const ch = poolB;
-          copyPose(out, ch);
-          overview(c, poolA);
-          blendLog(poolA, ch, w, out);
+          copyPose(out, poolB);
+          roadIntro(c, poolA);
+          blendLog(poolA, poolB, w, out);
         }
         return;
       }
       const w = smooth01(range01(d, end, end + L.outroPx));
       chase(c, 1, poolB);
-      overview(c, poolA);
+      roadOutro(c, poolA);
       blendLog(poolB, poolA, w, out);
       return;
     }
@@ -196,7 +218,6 @@ function evalChapter(k: number, t: number, c: Ctx, out: Pose) {
         look(out, eye, tgt);
       }
       out.focus.set(0, 0, S_CENTER_Z);
-      out.fog = 0.0028;
       return;
     }
     default:
@@ -212,14 +233,12 @@ function copyPose(a: Pose, out: Pose) {
   out.pos.copy(a.pos);
   out.quat.copy(a.quat);
   out.focus.copy(a.focus);
-  out.fog = a.fog;
 }
 
 function blend(a: Pose, b: Pose, w: number, out: Pose) {
   out.pos.lerpVectors(a.pos, b.pos, w);
   out.quat.slerpQuaternions(a.quat, b.quat, w);
   out.focus.lerpVectors(a.focus, b.focus, w);
-  out.fog = a.fog + (b.fog - a.fog) * w;
 }
 
 /** blend with the height interpolated in log space (smooth zooms over 20x height changes) */
@@ -233,16 +252,13 @@ function blendLog(a: Pose, b: Pose, w: number, out: Pose) {
   out.pos.y = y;
   out.quat.slerpQuaternions(a.quat, b.quat, w);
   out.focus.lerpVectors(a.focus, b.focus, k);
-  out.fog = Math.exp(Math.log(a.fog) + (Math.log(b.fog) - Math.log(a.fog)) * w);
 }
 
 export default function CameraRig({ bus, layout }: { bus: LandingBus; layout: LandingLayout }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
-  const scene = useThree((s) => s.scene);
   const poses = useMemo(() => ({ a: mkPose(), b: mkPose(), out: mkPose() }), []);
   const ctx = useMemo<Ctx>(() => ({ bus, layout, scrollY: 0, driveTop: 0, aspect: 1, time: 0, px: 0, py: 0 }), [bus, layout]);
   const ptr = useMemo(() => ({ x: 0, y: 0, lap: -1 }), []);
-  const bg = useMemo(() => new THREE.Color(), []);
 
   useFrame((state, dt) => {
     const s = bus.choreo.current;
@@ -273,7 +289,10 @@ export default function CameraRig({ bus, layout }: { bus: LandingBus; layout: La
     const { a, b, out } = poses;
     evalChapter(k, tOf(k), ctx, out);
     let set = SET_OF[Math.min(k, 3)];
-    let veil = 0;
+    // wipe state: cover 0..1 (slides up from below), opacity of the reveal, colour
+    let cover = 0;
+    let wipeO = 0;
+    let wipeC = '';
 
     if (!reduced) {
       const win = (i: number): [number, number] => {
@@ -286,10 +305,14 @@ export default function CameraRig({ bus, layout }: { bus: LandingBus; layout: La
           blend(from, to, w, out);
           return;
         }
-        veil = w < 0.5 ? smooth01(w / 0.42) : 1 - smooth01((w - 0.58) / 0.42);
+        // a curved paper wipe in the next chapter's colour slides up, the set swaps
+        // under it, then it fades to reveal the new ground (same colour)
+        wipeC = WIPE_OF[i];
+        cover = w < 0.5 ? smooth01(w / 0.44) : 1;
+        wipeO = w < 0.5 ? 1 : 1 - smooth01((w - 0.56) / 0.44);
         set = w < 0.5 ? SET_OF[i - 1] : SET_OF[i];
         if (w < 0.5) {
-          // push in toward the subject while the screen darkens
+          // push in toward the subject while the wipe rises
           copyPose(from, out);
           out.pos.lerp(out.focus, 0.18 * smooth01(w * 2));
         } else copyPose(to, out);
@@ -316,22 +339,27 @@ export default function CameraRig({ bus, layout }: { bus: LandingBus; layout: La
 
     bus.set = set;
     bus.showCar = set === 'circuit' || k <= 1 || (k === 2 && y < ch[2].top);
-    if (bus.veil) {
-      const o = veil.toFixed(3);
-      if (bus.veil.style.opacity !== o) bus.veil.style.opacity = o;
+    const hg = heroGeom({ aspect: ctx.aspect, vh: layout.vh, bus });
+    bus.horizon.y = hg.horizon;
+    bus.horizon.sag = hg.sag;
+    const vl = bus.veil;
+    if (vl) {
+      const o = wipeO.toFixed(3);
+      if (vl.style.opacity !== o) vl.style.opacity = o;
+      if (wipeO > 0) {
+        const tr = `translate3d(0, ${((1 - cover) * 125).toFixed(2)}%, 0)`;
+        if (vl.style.transform !== tr) vl.style.transform = tr;
+        if (wipeC && vl.dataset.c !== wipeC) {
+          vl.dataset.c = wipeC;
+          vl.style.setProperty('--wipe', wipeC);
+        }
+      }
     }
 
     camera.position.copy(out.pos);
     camera.quaternion.copy(out.quat);
     camera.updateMatrixWorld();
     bus.focus.copy(out.focus);
-    const fog = scene.fog as THREE.FogExp2 | null;
-    bg.copy(ATMOS[set]);
-    if (fog) {
-      fog.density = out.fog;
-      fog.color.copy(bg);
-    }
-    if (scene.background instanceof THREE.Color) scene.background.copy(bg);
   });
 
   return null;

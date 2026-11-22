@@ -10,12 +10,12 @@ import Logo from '@/components/ui/Logo';
 
 const fmt = (n: number, ready: boolean) => (ready ? n.toLocaleString('en-GB') : '—');
 
-export function ChapterTag({ n, title, className = '' }: { n: number; title: string; className?: string }) {
+export function ChapterTag({ n, title, className = '', ink = false }: { n: number; title: string; className?: string; ink?: boolean }) {
   return (
-    <div className={`flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.22em] text-white/60 ${className}`}>
-      <span className="rounded-[3px] bg-neon px-1.5 py-0.5 font-semibold text-asphalt">CH.{String(n).padStart(2, '0')}</span>
+    <div className={`flex items-center gap-3 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] ${ink ? 'text-[#0E3B1C]/80' : 'text-white/70'} ${className}`}>
+      <span className={`rounded-[3px] px-1.5 py-0.5 font-semibold ${ink ? 'bg-[#0E3B1C] text-neon' : 'bg-neon text-asphalt'}`}>CH.{String(n).padStart(2, '0')}</span>
       <span>{title}</span>
-      <span className="hidden h-px w-16 bg-white/20 sm:block" />
+      <span className={`hidden h-px w-16 sm:block ${ink ? 'bg-[#0E3B1C]/40' : 'bg-white/25'}`} />
     </div>
   );
 }
@@ -23,8 +23,8 @@ export function ChapterTag({ n, title, className = '' }: { n: number; title: str
 /* ---------------------------------- 01 hero --------------------------------- */
 
 const HEADLINE = [
-  { text: 'REWRITE', className: 'kl-white' },
-  { text: 'THE RACE', className: 'kl-neon' },
+  { text: 'REWRITE', className: 'kl-ink' },
+  { text: 'THE RACE', className: 'kl-ink' },
 ];
 
 export function HeroChapter({
@@ -43,35 +43,40 @@ export function HeroChapter({
   cueRef?: Ref<HTMLDivElement>;
 }) {
   return (
-    <div className="relative flex min-h-[100svh] flex-col px-4 pb-6 pt-[60px] sm:px-8">
-      <div className="absolute right-4 top-[60px] sm:right-8">
+    <div className="relative flex min-h-[100svh] flex-col px-4 pb-5 pt-[60px] sm:px-8">
+      <div className="absolute right-4 top-[72px] z-10 sm:right-8">
         <button
           type="button"
           onClick={onToggleSound}
-          className="pointer-events-auto rounded-full border border-white/25 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.22em] text-white/70 transition hover:border-neon hover:text-neon"
+          className="pointer-events-auto rounded-full border-2 border-[#0E3B1C]/70 px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-[#0E3B1C] transition hover:bg-[#0E3B1C] hover:text-neon"
           aria-pressed={soundOn}
         >
           SFX {soundOn ? 'ON' : 'OFF'}
         </button>
       </div>
 
-      {/* headline owns the upper half; the car turns on its turntable in the band below */}
-      <div ref={headRef} className="flex flex-col items-center pt-[4svh] text-center sm:pt-[2svh]">
+      {/* the big stacked title owns the first screen; the 3D car sits on the horizon right below it */}
+      <div ref={headRef} className="flex flex-col items-center pt-[7svh] text-center sm:pt-[3svh]">
         {/* kicker: WE'RE [sticker] HERE TO */}
-        <div className="relative z-10 mb-[-0.3em] flex items-center justify-center gap-[0.4em] font-display text-[clamp(20px,min(4vw,6svh),50px)] uppercase leading-none text-white">
+        <div className="relative z-10 mb-[-0.32em] flex items-center justify-center gap-[0.4em] font-display text-[clamp(24px,min(4.2vw,7svh),54px)] uppercase leading-none text-[#0E3B1C]">
           <span className="-rotate-2">We&apos;re</span>
           <Logo tilt={-8} />
           <span className="rotate-2">here to</span>
         </div>
         <div className="pointer-events-auto">
-          <KineticHeadline wonky lines={HEADLINE} reduced={reduced} className="text-[min(23vw,15svh)] sm:text-[min(12.5vw,19svh)]" />
+          <KineticHeadline
+            wonky
+            lines={HEADLINE}
+            reduced={reduced}
+            className="text-[clamp(84px,min(25vw,15svh),300px)] sm:text-[clamp(110px,min(17vw,30svh),300px)]"
+          />
         </div>
       </div>
 
       <div className="flex-1" />
 
-      <div ref={cueRef} className="flex justify-center font-mono text-[10px] uppercase tracking-[0.2em] sm:text-[11px]">
-        <span className="scroll-cue flex items-center gap-2 rounded-full bg-asphalt/70 px-3 py-1 text-neon backdrop-blur-sm">
+      <div ref={cueRef} className="flex justify-center font-mono text-[10px] uppercase tracking-[0.2em] sm:justify-start sm:text-[11px]">
+        <span className="scroll-cue flex items-center gap-2 rounded-full border-2 border-[#0E3B1C] bg-[#C8FF1A] px-3 py-1.5 font-semibold text-[#0E3B1C] shadow-[0_3px_0_#0E3B1C]">
           Scroll to drive <span aria-hidden>↓</span>
         </span>
       </div>
@@ -93,12 +98,12 @@ export function SpecimenChapter({ hover, setHover }: { hover: HotspotId | null; 
     <div className="sticky top-0 flex h-[100svh] flex-col justify-end px-4 pb-8 pt-16 sm:justify-center sm:px-8 sm:pb-0">
       <div className="max-w-[420px]">
         <ChapterTag n={2} title="Specimen study" />
-        <h2 className="mt-4 font-display text-[clamp(44px,9vw,104px)] uppercase leading-[0.9]">
+        <h2 className="mt-4 font-display text-[clamp(44px,9vw,104px)] uppercase leading-[0.9] text-[#F6F3E6]">
           The 2026
           <br />
-          <span className="text-neon">machine</span>
+          <span className="text-[#C8FF1A]">machine</span>
         </h2>
-        <p className="mt-3 max-w-sm text-sm text-white/65">
+        <p className="mt-3 max-w-sm text-sm text-[#F6F3E6]/75">
           Narrower, lighter, wings that move. Tilt it with your cursor; tap a tag to dissect it.
         </p>
         <ul className="pointer-events-auto mt-5 grid grid-cols-2 gap-2 sm:grid-cols-1">
@@ -113,7 +118,7 @@ export function SpecimenChapter({ hover, setHover }: { hover: HotspotId | null; 
                 onBlur={() => setHover(null)}
                 onClick={() => setHover(hover === h.id ? null : h.id)}
                 className={`flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.12em] transition ${
-                  hover === h.id ? 'border-white/60 bg-white/10 text-white' : 'border-white/10 bg-panel/70 text-white/70'
+                  hover === h.id ? 'border-[#C8FF1A] bg-[#C8FF1A] text-[#0E3B1C]' : 'border-[#F6F3E6]/20 bg-[#0A2E15]/70 text-[#F6F3E6]/85'
                 }`}
               >
                 <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: h.color, boxShadow: `0 0 10px ${h.color}` }} />
@@ -236,9 +241,8 @@ function Bar({ value, max, color }: { value: number; max: number; color: string 
 const CARD_SIDES: (1 | -1)[] = [-1, 1, -1, 1, -1, 1];
 
 /** Minimap polyline of the drive path in the overview's orientation (screen up = +Z, right = -X). */
-function useMinimap(path: DrivePath | null) {
+function useMinimap(path: DrivePath) {
   return useMemo(() => {
-    if (!path) return null;
     const N = 400;
     const v = new THREE.Vector3();
     const { cx, cz, hx, hz } = path.bounds;
@@ -248,7 +252,7 @@ function useMinimap(path: DrivePath | null) {
       path.point(i / N, v);
       pts.push([50 - (v.x - cx) * k, 50 - (v.z - cz) * k]);
     }
-    const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join('') + 'Z';
+    const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join('');
     return { pts, d, N };
   }, [path]);
 }
@@ -261,7 +265,7 @@ export function DriveChapter({
 }: {
   layout: LandingLayout;
   stats: LandingStats;
-  path: DrivePath | null;
+  path: DrivePath;
   subscribe: ScrollChoreography['subscribe'];
 }) {
   const r = stats.ready;
@@ -360,15 +364,8 @@ export function DriveChapter({
       // HUD: circuit · sector · distance · lap %
       const h = hud.current;
       if (h) h.style.opacity = driving ? '1' : '0';
-      let text = 'LOADING SILVERSTONE…';
-      if (path) {
-        const km = (lap * path.circuit.lengthKm).toFixed(2);
-        const name = path.circuit.name.toUpperCase();
-        const pct = Math.round(lap * 100);
-        text = L.mobile
-          ? `${name} · S${path.sector(lap)} · ${km} KM · ${pct}%`
-          : `${name} · SECTOR ${path.sector(lap)} · ${km} / ${path.circuit.lengthKm.toFixed(3)} KM · ${pct}%`;
-      }
+      const card = Math.min(CARD_LAPS.length, CARD_LAPS.filter((c) => lap >= c - CARD_HALF).length);
+      const text = `SCROLL DRIVE · ${String(card).padStart(2, '0')}/${String(CARD_LAPS.length).padStart(2, '0')} · ${Math.round(lap * 100)}%`;
       if (text !== lastText && hudText.current) {
         hudText.current.textContent = text;
         lastText = text;
@@ -424,7 +421,7 @@ export function DriveChapter({
         <div ref={hud} className="absolute inset-x-0 top-[60px] z-10 flex items-start justify-between gap-3 px-4 opacity-0 transition-opacity duration-300 sm:px-8">
           <div className="min-w-0 rounded-md bg-asphalt/70 px-2.5 py-1.5 backdrop-blur-sm">
             <span ref={hudText} className="block font-mono text-[9px] uppercase tracking-[0.18em] text-white/85 sm:text-[11px]">
-              LOADING SILVERSTONE…
+              SCROLL DRIVE · 00/06 · 0%
             </span>
             <span className="mt-1.5 block h-[3px] w-full overflow-hidden rounded-full bg-white/15">
               <span ref={bar} className="block h-full w-full origin-left rounded-full bg-crimson" style={{ transform: 'scaleX(0)' }} />
@@ -432,7 +429,7 @@ export function DriveChapter({
           </div>
           {map && (
             <svg viewBox="0 0 100 100" className="h-16 w-16 shrink-0 rounded-md bg-asphalt/70 p-1 backdrop-blur-sm sm:h-24 sm:w-24" aria-hidden>
-              <path d={map.d} fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="2.4" strokeLinejoin="round" />
+              <path d={map.d} fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
               <circle cx={map.pts[0][0]} cy={map.pts[0][1]} r="3" fill="#F2F2F2" />
               <circle ref={dot} cx={map.pts[0][0]} cy={map.pts[0][1]} r="4.5" fill="#E10600" stroke="#080B10" strokeWidth="1.5" />
             </svg>
@@ -452,14 +449,14 @@ export function DriveChapter({
         ))}
       </div>
       <div className="absolute inset-x-0 top-0 px-4 pt-20 sm:px-8" style={{ height: layout.introPx }}>
-        <ChapterTag n={3} title="Scroll drive" />
-        <h2 className="mt-4 max-w-3xl font-display text-[clamp(44px,8vw,112px)] uppercase leading-[0.9] [text-shadow:0_3px_0_#080B10,0_10px_30px_rgba(0,0,0,0.5)]">
+        <ChapterTag n={3} title="Scroll drive" ink />
+        <h2 className="mt-4 max-w-3xl font-display text-[clamp(44px,8vw,112px)] uppercase leading-[0.9] text-[#0E3B1C]">
           The season,
           <br />
-          in <span className="text-crimson">tyre marks</span>
+          in <span className="text-[#E10600]">tyre marks</span>
         </h2>
-        <p className="mt-3 max-w-md font-mono text-[11px] uppercase tracking-[0.16em] text-white/80 [text-shadow:0_1px_6px_rgba(0,0,0,0.8)]">
-          {path ? `One lap of ${path.circuit.name} · ${path.circuit.lengthKm.toFixed(3)} km · scroll to drive it` : 'Loading Silverstone…'}
+        <p className="mt-3 inline-block max-w-md rounded-[4px] bg-[#0E3B1C] px-2 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[#C8FF1A]">
+          Six numbers from the 2026 season · scroll to drive
         </p>
       </div>
     </div>
@@ -472,15 +469,15 @@ export function FlowChapter({ stats }: { stats: LandingStats }) {
   return (
     <div className="sticky top-0 flex h-[100svh] flex-col justify-between px-4 pb-6 pt-16 sm:px-8">
       <div>
-        <ChapterTag n={4} title="22-car flow" />
-        <h2 className="mt-3 font-display text-[clamp(40px,7vw,96px)] uppercase leading-[0.9]">
+        <ChapterTag n={4} title="22-car flow" ink />
+        <h2 className="mt-3 font-display text-[clamp(40px,7vw,96px)] uppercase leading-[0.9] text-[#0E3B1C]">
           22 cars.
           <br />
-          <span className="text-neon">One ribbon.</span>
+          <span className="kl-cream">One ribbon.</span>
         </h2>
       </div>
       <div className="pointer-events-auto max-w-3xl">
-        <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/50">The 2026 grid · team colours</div>
+        <div className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#0E3B1C]/80">The 2026 grid · team colours</div>
         <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-11">
           {stats.grid.map((g, i) => (
             <span

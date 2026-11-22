@@ -13,8 +13,8 @@ import World from './World';
 
 /**
  * The single WebGL context for the whole landing page. Fixed behind the DOM;
- * every chapter is a camera move through this one persistent world (a dark studio
- * set for hero / specimen / S-curve and the real Silverstone circuit for the drive).
+ * every chapter is a camera move through this one persistent world (a paper studio
+ * set for hero / specimen, a winding road for the drive, a lilac S-curve for the flow).
  */
 export default function LandingScene({
   bus,
@@ -28,7 +28,7 @@ export default function LandingScene({
   layout: LandingLayout;
   hover: HotspotId | null;
   grid: FlowCar[];
-  path: DrivePath | null;
+  path: DrivePath;
   /** false while DOM-only chapters cover the canvas: stop rendering entirely */
   live?: boolean;
 }) {
@@ -39,10 +39,10 @@ export default function LandingScene({
       dpr={q.dpr}
       shadows={false}
       gl={{ antialias: !q.mobile, powerPreference: 'high-performance', alpha: false }}
-      camera={{ fov: FOV, near: 0.3, far: 4000, position: [-6, 1.6, 8] }}
+      camera={{ fov: FOV, near: 0.5, far: 3000, position: [-6, 1.6, 8] }}
       onCreated={({ gl }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.toneMappingExposure = 1.05;
+        gl.toneMappingExposure = 1.0;
       }}
       style={{ position: 'absolute', inset: 0 }}
     >
@@ -53,11 +53,9 @@ export default function LandingScene({
         <HeroCar bus={bus} hover={hover} />
         <SCurveFlow bus={bus} grid={grid} />
       </Suspense>
-      {path && (
-        <Suspense fallback={null}>
-          <DriveTrack bus={bus} path={path} />
-        </Suspense>
-      )}
+      <Suspense fallback={null}>
+        <DriveTrack bus={bus} path={path} />
+      </Suspense>
     </Canvas>
   );
 }

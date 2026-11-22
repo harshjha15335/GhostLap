@@ -6,7 +6,7 @@ import type { DrivePath } from './scene/drivePath';
 
 export type HotspotId = 'aero' | 'halo' | 'wake' | 'tyres';
 
-/** Which 3D "set" is on stage: the dark studio (hero, specimen, S-curve) or the Silverstone circuit (drive). */
+/** Which 3D "set" is on stage: the paper studio (hero, specimen, S-curve) or the winding drive road. */
 export type SceneSet = 'studio' | 'circuit';
 
 /**
@@ -29,11 +29,13 @@ export interface LandingBus {
   showCar: boolean;
   /** damped lap fraction of the drive (0..1), written by the camera rig */
   lapT: number;
-  /** Silverstone drive path once the race bundle has loaded */
+  /** the drive chapter's procedural road */
   path: DrivePath | null;
-  /** hero framing: viewport fractions (0 top .. 1 bottom) of the free area under the headline */
+  /** hero framing: document px of the headline bottom (the car sits just below it) */
   heroFrame: { top: number; bottom: number };
-  /** full-viewport dip-to-black used to hide set changes */
+  /** hero horizon written by the camera rig: document y (px) of its lowest point and its edge rise (px) */
+  horizon: { y: number; sag: number };
+  /** full-viewport coloured paper wipe used to hide set changes */
   veil: HTMLElement | null;
 }
 

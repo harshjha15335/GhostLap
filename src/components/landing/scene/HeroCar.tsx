@@ -146,7 +146,8 @@ export default function HeroCar({ bus, hover }: { bus: LandingBus; hover: Hotspo
 
     // project hotspot anchors to the DOM overlay
     g.updateMatrixWorld();
-    const vis = inSpec * (1 - range01(ch[1].progress, 0.88, 0.98));
+    // pins leave before the paper wipe into the drive starts rising
+    const vis = inSpec * (1 - range01(s.scrollY, ch[2].top - s.vh * 0.85, ch[2].top - s.vh * 0.6));
     const W = state.size.width;
     const H = state.size.height;
     (Object.keys(HOTSPOT_ANCHORS) as HotspotId[]).forEach((id) => {
