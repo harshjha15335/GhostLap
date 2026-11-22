@@ -11,7 +11,7 @@ export function TyreChip({ compound, age, size = 'sm' }: { compound: Compound; a
   return (
     <span className="inline-flex items-center gap-1" title={`${compound.toLowerCase()} · ${COMPOUND_SHORT[compound]}`}>
       <TyreBadge compound={compound} size={size === 'md' ? 26 : 20} letter />
-      {age !== undefined && <span className="w-4 font-mono text-[10px] text-white/45">{age}</span>}
+      {age !== undefined && <span className="w-4 font-mono text-[10px] text-ink/70">{age}</span>}
     </span>
   );
 }
@@ -102,15 +102,15 @@ export function TimingTower() {
   return (
     <section
       aria-label="Live timing"
-      className="pointer-events-auto w-[178px] select-none overflow-hidden rounded-md border border-line bg-panel/85 shadow-xl backdrop-blur md:w-[248px]"
+      className="pointer-events-auto w-[178px] select-none overflow-hidden rounded-xl border-2 border-ink bg-cream-light text-ink shadow-sticker md:w-[248px]"
     >
-      <header className="flex items-center justify-between border-b border-line px-2 py-1.5">
-        <span className="font-display text-[13px] tracking-wider text-white">TIMING</span>
+      <header className="paper-tex flex items-center justify-between border-b-2 border-ink bg-paper-green px-2 py-1.5">
+        <span className="font-display text-[15px] tracking-wider text-neon">TIMING</span>
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => setMode(mode === 'gap' ? 'int' : 'gap')}
-            className="rounded border border-line px-1.5 py-0.5 font-mono text-[10px] text-white/70 hover:text-neon"
+            className="rounded-[4px] border-[1.5px] border-ink bg-neon px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink"
             title="Toggle gap to leader / interval"
           >
             {mode === 'gap' ? 'GAP' : 'INT'}
@@ -118,7 +118,7 @@ export function TimingTower() {
           <button
             type="button"
             onClick={() => setExpanded((e) => !e)}
-            className="rounded border border-line p-0.5 text-white/70 hover:text-neon"
+            className="rounded-[4px] border-[1.5px] border-ink bg-cream p-0.5 text-ink"
             aria-label={expanded ? 'Collapse timing tower' : 'Expand timing tower'}
           >
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -144,24 +144,24 @@ export function TimingTower() {
           const skipped = !expanded && prev && rows.indexOf(prev) !== rows.indexOf(r) - 1;
           return (
             <li key={isGhost ? 'ghost' : s.driverNumber}>
-              {skipped && <div className="h-px bg-line/70" />}
+              {skipped && <div className="h-0.5 bg-ink/25" />}
               <button
                 type="button"
                 onClick={() => !isGhost && setFocus(s.driverNumber)}
-                className={`flex h-[23px] w-full items-center gap-1.5 px-1.5 text-left font-mono text-[11px] leading-none transition-colors ${
+                className={`flex h-[23px] w-full items-center gap-1.5 px-1.5 text-left font-mono text-[11px] leading-none text-ink transition-colors ${
                   isGhost
-                    ? 'bg-ghost/10 text-ghost'
+                    ? 'bg-ghost/45'
                     : isFocus
-                      ? 'bg-neon/15 text-white'
-                      : 'text-white/85 hover:bg-white/5'
-                } ${r.flag === 'DNF' ? 'opacity-45' : ''}`}
+                      ? 'bg-neon'
+                      : 'hover:bg-ink/[0.07]'
+                } ${r.flag === 'DNF' ? 'opacity-60' : ''}`}
               >
-                <span className={`w-5 text-right tabular-nums ${isFocus ? 'text-neon' : 'text-white/55'}`}>
+                <span className={`w-5 text-right font-semibold tabular-nums ${isFocus || isGhost ? 'text-ink' : 'text-ink/70'}`}>
                   {isGhost ? '◆' : s.retired ? '–' : s.position}
                 </span>
-                <span className="h-3.5 w-[3px] rounded-sm" style={{ background: isGhost ? '#00F5D4' : color }} />
-                <span className="w-[30px] font-semibold tracking-wide">{lookup.code(s.driverNumber)}</span>
-                <span className={`flex-1 truncate text-right tabular-nums ${isGhost ? 'text-ghost' : 'text-white/60'}`}>
+                <span className="h-3.5 w-1 rounded-[1px] ring-1 ring-ink/30" style={{ background: isGhost ? '#00F5D4' : color }} />
+                <span className="w-[30px] font-bold tracking-wide">{lookup.code(s.driverNumber)}</span>
+                <span className={`flex-1 truncate text-right tabular-nums ${isGhost || isFocus ? 'font-semibold text-ink' : 'text-ink/75'}`}>
                   {gapStr}
                 </span>
                 <span className="hidden md:inline-flex">
@@ -173,12 +173,12 @@ export function TimingTower() {
                 <span className="w-7 text-center">
                   {r.flag && r.flag !== 'DNF' && (
                     <span
-                      className={`rounded-[3px] px-1 py-[2px] text-[8.5px] font-bold ${
+                      className={`rounded-[3px] border border-ink px-1 py-[1px] text-[8.5px] font-bold ${
                         r.flag === 'PIT'
-                          ? 'bg-white text-asphalt'
+                          ? 'bg-ink text-cream'
                           : r.flag === 'OUT'
-                            ? 'bg-amber text-asphalt'
-                            : 'bg-white/10 text-white/70'
+                            ? 'bg-amber text-ink'
+                            : 'bg-white text-ink'
                       }`}
                     >
                       {r.flag}

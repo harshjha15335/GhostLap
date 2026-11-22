@@ -18,7 +18,8 @@ const PIN_STYLE: Record<RaceEventType, { color: string; glyph: string; label: st
   PIT: { color: '#EDEFF2', glyph: '', label: 'Pit Stops' },
   OVERTAKE: { color: '#D4FF00', glyph: '', label: 'Overtakes' },
 };
-const BAND: Record<string, string> = { SC: 'rgba(255,212,0,.28)', VSC: 'rgba(255,122,0,.24)', RED: 'rgba(255,30,30,.32)' };
+// status bands sit on the racing-green timeline strip
+const BAND: Record<string, string> = { SC: 'rgba(255,212,0,.42)', VSC: 'rgba(255,122,0,.42)', RED: 'rgba(255,30,30,.5)' };
 
 interface Popover {
   lap: number;
@@ -34,11 +35,11 @@ function LapReadout() {
   const lap = timeline.leaderLapAt(time);
   return (
     <div className="flex items-baseline gap-2 font-mono">
-      <span className="font-display text-xl leading-none tracking-wide text-white md:text-2xl">
-        LAP <span className="text-neon">{lap}</span>
-        <span className="text-white/40">/{timeline.totalLaps}</span>
+      <span className="font-display text-xl leading-none tracking-wide text-ink md:text-2xl">
+        LAP <span className="text-paper-green">{lap}</span>
+        <span className="text-ink/60">/{timeline.totalLaps}</span>
       </span>
-      <span className="hidden text-[11px] tabular-nums text-white/45 sm:inline">{fmtRaceClock(time)}</span>
+      <span className="hidden text-[11px] tabular-nums text-ink/70 sm:inline">{fmtRaceClock(time)}</span>
     </div>
   );
 }
@@ -162,13 +163,13 @@ export function Scrubber() {
   };
 
   return (
-    <section aria-label="Race timeline" className="pointer-events-auto relative rounded-md border border-line bg-panel/90 px-3 pb-2.5 pt-2 shadow-xl backdrop-blur">
+    <section aria-label="Race timeline" className="pointer-events-auto relative rounded-xl border-2 border-ink bg-cream-light px-3 pb-2.5 pt-2 text-ink shadow-sticker">
       {/* transport */}
       <div className="mb-1.5 flex items-center gap-2">
         <button
           type="button"
           onClick={() => stepLap(-1)}
-          className="hidden h-9 w-9 items-center justify-center rounded text-white/70 hover:bg-white/5 hover:text-white sm:flex"
+          className="hidden h-9 w-9 items-center justify-center rounded-md text-ink hover:bg-ink/[0.07] sm:flex"
           aria-label="Previous lap"
         >
           <SkipBack size={16} />
@@ -176,7 +177,7 @@ export function Scrubber() {
         <button
           type="button"
           onClick={togglePlay}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-neon text-asphalt shadow-[0_0_18px_rgba(212,255,0,.35)] transition-transform active:scale-95"
+          className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-ink bg-neon text-ink shadow-sticker-sm transition-transform active:scale-95"
           aria-label={playing ? 'Pause' : 'Play'}
         >
           {playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
@@ -184,7 +185,7 @@ export function Scrubber() {
         <button
           type="button"
           onClick={() => stepLap(1)}
-          className="hidden h-9 w-9 items-center justify-center rounded text-white/70 hover:bg-white/5 hover:text-white sm:flex"
+          className="hidden h-9 w-9 items-center justify-center rounded-md text-ink hover:bg-ink/[0.07] sm:flex"
           aria-label="Next lap"
         >
           <SkipForward size={16} />
@@ -194,13 +195,13 @@ export function Scrubber() {
         </div>
         <div className="ml-auto flex items-center">
           {/* desktop: segmented; mobile: cycle */}
-          <div className="hidden overflow-hidden rounded border border-line sm:flex" role="group" aria-label="Playback speed">
+          <div className="hidden overflow-hidden rounded-md border-2 border-ink bg-white sm:flex" role="group" aria-label="Playback speed">
             {PLAYBACK_SPEEDS.map((sp) => (
               <button
                 key={sp}
                 type="button"
                 onClick={() => setSpeed(sp)}
-                className={`px-2 py-1 font-mono text-[11px] ${sp === speed ? 'bg-neon text-asphalt' : 'text-white/60 hover:text-white'}`}
+                className={`px-2 py-1 font-mono text-[11px] font-semibold ${sp === speed ? 'bg-ink text-neon' : 'text-ink/75 hover:bg-ink/[0.07] hover:text-ink'}`}
               >
                 {sp}×
               </button>
@@ -212,7 +213,7 @@ export function Scrubber() {
               const i = PLAYBACK_SPEEDS.indexOf(speed as (typeof PLAYBACK_SPEEDS)[number]);
               setSpeed(PLAYBACK_SPEEDS[(i + 1) % PLAYBACK_SPEEDS.length]);
             }}
-            className="h-9 min-w-[52px] rounded border border-line px-2 font-mono text-xs text-neon sm:hidden"
+            className="h-9 min-w-[52px] rounded-md border-2 border-ink bg-ink px-2 font-mono text-xs font-bold text-neon sm:hidden"
             aria-label="Change playback speed"
           >
             {speed}×
@@ -232,7 +233,7 @@ export function Scrubber() {
                 type="button"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => openPin(g)}
-                className="pointer-events-auto absolute flex h-4 min-w-4 -translate-x-1/2 items-center justify-center rounded-[3px] px-[3px] font-mono text-[9px] font-bold leading-none text-asphalt shadow transition-transform hover:z-10 hover:scale-125"
+                className="pointer-events-auto absolute flex h-4 min-w-4 -translate-x-1/2 items-center justify-center rounded-[3px] border border-ink px-[3px] font-mono text-[9px] font-bold leading-none text-ink transition-transform hover:z-10 hover:scale-125"
                 style={{ left: `${g.x}%`, top: -g.row * 9, background: st.color }}
                 title={`Lap ${g.lap} · ${st.label}${g.items.length > 1 ? ` ×${g.items.length}` : ''}`}
                 aria-label={`Lap ${g.lap} ${st.label}`}
@@ -249,7 +250,7 @@ export function Scrubber() {
           onPointerMove={onMove}
           onPointerUp={onUp}
           onPointerCancel={onUp}
-          className="relative h-10 cursor-pointer touch-none rounded bg-asphalt/80 ring-1 ring-line md:h-9"
+          className="relative h-10 cursor-pointer touch-none rounded-md border-2 border-ink bg-paper-green md:h-9"
           role="slider"
           aria-label="Race position"
           aria-valuemin={1}
@@ -279,11 +280,11 @@ export function Scrubber() {
               aria-label={`${b.type} laps ${b.startLap}–${b.endLap}`}
             />
           ))}
-          <div ref={fillRef} className="pointer-events-none absolute inset-y-0 left-0 rounded-l bg-neon/10" />
+          <div ref={fillRef} className="pointer-events-none absolute inset-y-0 left-0 rounded-l bg-neon/15" />
           {/* lap grid */}
           {model.labels.map((l) => (
-            <div key={l} className="pointer-events-none absolute inset-y-0 w-px bg-white/[0.06]" style={{ left: `${model.lapX(l)}%` }}>
-              <span className="absolute bottom-0.5 left-1 font-mono text-[9px] text-white/30">{l}</span>
+            <div key={l} className="pointer-events-none absolute inset-y-0 w-px bg-white/[0.12]" style={{ left: `${model.lapX(l)}%` }}>
+              <span className="absolute bottom-0.5 left-1 font-mono text-[9px] text-cream/70">{l}</span>
             </div>
           ))}
           {/* minor ticks: pits (bottom), overtakes (top) */}
@@ -305,34 +306,34 @@ export function Scrubber() {
           })}
           {/* playhead */}
           <div ref={headRef} className="pointer-events-none absolute -top-1 bottom-[-4px] w-0">
-            <div className="absolute -left-[1px] top-0 h-full w-[2px] bg-neon shadow-[0_0_8px_#D4FF00]" />
-            <div className="absolute -left-[7px] -top-1 h-3.5 w-3.5 rotate-45 rounded-[2px] bg-neon" />
+            <div className="absolute -left-[2px] top-0 h-full w-1 border-x border-ink bg-neon" />
+            <div className="absolute -left-[8px] -top-1.5 h-4 w-4 rotate-45 rounded-[3px] border-2 border-ink bg-neon" />
           </div>
         </div>
       </div>
 
       {/* legend */}
-      <div className="mt-1.5 hidden flex-wrap gap-x-3 gap-y-1 font-mono text-[9.5px] text-white/40 md:flex">
-        <span><i className="mr-1 inline-block h-2 w-2 bg-[#D4FF00]" />overtakes</span>
-        <span><i className="mr-1 inline-block h-2 w-2 bg-[#EDEFF2]" />pit stops</span>
-        <span><i className="mr-1 inline-block h-2 w-2 bg-[#FFD400]/70" />SC</span>
-        <span><i className="mr-1 inline-block h-2 w-2 bg-[#FF7A00]/70" />VSC / penalty</span>
-        <span><i className="mr-1 inline-block h-2 w-2 bg-[#B44CFF]" />fastest lap</span>
+      <div className="mt-1.5 hidden flex-wrap gap-x-3 gap-y-1 font-mono text-[9.5px] text-ink/70 md:flex">
+        <span><i className="mr-1 inline-block h-2 w-2 border border-ink bg-[#D4FF00]" />overtakes</span>
+        <span><i className="mr-1 inline-block h-2 w-2 border border-ink bg-[#EDEFF2]" />pit stops</span>
+        <span><i className="mr-1 inline-block h-2 w-2 border border-ink bg-[#FFD400]" />SC</span>
+        <span><i className="mr-1 inline-block h-2 w-2 border border-ink bg-[#FF7A00]" />VSC / penalty</span>
+        <span><i className="mr-1 inline-block h-2 w-2 border border-ink bg-[#B44CFF]" />fastest lap</span>
         <span className="ml-auto">drag to scrub · click a pin to jump · space play/pause</span>
       </div>
 
       {pop && (
         <div
-          className="absolute bottom-full z-30 mb-2 w-[min(320px,calc(100vw-32px))] rounded-md border border-line bg-asphalt/95 p-2.5 shadow-2xl"
+          className="absolute bottom-full z-30 mb-2 w-[min(320px,calc(100vw-32px))] rounded-xl border-2 border-ink bg-cream-light p-2.5 text-ink shadow-sticker"
           style={{ left: `clamp(0px, calc(${pop.x}% - 160px), calc(100% - min(320px, calc(100vw - 32px))))` }}
           role="status"
         >
           <div className="mb-1 flex items-center gap-2">
-            <span className="rounded-[3px] px-1.5 py-0.5 font-mono text-[10px] font-bold text-asphalt" style={{ background: PIN_STYLE[pop.type].color }}>
+            <span className="rounded-[3px] border border-ink px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink" style={{ background: PIN_STYLE[pop.type].color }}>
               {PIN_STYLE[pop.type].label.toUpperCase()}
             </span>
-            <span className="font-mono text-[11px] text-white/60">LAP {pop.lap}</span>
-            <button type="button" onClick={() => setPop(null)} className="ml-auto text-white/50 hover:text-white" aria-label="Close">
+            <span className="font-mono text-[11px] font-semibold text-ink/70">LAP {pop.lap}</span>
+            <button type="button" onClick={() => setPop(null)} className="ml-auto rounded text-ink/70 hover:text-ink" aria-label="Close">
               <X size={14} />
             </button>
           </div>
@@ -341,14 +342,14 @@ export function Scrubber() {
               <li key={i}>
                 <button
                   type="button"
-                  className="w-full text-left text-[12px] leading-snug text-white/85 hover:text-neon"
+                  className="w-full rounded px-0.5 text-left text-[12px] leading-snug text-ink hover:bg-neon"
                   onClick={() => e.driverNumber != null && useRaceLab.getState().setFocusDriver(e.driverNumber)}
                 >
                   {describe(e)}
                 </button>
               </li>
             ))}
-            {pop.items.length === 0 && <li className="text-[12px] text-white/60">Track status change</li>}
+            {pop.items.length === 0 && <li className="text-[12px] text-ink/70">Track status change</li>}
           </ul>
         </div>
       )}

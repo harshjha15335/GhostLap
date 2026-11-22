@@ -100,7 +100,7 @@ export default function ReplayView() {
   const ready = status === 'ready' && bundle && timeline && bundle.summary.slug === slug;
 
   return (
-    <main className="fixed inset-0 overflow-hidden bg-asphalt text-white">
+    <main className="theme-paper fixed inset-0 overflow-hidden bg-[#BFE3FF] text-ink">
       {/* 3D */}
       <div className="absolute inset-0">
         {bundle && timeline && (
@@ -110,16 +110,16 @@ export default function ReplayView() {
         )}
       </div>
 
-      {/* vignette for HUD legibility */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_45%,transparent_55%,rgba(8,11,16,.75))]" />
+      {/* soft warm edge haze (HUD panels are opaque stickers, so no dark vignette needed) */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(130%_95%_at_50%_45%,transparent_62%,rgba(255,246,224,.35))]" />
 
       {!ready && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center font-mono text-sm tracking-widest">
+          <div className="text-center font-mono text-sm font-semibold tracking-widest">
             {status === 'error' ? (
-              <span className="text-crimson">Couldn’t load {slug}: {error}</span>
+              <span className="inline-block rounded-md border-2 border-ink bg-[#D7102A] px-3 py-2 text-white shadow-sticker">Couldn’t load {slug}: {error}</span>
             ) : (
-              <span className="animate-pulse text-neon/80">Warming tyres · {slug.toUpperCase()}</span>
+              <span className="inline-block -rotate-2 animate-pulse rounded-full border-2 border-ink bg-neon px-4 py-2 text-ink shadow-sticker">Warming tyres · {slug.toUpperCase()}</span>
             )}
           </div>
         </div>
@@ -139,8 +139,8 @@ export default function ReplayView() {
             <button
               type="button"
               onClick={() => setDrawerOpen(!drawerOpen)}
-              className={`flex h-9 items-center gap-1.5 rounded-md px-3 font-display text-[15px] tracking-wider shadow-lg transition-colors ${
-                drawerOpen ? 'bg-ghost text-asphalt' : 'bg-ghost/15 text-ghost ring-1 ring-ghost/60 hover:bg-ghost/25'
+              className={`flex h-9 items-center gap-1.5 rounded-lg border-2 border-ink px-3 font-display text-[15px] tracking-wider shadow-sticker-sm transition-transform hover:-translate-y-px ${
+                drawerOpen ? 'bg-ink text-ghost' : 'bg-ghost text-ink'
               }`}
               aria-pressed={drawerOpen}
             >

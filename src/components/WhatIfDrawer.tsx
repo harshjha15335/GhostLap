@@ -100,36 +100,38 @@ export default function WhatIfDrawer() {
     <aside
       aria-label="What If? strategy simulator"
       aria-hidden={!open}
-      className={`fixed inset-x-0 bottom-0 z-40 flex max-h-[80dvh] flex-col rounded-t-2xl border border-line bg-asphalt/95 shadow-[0_-20px_60px_rgba(0,0,0,.6)] backdrop-blur-md transition-[transform,visibility] duration-300 ease-out
-        md:inset-x-auto md:bottom-0 md:right-0 md:top-12 md:max-h-none md:w-[400px] md:rounded-none md:rounded-l-xl md:border-r-0
+      className={`theme-paper paper-tex fixed inset-x-0 bottom-0 z-40 flex max-h-[80dvh] flex-col overflow-hidden rounded-t-2xl border-2 border-b-0 border-ink bg-cream text-ink shadow-[0_-6px_0_rgba(15,26,18,.9)] transition-[transform,visibility] duration-300 ease-out
+        md:inset-x-auto md:bottom-0 md:right-0 md:top-12 md:max-h-none md:w-[400px] md:rounded-none md:rounded-l-2xl md:border-b-2 md:border-r-0 md:border-t-0 md:shadow-[-6px_0_0_rgba(15,26,18,.9)]
         ${open ? 'visible translate-y-0 md:translate-x-0' : 'invisible translate-y-full md:translate-x-full md:translate-y-0'}`}
     >
-      <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-white/20 md:hidden" />
-      <header className="flex items-center gap-2 border-b border-line px-4 py-2.5">
-        <Sparkles size={18} className="text-ghost" />
+      <header className="paper-tex relative flex items-center gap-2 border-b-2 border-ink bg-neon px-4 pb-2.5 pt-3.5 md:pt-2.5">
+        <span className="absolute left-1/2 top-1.5 h-1 w-10 -translate-x-1/2 rounded-full bg-ink/40 md:hidden" />
+        <span className="flex h-8 w-8 -rotate-6 items-center justify-center rounded-lg border-2 border-ink bg-ghost shadow-sticker-sm">
+          <Sparkles size={16} className="text-ink" />
+        </span>
         <div className="flex-1">
-          <h2 className="font-display text-xl leading-none tracking-wide text-white">
-            WHAT IF<span className="text-ghost">?</span>
+          <h2 className="font-display text-2xl leading-none tracking-wide text-ink">
+            WHAT IF<span className="text-paper-green">?</span>
           </h2>
-          <p className="font-mono text-[10px] text-white/45">Ghost Car strategy simulator</p>
+          <p className="font-mono text-[10px] font-semibold text-ink/75">Ghost Car strategy simulator</p>
         </div>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="flex h-9 w-9 items-center justify-center rounded-md text-white/60 hover:bg-white/5 hover:text-white"
+          className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-ink bg-cream text-ink shadow-sticker-sm hover:-translate-y-px"
           aria-label="Close What If drawer"
         >
           <X size={18} />
         </button>
       </header>
       {bundle && timeline ? (
-        <div className="scrollbar-thin flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-3">
+        <div className="scrollbar-thin flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-6 pt-3">
           <Presets bundle={bundle} scenario={scenario} />
           {ghost && <VerdictCard bundle={bundle} timeline={timeline} ghost={ghost} slug={slug ?? bundle.summary.slug} />}
           <ManualControls bundle={bundle} open={open} />
         </div>
       ) : (
-        <div className="p-6 font-mono text-sm text-white/50">Loading race…</div>
+        <div className="p-6 font-mono text-sm text-ink/70">Loading race…</div>
       )}
     </aside>
   );
@@ -159,10 +161,10 @@ function Presets({ bundle, scenario }: { bundle: RaceBundle; scenario: WhatIfSce
 
   return (
     <section className="mb-4" aria-label="One-tap scenarios">
-      <h3 className="mb-2 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">
-        <Zap size={12} className="text-neon" /> One-tap scenarios
+      <h3 className="mb-2 flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-ink/75">
+        <Zap size={12} className="fill-neon text-ink" /> One-tap scenarios
       </h3>
-      <div className="grid gap-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
         {ready
           ? presets.map((p) => {
               const g = p.expected.positionsGained;
@@ -172,24 +174,24 @@ function Presets({ bundle, scenario }: { bundle: RaceBundle; scenario: WhatIfSce
                   key={p.id}
                   type="button"
                   onClick={() => launchScenario(p.scenario)}
-                  className={`group flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
-                    active ? 'border-ghost bg-ghost/10' : 'border-line bg-panel hover:border-ghost/60'
+                  className={`group flex items-center gap-3 rounded-xl border-2 border-ink p-3 text-left shadow-sticker-sm transition-transform hover:-translate-y-0.5 ${
+                    active ? 'bg-ghost/30' : 'bg-white'
                   }`}
                 >
-                  <span className="h-9 w-1 shrink-0 rounded-sm" style={{ background: lookup.color(p.scenario.driverNumber) }} />
+                  <span className="h-9 w-1.5 shrink-0 rounded-[2px] ring-1 ring-ink" style={{ background: lookup.color(p.scenario.driverNumber) }} />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[13px] font-semibold leading-tight text-white">{p.label}</span>
-                    <span className="mt-0.5 block truncate font-mono text-[10px] text-white/50">
+                    <span className="block text-[13px] font-bold leading-tight text-ink">{p.label}</span>
+                    <span className="mt-0.5 block truncate font-mono text-[10px] text-ink/75">
                       {lookup.code(p.scenario.driverNumber)} · {p.description}
                     </span>
                   </span>
                   <span className="shrink-0 text-right">
                     <span
-                      className={`block font-display text-lg leading-none ${g > 0 ? 'text-neon' : g < 0 ? 'text-crimson' : 'text-white/70'}`}
+                      className={`block font-display text-lg leading-none ${g > 0 ? 'text-ink-green' : g < 0 ? 'text-ink-red' : 'text-ink/75'}`}
                     >
                       {g > 0 ? `+${g}` : g < 0 ? `${g}` : '±0'} POS
                     </span>
-                    <span className="font-mono text-[10px] text-white/50">
+                    <span className="font-mono text-[10px] text-ink/75">
                       P{p.expected.realFinishPosition ?? '–'}→P{p.expected.ghostFinishPosition} · {fmtDelta(p.expected.deltaSeconds)}
                     </span>
                   </span>
@@ -201,19 +203,19 @@ function Presets({ bundle, scenario }: { bundle: RaceBundle; scenario: WhatIfSce
                 key={i}
                 type="button"
                 disabled
-                className="flex cursor-not-allowed items-center gap-3 rounded-lg border border-dashed border-line bg-panel/50 p-3 text-left"
+                className="flex cursor-not-allowed items-center gap-3 rounded-xl border-2 border-dashed border-ink/40 bg-white/50 p-3 text-left"
               >
-                <span className="h-9 w-1 rounded-sm bg-white/10" />
+                <span className="h-9 w-1.5 rounded-sm bg-ink/15" />
                 <span className="flex-1">
-                  <span className="block h-3 w-3/4 animate-pulse rounded bg-white/10" />
-                  <span className="mt-1.5 block h-2 w-1/2 animate-pulse rounded bg-white/5" />
+                  <span className="block h-3 w-3/4 animate-pulse rounded bg-ink/15" />
+                  <span className="mt-1.5 block h-2 w-1/2 animate-pulse rounded bg-ink/10" />
                 </span>
-                <span className="font-mono text-[10px] text-white/30">{presets === null ? 'computing…' : 'coming soon'}</span>
+                <span className="font-mono text-[10px] text-ink/70">{presets === null ? 'computing…' : 'coming soon'}</span>
               </button>
             ))}
       </div>
       {presets && presets.length === 0 && (
-        <p className="mt-1.5 font-mono text-[10px] text-white/35">Strategy engine presets aren’t available for this race yet — build your own below.</p>
+        <p className="mt-1.5 font-mono text-[10px] text-ink/70">Strategy engine presets aren’t available for this race yet — build your own below.</p>
       )}
     </section>
   );
@@ -275,17 +277,17 @@ function ManualControls({ bundle, open }: { bundle: RaceBundle; open: boolean })
 
   return (
     <section aria-label="Build your own scenario" className="mt-1">
-      <h3 className="mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">Build your own</h3>
+      <h3 className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-ink/75">Build your own</h3>
 
       <label className="mb-3 block">
-        <span className="mb-1 block font-mono text-[10px] text-white/50">DRIVER</span>
+        <span className="mb-1 block font-mono text-[10px] font-semibold text-ink/75">DRIVER</span>
         <select
           value={draft.driver}
           onChange={(e) => {
             const dn = Number(e.target.value);
             update((d) => freshDraft(bundle, dn, d.fromLap, d.avoidPenalties));
           }}
-          className="h-10 w-full rounded-md border border-line bg-panel px-2 text-sm text-white focus:border-ghost focus:outline-none"
+          className="h-10 w-full rounded-lg border-2 border-ink bg-white px-2 text-sm font-medium text-ink shadow-sticker-sm"
         >
           {drivers.map((c) => {
             const d = lookup.driver(c.driverNumber);
@@ -299,9 +301,9 @@ function ManualControls({ bundle, open }: { bundle: RaceBundle; open: boolean })
       </label>
 
       <label className="mb-3 block">
-        <span className="mb-1 flex justify-between font-mono text-[10px] text-white/50">
+        <span className="mb-1 flex justify-between font-mono text-[10px] font-semibold text-ink/75">
           <span>PAUSE LAP L0 · reality until here</span>
-          <span className="text-ghost">LAP {draft.fromLap}</span>
+          <span className="rounded-[3px] bg-ink px-1 text-ghost">LAP {draft.fromLap}</span>
         </span>
         <input
           type="range"
@@ -312,30 +314,30 @@ function ManualControls({ bundle, open }: { bundle: RaceBundle; open: boolean })
             const L0 = Number(e.target.value);
             update((d) => freshDraft(bundle, d.driver, L0, d.avoidPenalties));
           }}
-          className="h-6 w-full accent-[#00F5D4]"
+          className="h-6 w-full accent-[#0A3A12]"
         />
       </label>
 
-      <div className="mb-2 font-mono text-[10px] text-white/50">PIT STOPS FROM LAP {draft.fromLap}</div>
+      <div className="mb-2 font-mono text-[10px] font-semibold text-ink/75">PIT STOPS FROM LAP {draft.fromLap}</div>
       <ol className="space-y-2">
         {draft.stops.map((s, i) => {
           const [lo, hi] = stopRange(s, draft, total);
           const lap = Math.max(draft.fromLap, Math.min(total - 1, s.base + s.offset));
           return (
-            <li key={s.id} className="rounded-md border border-line bg-panel p-2.5">
+            <li key={s.id} className="rounded-xl border-2 border-ink bg-white p-2.5 shadow-sticker-sm">
               <div className="mb-1 flex items-center gap-2 font-mono text-[11px]">
-                <span className="text-white/50">STOP {i + 1}</span>
-                <span className="text-white">LAP {lap}</span>
+                <span className="text-ink/70">STOP {i + 1}</span>
+                <span className="font-bold text-ink">LAP {lap}</span>
                 {s.real && (
-                  <span className={s.offset === 0 ? 'text-white/40' : s.offset < 0 ? 'text-ghost' : 'text-amber'}>
+                  <span className={`font-semibold ${s.offset === 0 ? 'text-ink/70' : s.offset < 0 ? 'text-ink-teal' : 'text-ink-amber'}`}>
                     {s.offset === 0 ? '(real)' : `${s.offset > 0 ? '+' : ''}${s.offset} vs real L${s.base}`}
                   </span>
                 )}
-                {!s.real && <span className="text-ghost">(added)</span>}
+                {!s.real && <span className="font-semibold text-ink-teal">(added)</span>}
                 <button
                   type="button"
                   onClick={() => update((d) => ({ ...d, stops: d.stops.filter((x) => x.id !== s.id) }))}
-                  className="ml-auto flex h-7 w-7 items-center justify-center rounded text-white/50 hover:bg-white/5 hover:text-crimson"
+                  className="ml-auto flex h-7 w-7 items-center justify-center rounded-md border-[1.5px] border-ink/30 text-ink/75 hover:border-ink hover:bg-[#D7102A] hover:text-white"
                   aria-label={`Remove stop ${i + 1}`}
                 >
                   <Minus size={14} />
@@ -350,7 +352,7 @@ function ManualControls({ bundle, open }: { bundle: RaceBundle; open: boolean })
                   const offset = Number(e.target.value);
                   update((d) => ({ ...d, stops: d.stops.map((x) => (x.id === s.id ? { ...x, offset } : x)) }));
                 }}
-                className="h-6 w-full accent-[#00F5D4]"
+                className="h-6 w-full accent-[#0A3A12]"
                 aria-label={`Stop ${i + 1} lap offset`}
               />
               <div className="mt-1 grid grid-cols-4 gap-1">
@@ -359,13 +361,12 @@ function ManualControls({ bundle, open }: { bundle: RaceBundle; open: boolean })
                     key={c}
                     type="button"
                     onClick={() => update((d) => ({ ...d, stops: d.stops.map((x) => (x.id === s.id ? { ...x, compound: c } : x)) }))}
-                    className={`flex h-8 items-center justify-center gap-1 rounded border font-mono text-[10px] ${
-                      s.compound === c ? 'bg-white/10 text-white' : 'border-line text-white/50 hover:text-white'
+                    className={`flex h-8 items-center justify-center gap-1 rounded-md font-mono text-[10px] ${
+                      s.compound === c ? 'border-2 border-ink bg-neon font-bold text-ink' : 'border-[1.5px] border-ink/30 text-ink/75 hover:border-ink hover:text-ink'
                     }`}
-                    style={s.compound === c ? { borderColor: COMPOUND_COLORS[c] } : undefined}
                     aria-pressed={s.compound === c}
                   >
-                    <span className="h-2 w-2 rounded-full" style={{ background: COMPOUND_COLORS[c] }} />
+                    <span className="h-2.5 w-2.5 rounded-full ring-1 ring-ink" style={{ background: COMPOUND_COLORS[c] }} />
                     {label}
                   </button>
                 ))}
@@ -374,7 +375,7 @@ function ManualControls({ bundle, open }: { bundle: RaceBundle; open: boolean })
           );
         })}
         {draft.stops.length === 0 && (
-          <li className="rounded-md border border-dashed border-line p-2.5 font-mono text-[11px] text-white/40">
+          <li className="rounded-xl border-2 border-dashed border-ink/40 p-2.5 font-mono text-[11px] text-ink/70">
             No stops after lap {draft.fromLap} — the ghost runs to the flag on its current tyres.
           </li>
         )}
@@ -389,15 +390,15 @@ function ManualControls({ bundle, open }: { bundle: RaceBundle; open: boolean })
             return { ...d, stops: [...d.stops, { id: stopId++, base, offset: 0, compound: 'HARD', real: false }] };
           })
         }
-        className="mt-2 flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-ghost/40 font-mono text-[11px] text-ghost hover:bg-ghost/10 disabled:opacity-40"
+        className="mt-2 flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-ink/60 font-mono text-[11px] font-bold text-ink hover:bg-ghost/30 disabled:opacity-40"
       >
         <Plus size={14} /> ADD STOP
       </button>
 
-      <label className="mt-3 flex cursor-pointer items-center justify-between rounded-md border border-line bg-panel px-3 py-2.5">
+      <label className="mt-3 flex cursor-pointer items-center justify-between rounded-xl border-2 border-ink bg-white px-3 py-2.5 shadow-sticker-sm">
         <span>
-          <span className="block text-[13px] text-white">Avoid penalties</span>
-          <span className="font-mono text-[10px] text-white/45">
+          <span className="block text-[13px] font-semibold text-ink">Avoid penalties</span>
+          <span className="font-mono text-[10px] text-ink/70">
             {penalties ? `${penalties} penalty event${penalties > 1 ? 's' : ''} for ${lookup.code(draft.driver)}` : 'No penalties served'}
           </span>
         </span>
@@ -407,7 +408,7 @@ function ManualControls({ bundle, open }: { bundle: RaceBundle; open: boolean })
           onChange={(e) => update((d) => ({ ...d, avoidPenalties: e.target.checked }))}
           className="peer sr-only"
         />
-        <span className="relative h-6 w-11 rounded-full bg-line transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white/70 after:transition-transform peer-checked:bg-ghost/70 peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-ghost" />
+        <span className="relative h-6 w-11 rounded-full border-2 border-ink bg-ink/15 transition-colors after:absolute after:left-px after:top-px after:h-[18px] after:w-[18px] after:rounded-full after:border-2 after:border-ink after:bg-white after:transition-transform peer-checked:bg-paper-green peer-checked:after:translate-x-5 peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink" />
       </label>
 
       <div className="mt-3 grid grid-cols-2 gap-2">
@@ -417,7 +418,7 @@ function ManualControls({ bundle, open }: { bundle: RaceBundle; open: boolean })
             lastRun.current = sc;
             launchScenario(sc);
           }}
-          className="flex h-10 items-center justify-center gap-1.5 rounded-md bg-ghost font-mono text-[11px] font-bold text-asphalt hover:brightness-110"
+          className="flex h-10 items-center justify-center gap-1.5 rounded-lg border-2 border-ink bg-ghost font-mono text-[11px] font-bold text-ink shadow-sticker-sm transition-transform hover:-translate-y-px"
         >
           <Play size={14} fill="currentColor" /> {ghost ? 'REPLAY THE CHANGE' : 'LAUNCH GHOST'}
         </button>
@@ -431,7 +432,7 @@ function ManualControls({ bundle, open }: { bundle: RaceBundle; open: boolean })
             dirty.current = false;
             setDraft(freshDraft(bundle, draft.driver, lap));
           }}
-          className="flex h-10 items-center justify-center gap-1.5 rounded-md border border-line font-mono text-[11px] text-white/70 hover:text-white"
+          className="flex h-10 items-center justify-center gap-1.5 rounded-lg border-2 border-ink bg-white font-mono text-[11px] font-semibold text-ink shadow-sticker-sm transition-transform hover:-translate-y-px"
         >
           <RotateCcw size={14} /> RESET
         </button>
@@ -491,28 +492,24 @@ function VerdictCard({ bundle, timeline, ghost, slug }: { bundle: RaceBundle; ti
   return (
     <section
       aria-label="Verdict"
-      className="relative mb-5 overflow-hidden rounded-xl border border-ghost/40 p-4 shadow-[0_0_40px_rgba(0,245,212,.12)]"
-      style={{
-        background:
-          'radial-gradient(120% 80% at 100% 0%, rgba(0,245,212,.18), transparent 60%), radial-gradient(90% 70% at 0% 100%, rgba(212,255,0,.07), transparent 60%), #0B0E14',
-      }}
+      className="paper-tex relative mb-5 overflow-hidden rounded-2xl border-[2.5px] border-ink bg-paper-green p-4 text-cream shadow-sticker"
     >
-      <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/50">
-        <span className="rounded-sm bg-ghost px-1 font-bold text-asphalt">VERDICT</span>
+      <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-cream/75">
+        <span className="-rotate-2 rounded-[4px] border-[1.5px] border-ink bg-ghost px-1 font-bold text-ink">VERDICT</span>
         <span className="truncate">
           {bundle.summary.name} · R{String(bundle.summary.round).padStart(2, '0')}
         </span>
       </div>
 
       <div className="mt-3 flex items-center gap-2">
-        <span className="h-10 w-1.5 rounded-sm" style={{ background: color }} />
+        <span className="h-10 w-1.5 rounded-[2px] ring-1 ring-cream/60" style={{ background: color }} />
         <div className="min-w-0">
-          <div className="font-display text-2xl leading-none tracking-wide text-white">{d?.lastName?.toUpperCase() ?? lookup.code(dn)}</div>
-          <div className="truncate font-mono text-[10px] text-white/50">{team?.name ?? ''} · ghost strategy</div>
+          <div className="font-display text-3xl leading-none tracking-wide text-neon">{d?.lastName?.toUpperCase() ?? lookup.code(dn)}</div>
+          <div className="truncate font-mono text-[10px] text-cream/75">{team?.name ?? ''} · ghost strategy</div>
         </div>
         <div
-          className={`ml-auto rounded-md px-2 py-1 font-display text-xl leading-none ${
-            g > 0 ? 'bg-neon text-asphalt' : g < 0 ? 'bg-crimson text-white' : 'bg-white/10 text-white'
+          className={`ml-auto rotate-2 rounded-lg border-2 border-ink px-2 py-1 font-display text-xl leading-none shadow-sticker-sm ${
+            g > 0 ? 'bg-neon text-ink' : g < 0 ? 'bg-[#FF5A5A] text-ink' : 'bg-cream text-ink'
           }`}
         >
           {g > 0 ? `+${g}` : g < 0 ? g : '±0'} POS
@@ -521,32 +518,32 @@ function VerdictCard({ bundle, timeline, ghost, slug }: { bundle: RaceBundle; ti
 
       <div className="mt-4 grid grid-cols-3 items-end gap-2">
         <div>
-          <div className="font-mono text-[10px] text-white/45">REALITY</div>
-          <div className="font-display text-4xl leading-none text-white/80">P{ghost.realFinishPosition ?? '–'}</div>
+          <div className="font-mono text-[10px] text-cream/75">REALITY</div>
+          <div className="font-display text-5xl leading-none text-cream">P{ghost.realFinishPosition ?? '–'}</div>
         </div>
-        <div className="pb-1 text-center font-display text-2xl text-white/30">→</div>
+        <div className="pb-1 text-center font-display text-3xl text-cream/60">→</div>
         <div className="text-right">
-          <div className="font-mono text-[10px] text-ghost">GHOST</div>
-          <div className="font-display text-4xl leading-none text-ghost drop-shadow-[0_0_14px_rgba(0,245,212,.7)]">P{ghost.ghostFinishPosition}</div>
+          <div className="font-mono text-[10px] font-semibold text-ghost">GHOST</div>
+          <div className="font-display text-5xl leading-none text-ghost">P{ghost.ghostFinishPosition}</div>
         </div>
       </div>
       <div className="mt-2 flex justify-between font-mono text-[11px]">
-        <span className="text-white/50">race time delta</span>
-        <span className={ghost.deltaSeconds < 0 ? 'text-ghost' : ghost.deltaSeconds > 0 ? 'text-amber' : 'text-white/70'}>
+        <span className="text-cream/75">race time delta</span>
+        <span className={`font-bold ${ghost.deltaSeconds < 0 ? 'text-ghost' : ghost.deltaSeconds > 0 ? 'text-amber' : 'text-cream/80'}`}>
           {fmtDelta(ghost.deltaSeconds)}
         </span>
       </div>
 
       {/* position battle */}
       <svg viewBox={`0 -4 ${W} ${H + 8}`} className="mt-3 h-16 w-full" preserveAspectRatio="none" aria-label="Running position: reality vs ghost">
-        <rect x={fromX} y={-4} width={W - fromX} height={H + 8} fill="rgba(0,245,212,.06)" />
-        <path d={path(realPos)} fill="none" stroke="rgba(255,255,255,.55)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-        <path d={path(ghost.positionByLap)} fill="none" stroke="#00F5D4" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+        <rect x={fromX} y={-4} width={W - fromX} height={H + 8} fill="rgba(0,245,212,.12)" />
+        <path d={path(realPos)} fill="none" stroke="rgba(246,241,227,.7)" strokeWidth={1.75} vectorEffect="non-scaling-stroke" />
+        <path d={path(ghost.positionByLap)} fill="none" stroke="#00F5D4" strokeWidth={2.5} vectorEffect="non-scaling-stroke" />
       </svg>
-      <div className="flex justify-between font-mono text-[9px] text-white/35">
+      <div className="flex justify-between font-mono text-[9px] text-cream/70">
         <span>L1</span>
         <span>
-          <span className="text-white/60">— reality</span> <span className="text-ghost">— ghost</span> · from L{ghost.scenario.fromLap}
+          <span className="text-cream">— reality</span> <span className="text-ghost">— ghost</span> · from L{ghost.scenario.fromLap}
         </span>
         <span>L{timeline.totalLaps}</span>
       </div>
@@ -555,28 +552,28 @@ function VerdictCard({ bundle, timeline, ghost, slug }: { bundle: RaceBundle; ti
         <ul className="mt-3 space-y-1">
           {keyOvertakes.map((o, i) => (
             <li key={i} className="flex items-center gap-2 font-mono text-[11px]">
-              <span className="w-8 text-white/40">L{o.lap}</span>
-              <span className={o.gained ? 'text-neon' : 'text-crimson'}>{o.gained ? '▲ passes' : '▼ passed by'}</span>
-              <span className="h-3 w-[3px] rounded-sm" style={{ background: lookup.color(o.driverNumber) }} />
-              <span className="text-white">{lookup.code(o.driverNumber)}</span>
+              <span className="w-8 text-cream/70">L{o.lap}</span>
+              <span className={o.gained ? 'text-neon' : 'text-[#FF8A8A]'}>{o.gained ? '▲ passes' : '▼ passed by'}</span>
+              <span className="h-3 w-1 rounded-[1px] ring-1 ring-cream/50" style={{ background: lookup.color(o.driverNumber) }} />
+              <span className="font-semibold text-cream">{lookup.code(o.driverNumber)}</span>
             </li>
           ))}
         </ul>
       )}
 
-      <p className="mt-3 border-l-2 border-ghost pl-2 text-[13px] font-medium leading-snug text-white">{ghost.verdict}</p>
+      <p className="mt-3 rounded-lg border-2 border-ink bg-cream px-2.5 py-2 text-[13px] font-semibold leading-snug text-ink shadow-sticker-sm">{ghost.verdict}</p>
 
       <div className="mt-3 flex items-center gap-2">
         <button
           type="button"
           onClick={copy}
-          className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border border-ghost/50 font-mono text-[11px] text-ghost hover:bg-ghost/10"
+          className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border-2 border-ink bg-ghost font-mono text-[11px] font-bold text-ink shadow-sticker-sm transition-transform hover:-translate-y-px"
         >
           {copied ? <Check size={14} /> : <Link2 size={14} />} {copied ? 'LINK COPIED' : 'COPY SHARE LINK'}
         </button>
-        <span className="font-display text-sm tracking-wider text-neon/70">GHOSTLAP</span>
+        <span className="font-display text-base tracking-wider text-neon">GHOSTLAP</span>
       </div>
-      <div className="mt-1 truncate font-mono text-[9px] text-white/25">
+      <div className="mt-1.5 truncate font-mono text-[9px] text-cream/70">
         {ghost.scenario.stops.map((s) => `L${s.lap} ${COMPOUND_SHORT[s.compound]}`).join(' · ') || 'no stops'}
         {ghost.scenario.avoidPenalties ? ' · no penalties' : ''}
       </div>

@@ -323,7 +323,7 @@ function FocusMarker() {
       <Html center position={[0, 0.9, 0]} zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
         <div
           ref={label}
-          className="whitespace-nowrap rounded-sm bg-neon px-1.5 py-0.5 font-mono text-[11px] font-semibold leading-none text-asphalt shadow"
+          className="whitespace-nowrap rounded-[4px] border-2 border-ink bg-neon px-1.5 py-0.5 font-mono text-[11px] font-bold leading-none text-ink shadow-sticker-sm"
         />
       </Html>
     </group>
