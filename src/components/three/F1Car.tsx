@@ -1,8 +1,8 @@
-import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useReducer, useRef, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { useFrame, type ThreeElements } from '@react-three/fiber';
 import { getCarGeometry, REAR_AXLE_Z, REAR_TRACK_X, type MatKey, type PartMeshes } from './carGeometry';
-import { getLiveryTexture, resolveLivery, type Livery } from './liveries';
+import { cancelTeamLiveryRequest, getLiveryTexture, isSmallScreen, requestTeamLiveryTexture, resolveLivery, type Livery } from './liveries';
 
 export type { Livery, LiveryPattern } from './liveries';
 export { LIVERIES, LIVERY_ATLAS, paintLiveryCanvas } from './liveries';
@@ -21,7 +21,10 @@ export { LIVERIES, LIVERY_ATLAS, paintLiveryCanvas } from './liveries';
  * Props:
  *   color        team / body colour (fallback when no `livery`)
  *   accent       wing + halo accent (fallback when no `livery`)
- *   livery       team livery (object or teamId, see liveries.ts) — zones on body, accent on wings/halo
+ *   teamId       team id (e.g. 'ferrari') — lazy-loads the team's baked livery atlas
+ *                (public/liveries/<teamId>.webp, shared by all cars of the team) and uses
+ *                LIVERIES[teamId] colours while it loads / if it's missing
+ *   livery       team livery colours (object or teamId, see liveries.ts) — painted zones
  *   liveryTexture optional baked atlas texture (see LIVERY_ATLAS) — replaces the painted livery;
  *                still a single body material, so zero extra draw calls
  *   number       optional car number panel on the nose (detail="high" only)
@@ -92,6 +95,7 @@ export const PART_ANCHORS: Record<CarPartId, [number, number, number]> = {
 export type F1CarProps = ThreeElements['group'] & {
   color?: string;
   accent?: string;
+  teamId?: string;
   livery?: Livery | string;
   liveryTexture?: THREE.Texture;
   number?: number;
@@ -150,6 +154,17 @@ const NOSE_LOGO = { pos: [0, 0.372, 2.12] as const, rot: -Math.PI / 2 + 0.25, si
 const NOSE_NUMBER = { pos: [0, 0.545, 1.4] as const, rot: -Math.PI / 2 + 0.2, size: [0.24, 0.18] as const };
 const POD_DECAL = { pos: [0.738, 0.455, 0.0] as const, size: [0.34, 0.13] as const };
 
+/** The shared baked atlas for a team, or null until it has loaded (re-renders when it arrives). */
+function useTeamLiveryTexture(teamId: string | undefined, small: boolean) {
+  const [, bump] = useReducer((x: number) => x + 1, 0);
+  const tex = teamId ? requestTeamLiveryTexture(teamId, small, bump) : null;
+  useEffect(() => {
+    if (!teamId) return;
+    return () => cancelTeamLiveryRequest(teamId, small, bump);
+  }, [teamId, small]);
+  return tex;
+}
+
 /**
  * One explodable sub-assembly. Module-level (not defined inside F1Car) so React keeps the
  * same component identity across renders and only the position prop changes as `e` moves.
@@ -184,6 +199,7 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
   {
     color = '#D4FF00',
     accent = '#D4FF00',
+    teamId,
     livery,
     liveryTexture,
     number,
@@ -201,14 +217,16 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
 ) {
   const geo = getCarGeometry(detail);
   const hl = useMemo(() => new Set(highlight ?? []), [highlight]);
-  const liv = resolveLivery(livery, color, accent);
+  const tid = teamId ?? (typeof livery === 'string' ? livery : undefined);
+  const liv = resolveLivery(livery ?? tid, color, accent);
+  const teamTex = useTeamLiveryTexture(ghost || liveryTexture ? undefined : tid, detail === 'low' || isSmallScreen());
 
   // Base materials depend only on livery/ghost; tyre ring is updated in place so that
   // per-frame tyre-wear changes (replay) never rebuild or leak materials.
   const mats = useMemo(() => {
     const body = ghost
       ? new THREE.MeshStandardMaterial({ color: GHOST, emissive: GHOST, emissiveIntensity: 0.9, transparent: true, opacity: 0.55, depthWrite: false })
-      : new THREE.MeshStandardMaterial({ map: liveryTexture ?? getLiveryTexture(liv, detail === 'low'), metalness: 0.35, roughness: 0.32 });
+      : new THREE.MeshStandardMaterial({ map: getLiveryTexture(liv, detail === 'low'), metalness: 0.3, roughness: 0.35 });
     const carbon = ghost ? body : new THREE.MeshStandardMaterial({ color: '#15181d', metalness: 0.25, roughness: 0.55 });
     const tyre = ghost ? body : new THREE.MeshStandardMaterial({ color: '#111113', roughness: 0.85 });
     const metal = ghost ? body : new THREE.MeshStandardMaterial({ color: '#9aa3ad', metalness: 0.85, roughness: 0.3 });
@@ -219,7 +237,17 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
     const pulse = new THREE.MeshStandardMaterial({ color: GHOST, emissive: GHOST, emissiveIntensity: 1.2, transparent: true, opacity: 0.9, toneMapped: false });
     return { body, carbon, tyre, metal, ring, ersCore, ersWarn, pulse } satisfies Record<MatKey | 'pulse', THREE.Material>;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liv.primary, liv.secondary, liv.accent, liv.pattern, ghost, liveryTexture, detail]);
+  }, [liv.primary, liv.secondary, liv.accent, liv.pattern, ghost, detail]);
+
+  // swap the body map in place (same shader program: no recompile, no extra draw calls)
+  useLayoutEffect(() => {
+    if (ghost) return;
+    const map = liveryTexture ?? teamTex ?? getLiveryTexture(liv, detail === 'low');
+    if (mats.body.map !== map) {
+      mats.body.map = map;
+      mats.body.needsUpdate = true;
+    }
+  });
 
   // (textures are shared / caller-owned and are not disposed here)
   useEffect(

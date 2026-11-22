@@ -170,12 +170,12 @@ function Tier({ place, x, h, entity, selected, onSelect }: { place: number; x: n
           onPointerOut={() => (document.body.style.cursor = '')}
         >
           <group ref={car} position={[0, 0, -0.75]} scale={0.74}>
-            <F1Car livery={LIVERIES[entity.teamId]} color={entity.color} accent={entity.color} number={entity.number} tyreGlow={0.4} tyreColor="#D4FF00" />
+            <F1Car teamId={entity.teamId} color={entity.color} accent={entity.color} number={entity.number} tyreGlow={0.4} tyreColor="#D4FF00" />
           </group>
           {drivers.map((d, i) => (
             <DriverFigure
               key={d.number}
-              livery={LIVERIES[d.teamId]}
+              livery={LIVERIES[d.teamId] ? d.teamId : undefined}
               teamColor={d.color}
               accent={entity.color}
               number={d.number}
@@ -255,7 +255,7 @@ function HeroTurntable({ entity }: { entity: Entity | null }) {
       </mesh>
       <group ref={group}>
         <group ref={car} position={[0, 0.09, 0]}>
-          {shown && <F1Car livery={LIVERIES[shown.teamId]} color={shown.color} accent={shown.color} number={shown.number} tyreGlow={0.7} tyreColor="#00F5D4" />}
+          {shown && <F1Car teamId={shown.teamId} color={shown.color} accent={shown.color} number={shown.number} tyreGlow={0.7} tyreColor="#00F5D4" />}
         </group>
       </group>
       <primitive object={target} position={[0, 0, 0]} />
@@ -418,7 +418,7 @@ function Exploded({
         <meshBasicMaterial color="#00F5D4" transparent opacity={0.5} toneMapped={false} />
       </mesh>
       <group ref={spin} position={[0, 0, 0]}>
-        <F1Car livery={teamId ? LIVERIES[teamId] : undefined} color={carColor} accent={carColor} explode={explode} highlight={highlight} onPartHover={onPartHover} tyreGlow={0.5} tyreColor="#00F5D4" />
+        <F1Car teamId={teamId} color={carColor} accent={carColor} explode={explode} highlight={highlight} onPartHover={onPartHover} tyreGlow={0.5} tyreColor="#00F5D4" />
         <Leaders explode={explode} highlight={hl} hovered={hoveredPart} mobile={mobile} />
       </group>
       <spotLight position={[3, 9, 6]} angle={0.6} penumbra={0.6} intensity={140} distance={30} color="#eaf6ff" />

@@ -269,7 +269,7 @@ export const Cars = memo(function Cars({ bundle, timeline, curve }: CarsProps) {
           scale={CAR_SCALE}
           visible={false}
         >
-          <F1Car detail="low" color={lookup.color(c.driverNumber)} accent="#D4FF00" tyreGlow={0.8} tyreColor="#FFD400" />
+          <F1Car detail="low" teamId={lookup.driver(c.driverNumber)?.teamId} color={lookup.color(c.driverNumber)} accent="#D4FF00" tyreGlow={0.8} tyreColor="#FFD400" />
           <mesh geometry={shared.haloGeo} material={shared.haloMats[i]} />
           <mesh ref={(m) => (wakes.current[i] = m)} geometry={shared.wakeGeo} material={shared.wakeMats[i]} visible={false} />
           <mesh

@@ -3,12 +3,13 @@ import * as THREE from 'three';
 /**
  * Team liveries for the procedural F1Car and DriverFigure.
  *
- * Colours approximate each team's 2026 livery layout (no sponsor logos are bundled).
- * Every car body is ONE MeshStandardMaterial whose `map` is a livery atlas texture:
- *   - without a `liveryTexture`, F1Car paints the base colours into the atlas at runtime
- *     with `paintLiveryCanvas` (cached per livery, so instances share one texture);
- *   - with a `liveryTexture` (e.g. a baked 1024×512 WebP with sponsor logos), that texture
- *     is used as-is (colour = texture × white).
+ * Every car body is ONE MeshStandardMaterial whose `map` is a livery atlas texture, chosen as:
+ *   1. an explicit `liveryTexture` prop, else
+ *   2. the team's baked atlas `public/liveries/<teamId>.webp` (`-sm` for detail="low" / small
+ *      screens), lazy-loaded once and shared by every car of that team, else (while it loads
+ *      or if it's missing)
+ *   3. the base colours below painted into the atlas at runtime with `paintLiveryCanvas`.
+ * The baked atlases are built by scripts/liveries/build_liveries.py from the team livery sheets.
  * Zones are therefore texture regions: no extra meshes, materials or draw calls.
  *
  * Patterns painted onto the body regions:
@@ -29,17 +30,18 @@ export interface Livery {
 }
 
 export const LIVERIES: Record<string, Livery> = {
-  mercedes: { primary: '#C6CBD0', secondary: '#0E0F11', accent: '#00D7B6', pattern: 'fade' },
-  ferrari: { primary: '#DC0000', secondary: '#121212', accent: '#F4F4F4', pattern: 'split' },
-  'red-bull-racing': { primary: '#1B2552', secondary: '#D7192C', accent: '#FFC906', pattern: 'stripe' },
-  mclaren: { primary: '#FF8000', secondary: '#1B1D21', accent: '#FF8000', pattern: 'split' },
-  'racing-bulls': { primary: '#F2F4F7', secondary: '#1634CB', accent: '#E8002D', pattern: 'split' },
-  alpine: { primary: '#0A67C9', secondary: '#FF5BC8', accent: '#0B0D12', pattern: 'fade' },
-  'haas-f1-team': { primary: '#F1F2F3', secondary: '#25272B', accent: '#E6002B', pattern: 'split' },
-  audi: { primary: '#A5AAAF', secondary: '#121314', accent: '#F50537', pattern: 'split' },
-  williams: { primary: '#1868DB', secondary: '#051C3F', accent: '#F2F4F7', pattern: 'fade' },
-  'aston-martin': { primary: '#00594F', secondary: '#CEDC00', accent: '#CEDC00', pattern: 'stripe' },
-  cadillac: { primary: '#121314', secondary: '#F2F2F2', accent: '#B9BEC4', pattern: 'split' },
+  // primary / secondary sampled from the team livery sheets (see public/liveries/SOURCES.md)
+  mercedes: { primary: '#ADAAA8', secondary: '#0B0B0B', accent: '#00D7B6', pattern: 'fade' },
+  ferrari: { primary: '#E20505', secondary: '#F4F4F4', accent: '#131212', pattern: 'split' },
+  'red-bull-racing': { primary: '#0B1958', secondary: '#D7192C', accent: '#FFC906', pattern: 'stripe' },
+  mclaren: { primary: '#EB7E11', secondary: '#181718', accent: '#EB7E11', pattern: 'split' },
+  'racing-bulls': { primary: '#F4F4F4', secondary: '#2A2D5A', accent: '#F1701E', pattern: 'split' },
+  alpine: { primary: '#2A63C4', secondary: '#F08FC8', accent: '#121212', pattern: 'fade' },
+  'haas-f1-team': { primary: '#F4F4F4', secondary: '#1D1C1C', accent: '#E21514', pattern: 'split' },
+  audi: { primary: '#AEABA8', secondary: '#0F0F0F', accent: '#E80E0A', pattern: 'split' },
+  williams: { primary: '#0C69CE', secondary: '#16191B', accent: '#F2F4F7', pattern: 'fade' },
+  'aston-martin': { primary: '#106A62', secondary: '#CEDC00', accent: '#CEDC00', pattern: 'stripe' },
+  cadillac: { primary: '#F4F4F4', secondary: '#161617', accent: '#ABABAB', pattern: 'split' },
 };
 
 /** Resolve a livery from a Livery object or teamId, falling back to plain colours. */
@@ -243,4 +245,53 @@ export function getLiveryTexture(l: Required<Livery>, small = false): THREE.Canv
   t.anisotropy = 4;
   texCache.set(key, t);
   return t;
+}
+
+/* ------------------------------------------------------------------ */
+/* Baked team atlases (public/liveries)                                */
+/* ------------------------------------------------------------------ */
+
+type TeamTexEntry = { tex: THREE.Texture | null; failed: boolean; waiters: Set<() => void> };
+const teamTex = new Map<string, TeamTexEntry>();
+
+export const isSmallScreen = () => typeof window !== 'undefined' && !!window.matchMedia?.('(max-width: 768px)').matches;
+
+/** URL of a team's baked atlas texture. */
+export const teamLiveryUrl = (teamId: string, small: boolean) => `${import.meta.env.BASE_URL}liveries/${teamId}${small ? '-sm' : ''}.webp`;
+
+/**
+ * Returns the team's baked atlas if already loaded; otherwise starts the (single, shared)
+ * load and calls `onReady` once it arrives. Unknown teams / failed loads return null.
+ */
+export function requestTeamLiveryTexture(teamId: string, small: boolean, onReady: () => void): THREE.Texture | null {
+  if (!LIVERIES[teamId]) return null;
+  const key = `${teamId}|${small ? 's' : 'l'}`;
+  let e = teamTex.get(key);
+  if (!e) {
+    const entry: TeamTexEntry = { tex: null, failed: false, waiters: new Set() };
+    e = entry;
+    teamTex.set(key, entry);
+    new THREE.TextureLoader().load(
+      teamLiveryUrl(teamId, small),
+      (t) => {
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.anisotropy = 8;
+        entry.tex = t;
+        entry.waiters.forEach((f) => f());
+        entry.waiters.clear();
+      },
+      undefined,
+      () => {
+        entry.failed = true;
+        entry.waiters.clear();
+      },
+    );
+  }
+  if (e.tex || e.failed) return e.tex;
+  e.waiters.add(onReady);
+  return null;
+}
+
+export function cancelTeamLiveryRequest(teamId: string, small: boolean, onReady: () => void) {
+  teamTex.get(`${teamId}|${small ? 's' : 'l'}`)?.waiters.delete(onReady);
 }
