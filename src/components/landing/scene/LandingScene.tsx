@@ -5,7 +5,6 @@ import type { HotspotId, LandingBus } from '../bus';
 import { FOV, type LandingLayout } from '../layout';
 import type { FlowCar } from '../stats';
 import CameraRig from './CameraRig';
-import GhostUndercut from './GhostUndercut';
 import HeroCar from './HeroCar';
 import SCurveFlow from './SCurveFlow';
 import World from './World';
@@ -19,15 +18,19 @@ export default function LandingScene({
   layout,
   hover,
   grid,
+  live = true,
 }: {
   bus: LandingBus;
   layout: LandingLayout;
   hover: HotspotId | null;
   grid: FlowCar[];
+  /** false while DOM-only chapters cover the canvas: stop rendering entirely */
+  live?: boolean;
 }) {
   const q = bus.quality;
   return (
     <Canvas
+      frameloop={live ? 'always' : 'never'}
       dpr={q.dpr}
       shadows={false}
       gl={{ antialias: !q.mobile, powerPreference: 'high-performance', alpha: false }}
@@ -44,7 +47,6 @@ export default function LandingScene({
         <World bus={bus} />
         <HeroCar bus={bus} layout={layout} hover={hover} />
         <SCurveFlow bus={bus} grid={grid} />
-        <GhostUndercut bus={bus} />
       </Suspense>
     </Canvas>
   );

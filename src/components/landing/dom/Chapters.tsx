@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type { HotspotId, LandingBus } from '../bus';
 import type { LandingLayout } from '../layout';
@@ -355,95 +354,6 @@ export function FlowChapter({ stats }: { stats: LandingStats }) {
           ))}
         </div>
       </div>
-    </div>
-  );
-}
-
-/* -------------------------------- 05 undercut ------------------------------- */
-
-export function UndercutChapter() {
-  return (
-    <div className="sticky top-0 flex h-[100svh] flex-col justify-between px-4 pb-8 pt-16 sm:px-8">
-      <div>
-        <ChapterTag n={5} title="Ghost undercut" />
-        <h2 className="mt-3 font-display text-[clamp(40px,7vw,96px)] uppercase leading-[0.9]">
-          Box <span className="text-ghost">early.</span>
-        </h2>
-      </div>
-      <div className="sticker inline-flex w-max max-w-full rotate-[-1.5deg] flex-wrap items-center gap-x-2 rounded-full border-2 border-asphalt bg-ghost px-4 py-1.5 font-mono text-xs font-semibold uppercase tracking-[0.16em] text-asphalt">
-        Undercut <span aria-hidden>·</span> −3 laps <span aria-hidden>·</span> +1 pos
-        <span className="rounded-sm bg-asphalt px-1.5 text-[10px] text-ghost">preview</span>
-      </div>
-    </div>
-  );
-}
-
-export function UndercutLabels({ bus }: { bus: LandingBus }) {
-  const reg = (id: string) => (el: HTMLElement | null) => {
-    bus.anchors[id] = el;
-  };
-  const base = 'absolute left-0 top-0 opacity-0';
-  const pill = '-translate-x-1/2 -translate-y-full whitespace-nowrap rounded-[3px] px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.16em]';
-  return (
-    <>
-      <div ref={reg('ug-box')} className={base} style={{ visibility: 'hidden' }}>
-        <div className={`${pill} border border-ghost/60 bg-asphalt/80 text-ghost`}>Pit lane · box</div>
-      </div>
-      <div ref={reg('ug-ghost')} className={base} style={{ visibility: 'hidden' }}>
-        <div className={`${pill} bg-ghost text-asphalt`}>Ghost</div>
-      </div>
-      <div ref={reg('ug-rival')} className={base} style={{ visibility: 'hidden' }}>
-        <div className={`${pill} bg-crimson text-white`}>Rival</div>
-      </div>
-      <div ref={reg('ug-real')} className={base} style={{ visibility: 'hidden' }}>
-        <div className={`${pill} bg-neon text-asphalt`}>Stayed out</div>
-      </div>
-      <div ref={reg('ug-gain')} className={base} style={{ visibility: 'hidden' }}>
-        <div className="sticker -translate-x-1/2 -translate-y-full rotate-[-4deg] rounded-md border-2 border-asphalt bg-white px-2 py-1 font-display text-2xl leading-none text-asphalt">+1 POS</div>
-      </div>
-    </>
-  );
-}
-
-/* --------------------------------- 06 launch -------------------------------- */
-
-export function LaunchChapter({ stats }: { stats: LandingStats }) {
-  return (
-    <div className="relative flex min-h-[100svh] flex-col justify-center px-4 pb-10 pt-16 sm:px-8">
-      <ChapterTag n={6} title="Launch gate" />
-      <h2 className="mt-4 font-display text-[clamp(56px,12vw,180px)] uppercase leading-[0.86]">
-        Your <span className="text-neon">call.</span>
-      </h2>
-      <div className="pointer-events-auto mt-8 grid max-w-3xl gap-3 sm:grid-cols-2">
-        <Link to="/circuits" className="group rounded-xl border border-white/10 bg-panel/80 p-5 backdrop-blur transition hover:-rotate-1 hover:border-neon">
-          <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/50">3D circuit directory</div>
-          <div className="mt-2 flex items-center justify-between font-display text-3xl uppercase">
-            Circuits <span className="text-neon transition group-hover:translate-x-1">→</span>
-          </div>
-          <div className="mt-1 text-xs text-white/55">{stats.ready ? `${stats.racesTotal} rounds on the calendar` : 'Every round on the calendar'}</div>
-        </Link>
-        <Link to="/season" className="group rounded-xl border border-white/10 bg-panel/80 p-5 backdrop-blur transition hover:rotate-1 hover:border-ghost">
-          <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/50">Season intelligence</div>
-          <div className="mt-2 flex items-center justify-between font-display text-3xl uppercase">
-            Season <span className="text-ghost transition group-hover:translate-x-1">→</span>
-          </div>
-          <div className="mt-1 text-xs text-white/55">
-            {stats.leader ? (
-              <>
-                Leader <span style={{ color: stats.leader.color }}>{stats.leader.code}</span> · {stats.leader.points} pts
-              </>
-            ) : (
-              'Standings, pace and penalties'
-            )}
-          </div>
-        </Link>
-      </div>
-      <Link
-        to="/replay/silverstone?autoplay=1"
-        className="launch-cta pointer-events-auto mt-8 inline-flex w-max max-w-full items-center gap-3 rounded-full border-2 border-asphalt bg-neon px-7 py-4 font-display text-xl uppercase tracking-wide text-asphalt transition hover:-translate-y-0.5 sm:text-2xl"
-      >
-        Launch 3D Race Lab <span aria-hidden>→</span>
-      </Link>
     </div>
   );
 }

@@ -11,6 +11,7 @@ export default function CompoundDisc({
   color,
   label,
   ring,
+  letter,
   className = '',
   style,
 }: {
@@ -23,6 +24,8 @@ export default function CompoundDisc({
   label?: string;
   /** override ring text */
   ring?: string;
+  /** override the hub letter */
+  letter?: string;
   className?: string;
   style?: CSSProperties;
 }) {
@@ -53,8 +56,7 @@ export default function CompoundDisc({
         {/* sidewall band */}
         <circle cx="100" cy="100" r="79" fill="none" stroke={band} strokeWidth="21" />
         <text fontFamily="Anton, Impact, sans-serif" fontSize="12.5" letterSpacing="1.4" fill={s.ink === '#FFFFFF' && !color ? '#fff' : '#0b0d10'} dominantBaseline="central">
-          <textPath href={`#rp${raw}`} startOffset="0">
-            {text}
+          <textPath href={`#rp${raw}`} startOffset="0" textLength={490} lengthAdjust="spacing">
             {text}
           </textPath>
         </text>
@@ -66,7 +68,7 @@ export default function CompoundDisc({
         ))}
         <circle cx="100" cy="100" r="40" fill={band} />
         <text x="100" y="98" textAnchor="middle" dominantBaseline="central" fontFamily="Anton, Impact, sans-serif" fontSize="44" fill={s.ink === '#FFFFFF' && !color ? '#fff' : '#0b0d10'}>
-          {s.letter}
+          {letter ?? s.letter}
         </text>
         <text x="100" y="127" textAnchor="middle" fontFamily="Anton, Impact, sans-serif" fontSize="7.5" letterSpacing="1.2" fill={s.ink === '#FFFFFF' && !color ? '#fff' : '#0b0d10'}>
           {hub}

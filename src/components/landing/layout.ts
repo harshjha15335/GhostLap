@@ -16,9 +16,11 @@ export const S_CENTER_Z = 190;
 /** world z of the ghost undercut straight (ch.5) */
 export const U_CENTER_Z = 300;
 
-export const CHAPTER_COUNT = 6;
-export const CHAPTER_IDS = ['hero', 'specimen', 'drive', 'flow', 'undercut', 'launch'] as const;
-export const CHAPTER_LABELS = ['Hero', 'Specimen', 'Scroll Drive', '22-Car Flow', 'Ghost Undercut', 'Launch Gate'];
+export const CHAPTER_COUNT = 8;
+/** chapters 0..3 are camera moves in the WebGL world; 4.. are DOM-only (canvas paused) */
+export const SCENE_CHAPTERS = 4;
+export const CHAPTER_IDS = ['hero', 'specimen', 'drive', 'flow', 'strategist', 'everylap', 'launch', 'pit-exit'] as const;
+export const CHAPTER_LABELS = ['Hero', 'Specimen', 'Scroll Drive', '22-Car Flow', 'Strategist', 'Every Lap', 'Launch', 'Pit Exit'];
 
 /** card anchor fractions along the drive */
 export const CARD_FRACS = [0.06, 0.22, 0.38, 0.54, 0.7, 0.86];

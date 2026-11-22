@@ -3,19 +3,16 @@ import * as THREE from 'three';
 import { useScrollChoreography } from '@/hooks/useScrollChoreography';
 import { useSeason } from '@/store/seasonStore';
 import type { HotspotId, LandingBus } from './bus';
-import {
-  DriveChapter,
-  FlowChapter,
-  HeroChapter,
-  HotspotPins,
-  LaunchChapter,
-  SpecimenChapter,
-  UndercutChapter,
-  UndercutLabels,
-} from './dom/Chapters';
+import { DriveChapter, FlowChapter, HeroChapter, HotspotPins, SpecimenChapter } from './dom/Chapters';
 import { disposeSound, setSoundEnabled } from './dom/sound';
 import TelemetryCursor from './dom/TelemetryCursor';
-import { CHAPTER_COUNT, CHAPTER_LABELS, computeLayout } from './layout';
+import EveryLap from './flow/EveryLap';
+import { useFeatureRace } from './flow/featureRace';
+import LaunchCard from './flow/LaunchCard';
+import PitExit from './flow/PitExit';
+import Strategist from './flow/Strategist';
+import { FLOW_CSS } from './flow/theme';
+import { CHAPTER_COUNT, CHAPTER_LABELS, SCENE_CHAPTERS, computeLayout } from './layout';
 import { detectQuality } from './quality';
 import LandingScene from './scene/LandingScene';
 import { useLandingStats } from './stats';
@@ -71,6 +68,11 @@ export default function Landing() {
   const stats = useLandingStats(season);
   const [hover, setHover] = useState<HotspotId | null>(null);
   const [soundOn, setSoundOn] = useState(false);
+  // the WebGL world only renders while chapters 1-4 can be seen; once the orange
+  // strategist section covers the viewport the canvas is hidden and its loop stops
+  const [sceneLive, setSceneLive] = useState(true);
+  const [flowNear, setFlowNear] = useState(false);
+  const feature = useFeatureRace(flowNear, season);
 
   const busRef = useRef<LandingBus | null>(null);
   if (!busRef.current) {
@@ -102,6 +104,17 @@ export default function Landing() {
 
   useEffect(() => () => disposeSound(), []);
 
+  useEffect(
+    () =>
+      choreo.subscribe((s) => {
+        const orange = s.chapters[SCENE_CHAPTERS];
+        if (!orange || orange.top <= 0) return;
+        setSceneLive(s.scrollY < orange.top - 1);
+        if (s.scrollY > orange.top - s.vh * 3) setFlowNear(true);
+      }),
+    [choreo],
+  );
+
   const toggleSound = useCallback(() => {
     setSoundOn((on) => {
       setSoundEnabled(!on);
@@ -114,11 +127,11 @@ export default function Landing() {
 
   return (
     <div className={`relative bg-asphalt text-white ${fine ? 'landing-fine' : ''}`} style={{ overflowX: 'clip' }}>
-      <style>{CSS}</style>
+      <style>{FLOW_CSS + CSS}</style>
 
       {/* the one persistent WebGL world */}
-      <div className="fixed inset-0 z-0" aria-hidden>
-        <LandingScene bus={bus} layout={layout} hover={hover} grid={stats.grid} />
+      <div className="fixed inset-0 z-0" aria-hidden style={{ visibility: sceneLive ? 'visible' : 'hidden' }}>
+        <LandingScene bus={bus} layout={layout} hover={hover} grid={stats.grid} live={sceneLive} />
         {/* editorial vignette + grain over the canvas */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(8,11,16,0.75)_100%)]" />
       </div>
@@ -126,17 +139,21 @@ export default function Landing() {
       {/* projected 3D labels */}
       <div className="pointer-events-none fixed inset-0 z-20">
         <HotspotPins bus={bus} hover={hover} setHover={setHover} />
-        <UndercutLabels bus={bus} />
       </div>
 
       {/* chapter rail */}
       <nav aria-label="Chapters" className="pointer-events-none fixed right-4 top-1/2 z-30 hidden -translate-y-1/2 flex-col items-end gap-2 lg:flex">
-        {CHAPTER_LABELS.map((label, i) => (
-          <div key={label} className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em]">
-            <span className={`transition ${choreo.active === i ? 'text-white' : 'text-transparent'}`}>{label}</span>
-            <span className={`block h-px transition-all ${choreo.active === i ? 'w-8 bg-neon' : 'w-4 bg-white/30'}`} />
-          </div>
-        ))}
+        {CHAPTER_LABELS.map((label, i) => {
+          const on = choreo.active === i;
+          // dark ink over the orange / chartreuse paper chapters
+          const light = choreo.active >= SCENE_CHAPTERS && choreo.active < CHAPTER_COUNT - 1;
+          return (
+            <div key={label} className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em]">
+              <span className={`transition ${on ? (light ? 'text-[#0A3A12]' : 'text-white') : 'text-transparent'}`}>{label}</span>
+              <span className={`block h-px transition-all ${on ? (light ? 'w-8 bg-[#0A3A12]' : 'w-8 bg-neon') : light ? 'w-4 bg-[#0A3A12]/35' : 'w-4 bg-white/30'}`} />
+            </div>
+          );
+        })}
       </nav>
 
       <main className="pointer-events-none relative z-10">
@@ -152,12 +169,10 @@ export default function Landing() {
         <section ref={reg(3)} data-chapter="flow" className="relative h-[280vh]">
           <FlowChapter stats={stats} />
         </section>
-        <section ref={reg(4)} data-chapter="undercut" className="relative h-[300vh]">
-          <UndercutChapter />
-        </section>
-        <section ref={reg(5)} data-chapter="launch" className="relative min-h-[100svh]">
-          <LaunchChapter stats={stats} />
-        </section>
+        <Strategist vp={vp} race={feature} reduced={choreo.reducedMotion} sectionRef={reg(4)} />
+        <EveryLap vp={vp} race={feature} stats={stats} reduced={choreo.reducedMotion} sectionRef={reg(5)} />
+        <LaunchCard vp={vp} stats={stats} sectionRef={reg(6)} />
+        <PitExit vp={vp} stats={stats} reduced={choreo.reducedMotion} sectionRef={reg(7)} />
       </main>
 
       {fine && <TelemetryCursor bus={bus} />}

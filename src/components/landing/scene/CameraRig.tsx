@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import { smooth01 } from '@/hooks/useScrollChoreography';
 import type { LandingBus } from '../bus';
-import { DRIVE_LEN, FOV, S_CENTER_Z, U_CENTER_Z, driveCamZ, pathX, type LandingLayout } from '../layout';
+import { DRIVE_LEN, FOV, SCENE_CHAPTERS, S_CENTER_Z, driveCamZ, pathX, type LandingLayout } from '../layout';
 
 interface Pose {
   pos: THREE.Vector3;
@@ -20,8 +20,6 @@ const WINDOWS: [number, number][] = [
   [0.55, 0.45],
   [0.25, 0.9], // 'after' is overridden by layout.rotatePx (top-down rotation phase)
   [0.55, 0.5],
-  [0.55, 0.5],
-  [0.7, 0.25],
 ];
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -119,34 +117,9 @@ function evalChapter(k: number, t: number, c: Ctx, out: Pose) {
       out.fog = 0.0028;
       return;
     }
-    case 4: {
-      const k2 = smooth01((t - 0.05) / 0.85);
-      const fx = -34 + 70 * k2;
-      if (mobile) {
-        eye.set(fx - 4, 42, U_CENTER_Z + 46);
-        tgt.set(fx + 2, 0, U_CENTER_Z + 5);
-      } else {
-        eye.set(fx * 0.85 - 14, 20, U_CENTER_Z + 40);
-        tgt.set(fx * 0.85, 0, U_CENTER_Z + 5);
-      }
-      look(out, eye, tgt);
-      out.focus.set(fx * 0.85, 0, U_CENTER_Z);
-      out.fog = 0.008;
-      return;
-    }
-    default: {
-      // launch gate: rise and look back down the straight
-      if (mobile) {
-        eye.set(24 - 6 * t, 44 + 8 * t, U_CENTER_Z + 58);
-        tgt.set(30, 0, U_CENTER_Z + 2);
-      } else {
-        eye.set(44 - 10 * t, 30 + 10 * t, U_CENTER_Z + 54);
-        tgt.set(26, 0, U_CENTER_Z + 2);
-      }
-      look(out, eye, tgt);
-      out.focus.set(30, 0, U_CENTER_Z);
-      out.fog = 0.0075;
-    }
+    default:
+      // DOM-only chapters cover the canvas (it is paused there): hold the ribbon shot
+      evalChapter(3, 1, c, out);
   }
 }
 
@@ -179,10 +152,11 @@ export default function CameraRig({ bus, layout }: { bus: LandingBus; layout: La
     ctx.px = ptr.x;
     ctx.py = ptr.y;
 
+    const n = Math.min(ch.length, SCENE_CHAPTERS);
     let k = 0;
-    for (let i = 0; i < ch.length; i++) if (y >= ch[i].top - 0.5) k = i;
-    // reduced motion: one static composition per chapter (ch.5 shows its end state)
-    const tOf = (i: number) => (reduced && i !== 2 ? (i === 4 ? 1 : 0.5) : ch[i].progress);
+    for (let i = 0; i < n; i++) if (y >= ch[i].top - 0.5) k = i;
+    // reduced motion: one static composition per chapter
+    const tOf = (i: number) => (reduced && i !== 2 ? 0.5 : ch[i].progress);
     const { a, b, out } = poses;
     evalChapter(k, tOf(k), ctx, out);
 
@@ -192,7 +166,7 @@ export default function CameraRig({ bus, layout }: { bus: LandingBus; layout: La
         return [ch[i].top - pre * vh, ch[i].top + (i === 2 ? layout.rotatePx : post * vh)];
       };
       // approaching the next chapter
-      if (k + 1 < ch.length) {
+      if (k + 1 < n) {
         const [s0, s1] = win(k + 1);
         if (y > s0) {
           a.pos.copy(out.pos);
