@@ -5,9 +5,8 @@ import type { RaceBundle, RaceSummary, SeasonData } from '@/types';
 import { useDriverLookup, useSeason } from '@/store/seasonStore';
 import { loadRace } from '@/engine/dataLoader';
 import Loader from '@/components/ui/Loader';
-import { useInView } from '@/components/ui/hooks';
 import { DriverChip, Segmented, SectionHeading, StatusBadge, fmtDate } from '@/components/ui/primitives';
-import TrackOutline, { SECTOR_COLORS } from './TrackOutline';
+import { OfficialOutline, SECTOR_COLORS } from './TrackOutline';
 
 const CircuitInspector = lazy(() => import('./CircuitInspector'));
 
@@ -76,25 +75,17 @@ function FlagCounts({ race }: { race: RaceSummary }) {
 }
 
 function CardOutline({ race }: { race: RaceSummary }) {
-  const [ref, inView] = useInView<HTMLDivElement>('300px');
-  const [seen, setSeen] = useState(false);
-  useEffect(() => {
-    if (inView) setSeen(true);
-  }, [inView]);
-  const bundle = useBundle(race.hasBundle ? race.slug : null, seen);
   return (
-    <div ref={ref} className="relative flex h-32 items-center justify-center overflow-hidden border-b border-line bg-[radial-gradient(circle_at_50%_60%,#141a24,transparent_70%)]">
-      {bundle ? (
-        <TrackOutline circuit={bundle.circuit} className="h-[84%] w-[84%]" />
-      ) : race.hasBundle ? (
-        <span className="font-mono text-[10px] uppercase tracking-widest text-white/25 animate-pulse">Loading telemetry…</span>
+    <div className="relative flex h-32 items-center justify-center overflow-hidden border-b border-line bg-[radial-gradient(circle_at_50%_60%,#141a24,transparent_70%)]">
+      {race.outline ? (
+        <OfficialOutline outline={race.outline} className={`h-[86%] w-[86%] ${race.status === 'completed' ? '' : 'opacity-60'}`} />
       ) : (
         <span className="px-6 text-center font-mono text-[10px] uppercase tracking-widest text-white/25">
-          {race.status === 'cancelled' ? 'Event cancelled · no session data' : 'Track map after race weekend'}
+          {race.status === 'cancelled' ? 'Event cancelled' : 'Track map after race weekend'}
         </span>
       )}
-      {bundle && (
-        <span className="absolute bottom-1.5 right-2 font-mono text-[9px] text-white/35">{bundle.circuit.lengthKm.toFixed(3)} km</span>
+      {race.status === 'cancelled' && (
+        <span className="absolute bottom-1.5 right-2 font-mono text-[9px] uppercase tracking-widest text-crimson/80">Cancelled · no session data</span>
       )}
     </div>
   );

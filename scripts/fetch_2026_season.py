@@ -1292,5 +1292,9 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+        # official-orientation 2D maps for every calendar entry (see scripts/apply_maps.py)
+        import apply_maps  # noqa: E402  (same folder)
+
+        apply_maps.main()
     except KeyboardInterrupt:
         sys.exit(130)

@@ -72,3 +72,40 @@ export default function TrackOutline({
     </svg>
   );
 }
+
+/**
+ * Official-orientation outline from season data (race.outline: [x, y] in a 0..100 box, start
+ * first). Needs no race bundle, so every calendar entry — including cancelled and upcoming
+ * rounds — gets an instant map, drawn like the official calendar poster.
+ */
+export function OfficialOutline({
+  outline,
+  className,
+  strokeWidth = 3.2,
+}: {
+  outline: [number, number][];
+  className?: string;
+  strokeWidth?: number;
+}) {
+  const { d, start, angle } = useMemo(() => {
+    const d = outline.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${y}`).join('') + 'Z';
+    const [sx, sy] = outline[0];
+    const [nx, ny] = outline[1] ?? outline[0];
+    return { d, start: { x: sx, y: sy }, angle: (Math.atan2(ny - sy, nx - sx) * 180) / Math.PI };
+  }, [outline]);
+  return (
+    <svg viewBox="-6 -6 112 112" className={className} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <path d={d} fill="none" stroke="#ffffff" strokeOpacity={0.07} strokeWidth={strokeWidth * 3.2} strokeLinejoin="round" />
+      <path d={d} fill="none" stroke="#F2F4F7" strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
+      {/* chequered start/finish marker across the track */}
+      <g transform={`translate(${start.x} ${start.y}) rotate(${angle + 90})`}>
+        <rect x={-5} y={-1.6} width={10} height={3.2} fill="#080B10" />
+        {[-5, -2.5, 0, 2.5].map((x, i) => (
+          <g key={x}>
+            <rect x={x} y={i % 2 ? 0 : -1.6} width={2.5} height={1.6} fill="#fff" />
+          </g>
+        ))}
+      </g>
+    </svg>
+  );
+}

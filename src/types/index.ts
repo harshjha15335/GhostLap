@@ -63,6 +63,13 @@ export interface RaceSummary {
   fastestLap: { driverNumber: number; time: number } | null;
   /** true when public/data/2026/races/<slug>.json exists */
   hasBundle: boolean;
+  /**
+   * Rotation (deg, clockwise on screen) from our top-down x/z layout to the orientation of
+   * official F1 track maps. Set by scripts/apply_maps.py.
+   */
+  mapRotationDeg?: number;
+  /** ~160 [x, y] points of the layout in official orientation, fitted in a 0..100 box, start first */
+  outline?: [number, number][];
 }
 
 /** A point on the circuit centre line, normalised so the track fits roughly in [-100,100] on x/z. */

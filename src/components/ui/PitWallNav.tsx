@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
+import Logo from './Logo';
 
 /** Fixed 48px pit-wall top bar shared by every route. */
 const links = [
@@ -26,10 +27,7 @@ export default function PitWallNav() {
     <header className="fixed inset-x-0 top-0 z-50 h-12 border-b border-line bg-asphalt/85 backdrop-blur-md">
       <div className="mx-auto flex h-full max-w-[1600px] items-center gap-4 px-4">
         <NavLink to="/" className="flex items-center gap-2" aria-label="GhostLap home">
-          <span className="relative inline-block h-3 w-3 -skew-x-12 bg-neon" />
-          <span className="font-display text-xl leading-none tracking-[0.06em] text-white">
-            GHOST<span className="text-neon">LAP</span>
-          </span>
+          <Logo className="text-[19px]" tilt={-3} />
           <span className="hidden font-mono text-[10px] tracking-widest text-white/35 sm:inline">2026</span>
         </NavLink>
 

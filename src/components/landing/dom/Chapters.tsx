@@ -3,6 +3,7 @@ import type { HotspotId, LandingBus } from '../bus';
 import type { LandingLayout } from '../layout';
 import type { LandingStats } from '../stats';
 import KineticHeadline from './KineticHeadline';
+import Logo from '@/components/ui/Logo';
 
 const fmt = (n: number, ready: boolean) => (ready ? n.toLocaleString('en-GB') : '—');
 
@@ -50,9 +51,7 @@ export function HeroChapter({
         {/* kicker: WE'RE [sticker] HERE TO */}
         <div className="relative z-10 mb-[-0.35em] flex items-center justify-center gap-[0.4em] font-display text-[clamp(22px,4.2vw,52px)] uppercase leading-none text-white">
           <span className="-rotate-2">We&apos;re</span>
-          <span className="sticker inline-flex -rotate-[8deg] items-center rounded-[0.45em] border-[0.09em] border-asphalt bg-neon px-[0.35em] py-[0.08em] text-asphalt shadow-[0_0.08em_0_#080B10]">
-            Ghost<span className="text-crimson">Lap</span>
-          </span>
+          <Logo tilt={-8} />
           <span className="rotate-2">here to</span>
         </div>
         <div className="pointer-events-auto">
