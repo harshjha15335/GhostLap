@@ -1,6 +1,9 @@
-import type { ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode, type Ref } from 'react';
+import * as THREE from 'three';
+import { smooth01, type ScrollChoreography } from '@/hooks/useScrollChoreography';
 import type { HotspotId, LandingBus } from '../bus';
-import type { LandingLayout } from '../layout';
+import { CARD_HALF, CARD_LAPS, driveLapT, type LandingLayout } from '../layout';
+import type { DrivePath } from '../scene/drivePath';
 import type { LandingStats } from '../stats';
 import KineticHeadline from './KineticHeadline';
 import Logo from '@/components/ui/Logo';
@@ -28,15 +31,20 @@ export function HeroChapter({
   reduced,
   soundOn,
   onToggleSound,
+  headRef,
+  cueRef,
 }: {
   stats: LandingStats;
   reduced: boolean;
   soundOn: boolean;
   onToggleSound: () => void;
+  /** headline block: the 3D car is framed in the free band below it */
+  headRef?: Ref<HTMLDivElement>;
+  cueRef?: Ref<HTMLDivElement>;
 }) {
   return (
-    <div className="relative flex min-h-[100svh] flex-col px-4 pb-8 pt-16 sm:px-8">
-      <div className="flex justify-end">
+    <div className="relative flex min-h-[100svh] flex-col px-4 pb-6 pt-[60px] sm:px-8">
+      <div className="absolute right-4 top-[60px] sm:right-8">
         <button
           type="button"
           onClick={onToggleSound}
@@ -47,20 +55,23 @@ export function HeroChapter({
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center text-center">
+      {/* headline owns the upper half; the car turns on its turntable in the band below */}
+      <div ref={headRef} className="flex flex-col items-center pt-[4svh] text-center sm:pt-[2svh]">
         {/* kicker: WE'RE [sticker] HERE TO */}
-        <div className="relative z-10 mb-[-0.35em] flex items-center justify-center gap-[0.4em] font-display text-[clamp(22px,4.2vw,52px)] uppercase leading-none text-white">
+        <div className="relative z-10 mb-[-0.3em] flex items-center justify-center gap-[0.4em] font-display text-[clamp(20px,min(4vw,6svh),50px)] uppercase leading-none text-white">
           <span className="-rotate-2">We&apos;re</span>
           <Logo tilt={-8} />
           <span className="rotate-2">here to</span>
         </div>
         <div className="pointer-events-auto">
-          <KineticHeadline wonky lines={HEADLINE} reduced={reduced} className="text-[clamp(96px,24vw,300px)] sm:text-[clamp(110px,17vw,300px)]" />
+          <KineticHeadline wonky lines={HEADLINE} reduced={reduced} className="text-[min(23vw,15svh)] sm:text-[min(12.5vw,19svh)]" />
         </div>
       </div>
 
-      <div className="flex justify-center font-mono text-[10px] uppercase tracking-[0.2em] sm:text-[11px]">
-        <span className="scroll-cue flex items-center gap-2 text-neon">
+      <div className="flex-1" />
+
+      <div ref={cueRef} className="flex justify-center font-mono text-[10px] uppercase tracking-[0.2em] sm:text-[11px]">
+        <span className="scroll-cue flex items-center gap-2 rounded-full bg-asphalt/70 px-3 py-1 text-neon backdrop-blur-sm">
           Scroll to drive <span aria-hidden>↓</span>
         </span>
       </div>
@@ -222,7 +233,37 @@ function Bar({ value, max, color }: { value: number; max: number; color: string 
   );
 }
 
-export function DriveChapter({ layout, stats }: { layout: LandingLayout; stats: LandingStats }) {
+const CARD_SIDES: (1 | -1)[] = [-1, 1, -1, 1, -1, 1];
+
+/** Minimap polyline of the drive path in the overview's orientation (screen up = +Z, right = -X). */
+function useMinimap(path: DrivePath | null) {
+  return useMemo(() => {
+    if (!path) return null;
+    const N = 400;
+    const v = new THREE.Vector3();
+    const { cx, cz, hx, hz } = path.bounds;
+    const k = 46 / Math.max(hx, hz);
+    const pts: [number, number][] = [];
+    for (let i = 0; i <= N; i++) {
+      path.point(i / N, v);
+      pts.push([50 - (v.x - cx) * k, 50 - (v.z - cz) * k]);
+    }
+    const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join('') + 'Z';
+    return { pts, d, N };
+  }, [path]);
+}
+
+export function DriveChapter({
+  layout,
+  stats,
+  path,
+  subscribe,
+}: {
+  layout: LandingLayout;
+  stats: LandingStats;
+  path: DrivePath | null;
+  subscribe: ScrollChoreography['subscribe'];
+}) {
   const r = stats.ready;
   const f = (n: number) => fmt(n, r);
   const cards: ReactNode[] = [
@@ -293,21 +334,134 @@ export function DriveChapter({ layout, stats }: { layout: LandingLayout; stats: 
     </Card>,
   ];
 
+  const cardEls = useRef<(HTMLDivElement | null)[]>([]);
+  const hud = useRef<HTMLDivElement>(null);
+  const hudText = useRef<HTMLSpanElement>(null);
+  const bar = useRef<HTMLSpanElement>(null);
+  const dot = useRef<SVGCircleElement>(null);
+  const map = useMinimap(path);
+
+  useEffect(() => {
+    const L = layout;
+    let heights: number[] = [];
+    const measure = () => {
+      heights = cardEls.current.map((el) => el?.offsetHeight ?? 320);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    cardEls.current.forEach((el) => el && ro.observe(el));
+    let lastText = '';
+    const unsub = subscribe((s) => {
+      const top = s.chapters[2]?.top ?? 0;
+      const d = s.scrollY - top;
+      const lap = driveLapT(L, s.scrollY, top);
+      const driving = d > L.introPx * 0.7 && d < L.introPx + L.drivePx + L.outroPx * 0.6;
+
+      // HUD: circuit · sector · distance · lap %
+      const h = hud.current;
+      if (h) h.style.opacity = driving ? '1' : '0';
+      let text = 'LOADING SILVERSTONE…';
+      if (path) {
+        const km = (lap * path.circuit.lengthKm).toFixed(2);
+        const name = path.circuit.name.toUpperCase();
+        const pct = Math.round(lap * 100);
+        text = L.mobile
+          ? `${name} · S${path.sector(lap)} · ${km} KM · ${pct}%`
+          : `${name} · SECTOR ${path.sector(lap)} · ${km} / ${path.circuit.lengthKm.toFixed(3)} KM · ${pct}%`;
+      }
+      if (text !== lastText && hudText.current) {
+        hudText.current.textContent = text;
+        lastText = text;
+      }
+      if (bar.current) bar.current.style.transform = `scaleX(${lap.toFixed(4)})`;
+      if (dot.current && map) {
+        const p = map.pts[Math.min(map.N, Math.round(lap * map.N))];
+        dot.current.setAttribute('cx', p[0].toFixed(1));
+        dot.current.setAttribute('cy', p[1].toFixed(1));
+      }
+
+      // cards travel past the car on the sides (desktop) or rise into a dock under it (mobile)
+      const inLap = d > L.introPx * 0.9 && d < L.introPx + L.drivePx + L.vh * 0.2;
+      CARD_LAPS.forEach((c, i) => {
+        const el = cardEls.current[i];
+        if (!el) return;
+        const u = (lap - (c - CARD_HALF)) / (2 * CARD_HALF);
+        if (!inLap || u <= 0 || u >= 1) {
+          if (el.style.visibility !== 'hidden') el.style.visibility = 'hidden';
+          return;
+        }
+        const ch = heights[i] ?? 320;
+        let y: number;
+        let o = 1;
+        if (L.mobile) {
+          const rest = Math.min(L.dockTop, L.vh - ch - 16);
+          if (u < 0.22) y = L.vh + 16 + (rest - L.vh - 16) * smooth01(u / 0.22);
+          else if (u > 0.8) {
+            const k = (u - 0.8) / 0.2;
+            y = rest - 50 * k;
+            o = 1 - k;
+          } else y = rest;
+        } else {
+          y = L.vh + 24 - u * (L.vh + 48 + ch);
+          // slide under the HUD rather than across it
+          o = Math.max(0, Math.min(1, (y + ch * 0.5 - 110) / (ch * 0.5)));
+        }
+        el.style.visibility = 'visible';
+        el.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
+        el.style.opacity = o.toFixed(3);
+      });
+    });
+    return () => {
+      unsub();
+      ro.disconnect();
+    };
+  }, [layout, subscribe, path, map]);
+
   return (
     <div className="relative" style={{ height: layout.sectionPx }}>
-      <div className="absolute inset-x-0 top-0 px-4 pt-20 sm:px-8" style={{ height: layout.rotatePx }}>
+      {/* sticky stage: HUD + cards over the circuit */}
+      <div className="sticky top-0 h-[100svh] overflow-hidden">
+        <div ref={hud} className="absolute inset-x-0 top-[60px] z-10 flex items-start justify-between gap-3 px-4 opacity-0 transition-opacity duration-300 sm:px-8">
+          <div className="min-w-0 rounded-md bg-asphalt/70 px-2.5 py-1.5 backdrop-blur-sm">
+            <span ref={hudText} className="block font-mono text-[9px] uppercase tracking-[0.18em] text-white/85 sm:text-[11px]">
+              LOADING SILVERSTONE…
+            </span>
+            <span className="mt-1.5 block h-[3px] w-full overflow-hidden rounded-full bg-white/15">
+              <span ref={bar} className="block h-full w-full origin-left rounded-full bg-crimson" style={{ transform: 'scaleX(0)' }} />
+            </span>
+          </div>
+          {map && (
+            <svg viewBox="0 0 100 100" className="h-16 w-16 shrink-0 rounded-md bg-asphalt/70 p-1 backdrop-blur-sm sm:h-24 sm:w-24" aria-hidden>
+              <path d={map.d} fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="2.4" strokeLinejoin="round" />
+              <circle cx={map.pts[0][0]} cy={map.pts[0][1]} r="3" fill="#F2F2F2" />
+              <circle ref={dot} cx={map.pts[0][0]} cy={map.pts[0][1]} r="4.5" fill="#E10600" stroke="#080B10" strokeWidth="1.5" />
+            </svg>
+          )}
+        </div>
+        {cards.map((card, i) => (
+          <div
+            key={i}
+            ref={(el) => {
+              cardEls.current[i] = el;
+            }}
+            className="absolute top-0"
+            style={{ left: layout.cardLeft[layout.mobile ? -1 : CARD_SIDES[i]], width: layout.cardW, visibility: 'hidden', willChange: 'transform' }}
+          >
+            {card}
+          </div>
+        ))}
+      </div>
+      <div className="absolute inset-x-0 top-0 px-4 pt-20 sm:px-8" style={{ height: layout.introPx }}>
         <ChapterTag n={3} title="Scroll drive" />
-        <h2 className="mt-4 max-w-3xl font-display text-[clamp(44px,8vw,112px)] uppercase leading-[0.9]">
+        <h2 className="mt-4 max-w-3xl font-display text-[clamp(44px,8vw,112px)] uppercase leading-[0.9] [text-shadow:0_3px_0_#080B10,0_10px_30px_rgba(0,0,0,0.5)]">
           The season,
           <br />
           in <span className="text-crimson">tyre marks</span>
         </h2>
+        <p className="mt-3 max-w-md font-mono text-[11px] uppercase tracking-[0.16em] text-white/80 [text-shadow:0_1px_6px_rgba(0,0,0,0.8)]">
+          {path ? `One lap of ${path.circuit.name} · ${path.circuit.lengthKm.toFixed(3)} km · scroll to drive it` : 'Loading Silverstone…'}
+        </p>
       </div>
-      {layout.cards.map((c, i) => (
-        <div key={i} className="absolute" style={{ top: c.top, left: c.left, width: layout.cardW }}>
-          {cards[i]}
-        </div>
-      ))}
     </div>
   );
 }

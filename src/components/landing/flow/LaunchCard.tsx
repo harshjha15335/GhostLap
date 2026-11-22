@@ -72,8 +72,8 @@ export default function LaunchCard({
             <CarTop color="#9aa1aa" ghost className="absolute left-[8%] top-[6%] h-[48%] w-[20%] rotate-[24deg] opacity-80" />
             <div ref={pile} className="fl-will absolute inset-0">
               {PILE.map((d, i) => (
-                <div key={i} className="absolute" style={{ left: `${d.x}%`, top: `${d.y}%`, width: `${d.d}%`, aspectRatio: '1', transform: `translate(-30%,-50%) rotate(${d.r}deg)` }}>
-                  <CompoundDisc compound={d.c} size="100%" />
+                <div key={i} className="absolute" style={{ left: `${d.x}%`, top: `${d.y}%`, width: `${d.d}%`, aspectRatio: '1', transform: 'translate(-30%,-50%)' }}>
+                  <CompoundDisc compound={d.c} size="100%" spin={d.r} />
                 </div>
               ))}
             </div>
