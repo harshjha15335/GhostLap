@@ -396,10 +396,10 @@ function wheelParts(x: number, z: number, w: number, hi: boolean) {
 /* 2026 Bodywork & Sub-assemblies                                      */
 /* ------------------------------------------------------------------ */
 
-// 2026 regulations chassis loft sections
+// 2026 regulations chassis loft sections (Mercedes W17 proportions)
 const BODY_KEYS: Sec[] = [
-  { z: 2.88, hw: 0.045, yb: 0.12, yt: 0.17 },  // slim drooping nose tip
-  { z: 2.62, hw: 0.075, yb: 0.13, yt: 0.23 },  // gentle droop rise
+  { z: 2.92, hw: 0.038, yb: 0.11, yt: 0.16 },  // slender needle nose tip resting on wing
+  { z: 2.65, hw: 0.070, yb: 0.125, yt: 0.22 }, // gentle droop rise
   { z: 2.25, hw: 0.105, yb: 0.145, yt: 0.32 }, // tapering front nosecone
   { z: 1.85, hw: 0.138, yb: 0.155, yt: 0.42 }, // front bulkhead
   { z: 1.4, hw: 0.18, yb: 0.13, yt: 0.52 },    // front suspension zone
@@ -471,7 +471,9 @@ function buildMonocoque(hi: boolean): PartMeshes {
     // Upright / brake duct housing
     carbon.push(box(0.05, 0.29, 0.08, [s * 0.67, 0.34, z]));
     if (hi) {
+      // Twin aerodynamic mirror stalks (horizontal guide + diagonal mount)
       carbon.push(rod([s * 0.29, 0.67, 0.62], [s * 0.41, 0.71, 0.58], 0.011, 4));
+      carbon.push(rod([s * 0.36, 0.61, 0.56], [s * 0.45, 0.69, 0.58], 0.009, 4));
     }
   }
 
