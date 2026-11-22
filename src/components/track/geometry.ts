@@ -312,6 +312,7 @@ export function buildTerrain(m: TrackModel, lay: Layout, opts: { quality: 'high'
   const elev = b.maxY - b.minY;
   const amp = 1.2 + elev * 0.25 + ext * 0.012;
   const H = new Float32Array(N);
+  const edgeLevel = b.meanY - drop - amp * 0.15;
   const relief = (x: number, z: number) => (fbm(x / (ext * 0.18), z / (ext * 0.18), opts.seed, 4) - 0.45) * amp;
   for (let k = 0; k < N; k++) {
     const gx = k % nx, gz = Math.floor(k / nx);
@@ -319,6 +320,9 @@ export function buildTerrain(m: TrackModel, lay: Layout, opts: { quality: 'high'
     const near = base[k] - drop;
     const t = smoothstep(far[k], far[k] + 14 * M + ext * 0.05, dist[k]);
     let h = near * (1 - t) + (sm[k] - drop + relief(x, z)) * t;
+    // level the rim so the block reads as a clean cut slab (Boxlane-style diorama)
+    const rim = Math.min(x - x0, x1 - x, z - z0, z1 - z) / (ext * 0.07);
+    h = edgeLevel + (h - edgeLevel) * smoothstep(0, 1, rim);
     if (stamp[k] < Infinity) h = Math.min(h, stamp[k]);
     H[k] = h;
   }
@@ -625,8 +629,9 @@ export function buildStructures(m: TrackModel, lay: Layout, quality: 'high' | 'l
   const w = m.pit.width;
 
   // pit wall between the track and the pit lane
-  const pw0 = wrapIndex(-pitN, n);
-  extrude(g, m, pw0, pitN, 1, (i) => lay.R.barrier[i], [[0, -0.3], [0, 1.1 * M], [0.3 * M, 1.1 * M], [0.3 * M, -0.3]], (k) => (k === 1 ? PALETTE.steel : PALETTE.wall));
+  // (only where the lane has split from the track; the tapers stay open)
+  const pwN = pitN - Math.ceil(Math.max(2, Math.round(pitN * 0.3)) * 0.55);
+  extrude(g, m, wrapIndex(-pwN, n), pwN, 1, (i) => lay.R.barrier[i], [[0, -0.3], [0, 1.1 * M], [0.3 * M, 1.1 * M], [0.3 * M, -0.3]], (k) => (k === 1 ? PALETTE.steel : PALETTE.wall));
 
   // pit building: garages facing the lane, offices above, light roof
   const core = Math.round(pitN * 0.62);
@@ -648,6 +653,13 @@ export function buildStructures(m: TrackModel, lay: Layout, quality: 'high' | 'l
       return PALETTE.building;
     },
   );
+
+  // outer pit-lane wall where the building does not close it off
+  const laneOut = (i: number) => lay.pitCentre[i] + w / 2 + 0.3 * M;
+  const wallProf: [number, number][] = [[0, -0.3], [0, 1.1 * M], [0.3 * M, 1.1 * M], [0.3 * M, -0.3]];
+  const wallCol = (k: number) => (k === 1 ? PALETTE.steel : PALETTE.wall);
+  extrude(g, m, core, pitN, 1, laneOut, wallProf, wallCol);
+  extrude(g, m, wrapIndex(-pitN, n), wrapIndex(-core, n), 1, laneOut, wallProf, wallCol);
 
   // grandstands: stepped seating with a cantilever roof; crowd specks in the seats
   for (const st of lay.stands) {
@@ -681,7 +693,7 @@ export function buildStructures(m: TrackModel, lay: Layout, quality: 'high' | 'l
   // start/finish gantry
   const lights: V3[] = [];
   const fx = m.tx[0], fz = m.tz[0];
-  const left = lay.L.barrier[0] * 0.6 + m.hwL[0] * 0.4;
+  const left = Math.min(lay.L.barrier[0], m.hwL[0] + 1.2 * M);
   const right = m.hwR[0] + 0.6 * M;
   const ph = 7.5 * M;
   for (const off of [-left, right]) {

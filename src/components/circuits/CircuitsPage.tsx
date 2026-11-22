@@ -285,6 +285,19 @@ function Directory({ season }: { season: SeasonData }) {
           </div>
         </section>
       )}
+      {selected && (
+        <p className="-mt-8 mb-10 font-mono text-[10px] leading-relaxed text-white/35">
+          Layout: OpenF1 location telemetry · Track widths:{' '}
+          <a className="underline decoration-white/20 hover:text-white/60" href="https://github.com/TUMFTM/racetrack-database" target="_blank" rel="noreferrer">
+            TUMFTM racetrack-database
+          </a>{' '}
+          (LGPL-3.0, from OpenStreetMap) · Layout approach inspired by{' '}
+          <a className="underline decoration-white/20 hover:text-white/60" href="https://github.com/makakashan/F1TrackViewer" target="_blank" rel="noreferrer">
+            Boxlane/F1TrackViewer
+          </a>{' '}
+          (MIT) · Surroundings are procedural, not mapped.
+        </p>
+      )}
 
       <SectionHeading kicker="All rounds" title="2026 Calendar">
         <Segmented<Filter>

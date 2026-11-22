@@ -189,8 +189,8 @@ export function CircuitEnvironment({
 /** Dev-only: exposes the renderer's per-frame counters as window.__ghostlapRender (for budgets / screenshots). */
 function RenderStatsProbe() {
   useFrame(({ gl }) => {
-    const w = window as unknown as { __ghostlapRender?: { calls: number; triangles: number } };
-    w.__ghostlapRender = { calls: gl.info.render.calls, triangles: gl.info.render.triangles };
+    const w = window as unknown as { __ghostlapRender?: { calls: number; triangles: number; shadows: boolean } };
+    w.__ghostlapRender = { calls: gl.info.render.calls, triangles: gl.info.render.triangles, shadows: gl.shadowMap.enabled };
   });
   return null;
 }
