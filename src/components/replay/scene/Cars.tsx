@@ -142,10 +142,10 @@ export const Cars = memo(function Cars({ bundle, timeline, curve }: CarsProps) {
     const found = new Set<THREE.MeshStandardMaterial>();
     g.traverse((o) => {
       const m = o as THREE.Mesh;
-      if (m.isMesh && m.geometry?.type === 'TorusGeometry') {
-        const mat = m.material as THREE.MeshStandardMaterial;
-        if (mat && mat.toneMapped === false) found.add(mat);
-      }
+      if (!m.isMesh) return;
+      const mat = m.material as THREE.MeshStandardMaterial;
+      // F1Car tags its compound-ring material (rings are merged, so not a TorusGeometry any more)
+      if (mat && (mat.userData?.tyreRing === true || (m.geometry?.type === 'TorusGeometry' && mat.toneMapped === false))) found.add(mat);
     });
     return [...found];
   };

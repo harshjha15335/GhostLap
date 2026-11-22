@@ -1,18 +1,29 @@
 import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { useFrame, type ThreeElements } from '@react-three/fiber';
+import { getCarGeometry, REAR_AXLE_Z, REAR_TRACK_X, type MatKey, type PartMeshes } from './carGeometry';
+import { makeLiveryMaterial, resolveLivery, type Livery } from './liveries';
+
+export type { Livery, LiveryPattern } from './liveries';
+export { LIVERIES } from './liveries';
 
 /**
- * Procedural 2026-spec F1 car built from primitives (no licensed model / livery).
+ * Procedural 2026-spec F1 car (no licensed model). Smooth lofted chassis, undercut
+ * "waterslide" sidepods, multi-element wings, halo, push/pull-rod suspension and covered
+ * wheels — geometry is built once per detail level and shared by every instance
+ * (see carGeometry.ts); only materials are per instance.
  * Structured as 8 separable sub-assemblies so /season can render an exploded view.
  *
  * Conventions (shared by landing, replay and season):
- *   - forward = +Z, up = +Y, origin at the centre of the floor
- *   - real-world-ish metres: ~5.2 long, ~1.9 wide (scale as needed)
+ *   - forward = +Z, up = +Y, origin at the centre of the floor on the ground
+ *   - real-world-ish metres: ~5.4 long, ~1.9 wide (scale as needed)
  *
  * Props:
- *   color        team / body colour
- *   accent       wing + halo accent (default neon chartreuse)
+ *   color        team / body colour (fallback when no `livery`)
+ *   accent       wing + halo accent (fallback when no `livery`)
+ *   livery       team livery (object or teamId, see liveries.ts) — zones on body, accent on wings/halo
+ *   number       optional car number panel on the nose (detail="high" only)
+ *   logoTexture  optional decal for the nose + sidepod decal slots (hidden when absent)
  *   ghost        translucent emissive "Ghost Car" look (cyan)
  *   tyreGlow     0..1 intensity of the glowing compound rings
  *   tyreColor    compound ring colour (see COMPOUND_COLORS)
@@ -20,6 +31,9 @@ import { useFrame, type ThreeElements } from '@react-three/fiber';
  *   explode      0..1 — separates the 8 sub-assemblies along EXPLODE_VECTORS
  *   highlight    sub-assembly ids that pulse ghost-cyan (upgrade highlight)
  *   onPartHover  called with the hovered sub-assembly id (null on leave)
+ *
+ * Tyre compound rings: the ring material is MeshStandardMaterial with toneMapped=false and
+ * userData.tyreRing = true (replay recolours it per frame).
  */
 export type CarPartId =
   | 'frontWing'
@@ -51,31 +65,34 @@ export const CAR_PARTS: CarPartInfo[] = [
 
 /** Direction × distance (metres at explode = 1) each sub-assembly travels. */
 export const EXPLODE_VECTORS: Record<CarPartId, [number, number, number]> = {
-  frontWing: [0, 0.9, 2.2],
+  frontWing: [0, 0.7, 2.1],
   monocoque: [0, 0, 0],
-  floor: [0, -1.3, 0],
-  sidepods: [1.4, 0, 0], // mirrored per side
-  ice: [0, 2.0, -0.2],
-  ers: [0, 1.2, -1.4],
+  floor: [0, -1.25, 0],
+  sidepods: [1.45, 0.1, 0], // mirrored per side
+  ice: [0, 2.0, -0.35],
+  ers: [0, 1.15, -1.35],
   gearbox: [0, 0.1, -2.0],
-  rearWing: [0, 1.4, -2.6],
+  rearWing: [0, 1.4, -2.5],
 };
 
 /** Approx centre of each sub-assembly in car space when assembled — anchor for callout leaders. */
 export const PART_ANCHORS: Record<CarPartId, [number, number, number]> = {
-  frontWing: [0, 0.15, 2.5],
-  monocoque: [0, 0.6, 0.4],
-  floor: [0, 0.08, -0.1],
-  sidepods: [0.55, 0.36, -0.2],
-  ice: [0, 0.6, -0.7],
-  ers: [0, 0.4, -0.3],
-  gearbox: [0, 0.35, -1.7],
-  rearWing: [0, 0.95, -2.15],
+  frontWing: [0, 0.2, 2.62],
+  monocoque: [0, 0.66, 0.7],
+  floor: [0, 0.07, 0.1],
+  sidepods: [0.62, 0.44, -0.15],
+  ice: [0, 0.45, -0.95],
+  ers: [0, 0.2, -0.25],
+  gearbox: [0, 0.32, -1.72],
+  rearWing: [0, 1.0, -2.25],
 };
 
 export type F1CarProps = ThreeElements['group'] & {
   color?: string;
   accent?: string;
+  livery?: Livery | string;
+  number?: number;
+  logoTexture?: THREE.Texture;
   ghost?: boolean;
   tyreGlow?: number;
   tyreColor?: string;
@@ -97,6 +114,38 @@ const GHOST = new THREE.Color('#00F5D4');
 
 /** easeOutCubic, clamped to 0..1 — the curve used for the explode animation. */
 export const easeExplode = (t: number) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
+
+/* ---------------------------- shared decal bits ---------------------------- */
+
+const decalGeo = new THREE.PlaneGeometry(1, 1);
+const numberTex = new Map<number, THREE.CanvasTexture>();
+function getNumberTexture(n: number) {
+  let t = numberTex.get(n);
+  if (t) return t;
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 96;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#0b0d11';
+  g.beginPath();
+  g.roundRect(4, 4, 120, 88, 16);
+  g.fill();
+  g.fillStyle = '#ffffff';
+  g.font = 'bold 66px Anton, Impact, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(String(n), 64, 52);
+  t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  numberTex.set(n, t);
+  return t;
+}
+
+/** nose slope (rad) used to lay decals on the nose top */
+const NOSE_LOGO = { pos: [0, 0.372, 2.12] as const, rot: -Math.PI / 2 + 0.25, size: [0.16, 0.2] as const };
+const NOSE_NUMBER = { pos: [0, 0.535, 1.42] as const, rot: -Math.PI / 2 + 0.2, size: [0.2, 0.15] as const };
+const POD_DECAL = { pos: [0.738, 0.455, 0.0] as const, size: [0.34, 0.13] as const };
 
 /**
  * One explodable sub-assembly. Module-level (not defined inside F1Car) so React keeps the
@@ -132,6 +181,9 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
   {
     color = '#D4FF00',
     accent = '#D4FF00',
+    livery,
+    number,
+    logoTexture,
     ghost = false,
     tyreGlow = 0.8,
     tyreColor = '#FF1E1E',
@@ -143,31 +195,47 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
   },
   ref,
 ) {
-  const seg = detail === 'high' ? 28 : 12;
+  const geo = getCarGeometry(detail);
   const hl = useMemo(() => new Set(highlight ?? []), [highlight]);
+  const liv = resolveLivery(livery, color, accent);
 
   // Base materials depend only on livery/ghost; tyre ring is updated in place so that
   // per-frame tyre-wear changes (replay) never rebuild or leak materials.
   const mats = useMemo(() => {
     const body = ghost
       ? new THREE.MeshStandardMaterial({ color: GHOST, emissive: GHOST, emissiveIntensity: 0.9, transparent: true, opacity: 0.55, depthWrite: false })
-      : new THREE.MeshStandardMaterial({ color, metalness: 0.35, roughness: 0.35 });
-    const carbon = ghost ? body : new THREE.MeshStandardMaterial({ color: '#111418', metalness: 0.2, roughness: 0.6 });
-    const acc = ghost ? body : new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.25, metalness: 0.2, roughness: 0.4 });
-    const tyre = ghost ? body : new THREE.MeshStandardMaterial({ color: '#0d0d0f', roughness: 0.9 });
+      : makeLiveryMaterial(liv, { metalness: 0.35, roughness: 0.32 });
+    const carbon = ghost ? body : new THREE.MeshStandardMaterial({ color: '#15181d', metalness: 0.25, roughness: 0.55 });
+    const acc = ghost ? body : new THREE.MeshStandardMaterial({ color: liv.accent, emissive: liv.accent, emissiveIntensity: 0.12, metalness: 0.25, roughness: 0.4 });
+    const tyre = ghost ? body : new THREE.MeshStandardMaterial({ color: '#111113', roughness: 0.85 });
     const metal = ghost ? body : new THREE.MeshStandardMaterial({ color: '#9aa3ad', metalness: 0.85, roughness: 0.3 });
     const ring = new THREE.MeshStandardMaterial({ toneMapped: false });
+    ring.userData.tyreRing = true;
     const ersCore = new THREE.MeshStandardMaterial({ color: '#0a1a1a', emissive: GHOST, emissiveIntensity: ghost ? 0.9 : 0.6, toneMapped: false });
     const ersWarn = new THREE.MeshStandardMaterial({ color: '#1a0f05', emissive: new THREE.Color('#FF7A00'), emissiveIntensity: 0.7, toneMapped: false });
     const pulse = new THREE.MeshStandardMaterial({ color: GHOST, emissive: GHOST, emissiveIntensity: 1.2, transparent: true, opacity: 0.9, toneMapped: false });
-    return { body, carbon, acc, tyre, metal, ring, ersCore, ersWarn, pulse };
-  }, [color, accent, ghost]);
+    return { body, carbon, acc, tyre, metal, ring, ersCore, ersWarn, pulse } satisfies Record<MatKey | 'pulse', THREE.Material>;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liv.primary, liv.secondary, liv.accent, liv.pattern, ghost]);
 
   useEffect(
     () => () => {
       new Set(Object.values(mats)).forEach((mat) => mat.dispose());
     },
     [mats],
+  );
+
+  const decalMats = useMemo(() => {
+    const num = number != null && detail === 'high' && !ghost ? new THREE.MeshStandardMaterial({ map: getNumberTexture(number), roughness: 0.5, transparent: true, polygonOffset: true, polygonOffsetFactor: -2 }) : null;
+    const logo = logoTexture && !ghost ? new THREE.MeshStandardMaterial({ map: logoTexture, roughness: 0.5, transparent: true, polygonOffset: true, polygonOffsetFactor: -2 }) : null;
+    return { num, logo };
+  }, [number, detail, ghost, logoTexture]);
+  useEffect(
+    () => () => {
+      decalMats.num?.dispose();
+      decalMats.logo?.dispose();
+    },
+    [decalMats],
   );
 
   useLayoutEffect(() => {
@@ -183,162 +251,72 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
   });
 
   const e = easeExplode(explode);
-  const m = (id: CarPartId, normal: THREE.Material) => (hl.has(id) ? mats.pulse : normal);
-
-  const wheel = (x: number, z: number, r: number, w: number, key: string) => (
-    <group key={key} position={[x, r, z]} rotation={[0, 0, Math.PI / 2]}>
-      <mesh material={mats.tyre} castShadow>
-        <cylinderGeometry args={[r, r, w, seg]} />
-      </mesh>
-      <mesh material={mats.ring} position={[0, x > 0 ? w / 2 + 0.005 : -w / 2 - 0.005, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[r * 0.72, r * 0.06, 6, seg]} />
-      </mesh>
-    </group>
-  );
+  const shadow = detail === 'high';
+  const meshes = (id: CarPartId, list: PartMeshes) =>
+    list.map(({ mat, geo: g }, i) => {
+      // tyres, rings and glowing ERS parts keep their own look when highlighted
+      const keep = mat === 'ring' || mat === 'tyre';
+      const material = hl.has(id) && !keep ? mats.pulse : mats[mat];
+      return <mesh key={i} geometry={g} material={material} castShadow={shadow && mat !== 'ring'} receiveShadow={shadow && mat === 'body'} />;
+    });
 
   return (
     <group ref={ref} {...group}>
-      {/* 3 — Underfloor & Venturi tunnels (wheels stay with the floor's datum, not exploded) */}
+      {/* 3 — Underfloor & Venturi tunnels */}
       <PartGroup e={e} onHover={onPartHover} id="floor">
-        <mesh material={m('floor', mats.carbon)} position={[0, 0.08, -0.1]} castShadow receiveShadow>
-          <boxGeometry args={[1.5, 0.05, 3.6]} />
-        </mesh>
-        {detail === 'high' &&
-          [-0.45, -0.15, 0.15, 0.45].map((x) => (
-            <mesh key={`strake${x}`} material={m('floor', mats.carbon)} position={[x, 0.03, -0.6]}>
-              <boxGeometry args={[0.02, 0.08, 1.4]} />
-            </mesh>
-          ))}
+        {meshes('floor', geo.floor)}
       </PartGroup>
 
-      {/* 2 — Monocoque, nose, cockpit & halo (anchor) */}
+      {/* 2 — Monocoque, nose, cockpit, halo, airbox, front suspension & wheels (anchor) */}
       <PartGroup e={e} onHover={onPartHover} id="monocoque">
-        <mesh material={m('monocoque', mats.body)} position={[0, 0.42, 0.25]} castShadow>
-          <boxGeometry args={[0.62, 0.42, 2.6]} />
-        </mesh>
-        <mesh material={m('monocoque', mats.body)} position={[0, 0.36, 2.0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
-          <cylinderGeometry args={[0.1, 0.26, 1.3, seg]} />
-        </mesh>
-        <mesh material={mats.carbon} position={[0, 0.64, 0.45]}>
-          <boxGeometry args={[0.42, 0.05, 0.7]} />
-        </mesh>
-        <mesh material={m('monocoque', mats.acc)} position={[0, 0.82, 0.38]} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[0.3, 0.035, 8, seg, Math.PI]} />
-        </mesh>
-        <mesh material={m('monocoque', mats.acc)} position={[0, 0.76, 0.74]} rotation={[0.35, 0, 0]}>
-          <boxGeometry args={[0.05, 0.18, 0.05]} />
-        </mesh>
-        {/* engine cover shell + airbox (stays with chassis so the ICE can lift out of it) */}
-        <mesh material={m('monocoque', mats.body)} position={[0, 0.74, -0.75]} castShadow>
-          <boxGeometry args={[0.46, 0.14, 1.5]} />
-        </mesh>
-        <mesh material={mats.carbon} position={[0, 0.92, -0.25]}>
-          <boxGeometry args={[0.24, 0.3, 0.34]} />
-        </mesh>
-        {/* front suspension stays on chassis */}
-        {detail === 'high' &&
-          [-1, 1].map((s) => (
-            <mesh key={`fwb${s}`} material={mats.carbon} position={[s * 0.5, 0.38, 1.65]} rotation={[0, 0, s * 0.15]}>
-              <boxGeometry args={[0.7, 0.025, 0.06]} />
-            </mesh>
-          ))}
-        {wheel(-0.86, 1.65, 0.36, 0.3, 'fl')}
-        {wheel(0.86, 1.65, 0.36, 0.3, 'fr')}
+        {meshes('monocoque', geo.monocoque)}
+        {decalMats.num && (
+          <mesh geometry={decalGeo} material={decalMats.num} position={NOSE_NUMBER.pos} rotation={[NOSE_NUMBER.rot, 0, 0]} scale={[NOSE_NUMBER.size[0], NOSE_NUMBER.size[1], 1]} />
+        )}
+        {decalMats.logo && (
+          <mesh geometry={decalGeo} material={decalMats.logo} position={NOSE_LOGO.pos} rotation={[NOSE_LOGO.rot, 0, Math.PI]} scale={[NOSE_LOGO.size[0], NOSE_LOGO.size[1], 1]} />
+        )}
       </PartGroup>
 
       {/* 1 — Front wing */}
       <PartGroup e={e} onHover={onPartHover} id="frontWing">
-        <mesh material={m('frontWing', mats.acc)} position={[0, 0.12, 2.55]} castShadow>
-          <boxGeometry args={[1.8, 0.03, 0.34]} />
-        </mesh>
-        <mesh material={m('frontWing', mats.carbon)} position={[0, 0.2, 2.45]} rotation={[-0.25, 0, 0]}>
-          <boxGeometry args={[1.7, 0.025, 0.22]} />
-        </mesh>
-        {[-1, 1].map((s) => (
-          <mesh key={`fep${s}`} material={m('frontWing', mats.carbon)} position={[s * 0.9, 0.18, 2.5]}>
-            <boxGeometry args={[0.03, 0.18, 0.46]} />
-          </mesh>
-        ))}
+        {meshes('frontWing', geo.frontWing)}
       </PartGroup>
 
       {/* 4 — Sidepods (mirrored outward) */}
       {([-1, 1] as const).map((s) => (
         <PartGroup key={`pod${s}`} id="sidepods" mirror={s} e={e} onHover={onPartHover}>
-          <mesh material={m('sidepods', mats.body)} position={[s * 0.55, 0.36, -0.2]} castShadow>
-            <boxGeometry args={[0.42, 0.36, 1.7]} />
-          </mesh>
-          {detail === 'high' &&
-            [0, 1, 2, 3].map((i) => (
-              <mesh key={`louv${i}`} material={mats.carbon} position={[s * 0.55, 0.55, -0.55 - i * 0.14]}>
-                <boxGeometry args={[0.3, 0.012, 0.06]} />
-              </mesh>
-            ))}
+          {meshes('sidepods', s > 0 ? geo.sidepodR : geo.sidepodL)}
+          {decalMats.logo && (
+            <mesh
+              geometry={decalGeo}
+              material={decalMats.logo}
+              position={[s * POD_DECAL.pos[0], POD_DECAL.pos[1], POD_DECAL.pos[2]]}
+              rotation={[0, (s * Math.PI) / 2, 0]}
+              scale={[POD_DECAL.size[0], POD_DECAL.size[1], 1]}
+            />
+          )}
         </PartGroup>
       ))}
 
-      {/* 5 — ICE & turbo */}
+      {/* 5 — ICE, turbo & exhaust */}
       <PartGroup e={e} onHover={onPartHover} id="ice">
-        <mesh material={m('ice', mats.metal)} position={[0, 0.5, -0.75]} castShadow>
-          <boxGeometry args={[0.4, 0.3, 0.9]} />
-        </mesh>
-        {detail === 'high' &&
-          [-1, 1].map((s) => (
-            <mesh key={`bank${s}`} material={m('ice', mats.carbon)} position={[s * 0.14, 0.68, -0.75]} rotation={[0, 0, s * 0.5]}>
-              <boxGeometry args={[0.12, 0.1, 0.84]} />
-            </mesh>
-          ))}
-        <mesh material={m('ice', mats.metal)} position={[0, 0.55, -1.28]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.1, 0.1, 0.22, seg]} />
-        </mesh>
+        {meshes('ice', geo.ice)}
       </PartGroup>
 
       {/* 6 — MGU-K, energy store & control electronics */}
       <PartGroup e={e} onHover={onPartHover} id="ers">
-        <mesh material={m('ers', mats.ersCore)} position={[0, 0.3, -0.25]}>
-          <boxGeometry args={[0.36, 0.12, 0.5]} />
-        </mesh>
-        <mesh material={m('ers', mats.ersWarn)} position={[0.12, 0.3, -1.05]}>
-          <cylinderGeometry args={[0.08, 0.08, 0.16, seg]} />
-        </mesh>
-        <mesh material={m('ers', mats.carbon)} position={[-0.12, 0.42, -0.05]}>
-          <boxGeometry args={[0.14, 0.06, 0.2]} />
-        </mesh>
+        {meshes('ers', geo.ers)}
       </PartGroup>
 
       {/* 7 — Gearbox, rear suspension, diffuser & rear wheels */}
       <PartGroup e={e} onHover={onPartHover} id="gearbox">
-        <mesh material={m('gearbox', mats.carbon)} position={[0, 0.35, -1.65]} castShadow>
-          <boxGeometry args={[0.32, 0.28, 0.7]} />
-        </mesh>
-        <mesh material={m('gearbox', mats.carbon)} position={[0, 0.18, -1.95]} rotation={[-0.3, 0, 0]}>
-          <boxGeometry args={[1.0, 0.04, 0.4]} />
-        </mesh>
-        {detail === 'high' &&
-          [-1, 1].map((s) => (
-            <mesh key={`rwb${s}`} material={mats.carbon} position={[s * 0.5, 0.38, -1.55]} rotation={[0, 0, s * 0.12]}>
-              <boxGeometry args={[0.66, 0.025, 0.06]} />
-            </mesh>
-          ))}
-        {wheel(-0.84, -1.55, 0.37, 0.38, 'rl')}
-        {wheel(0.84, -1.55, 0.37, 0.38, 'rr')}
+        {meshes('gearbox', geo.gearbox)}
       </PartGroup>
 
-      {/* 8 — Rear wing with active flap */}
+      {/* 8 — Rear wing (spoon mainplane, active flap, swan neck, beam wing) */}
       <PartGroup e={e} onHover={onPartHover} id="rearWing">
-        <mesh material={m('rearWing', mats.acc)} position={[0, 0.98, -2.15]} rotation={[0.12, 0, 0]} castShadow>
-          <boxGeometry args={[1.0, 0.04, 0.34]} />
-        </mesh>
-        <mesh material={m('rearWing', mats.carbon)} position={[0, 0.82, -2.18]} rotation={[0.3, 0, 0]}>
-          <boxGeometry args={[0.98, 0.03, 0.22]} />
-        </mesh>
-        {[-1, 1].map((s) => (
-          <mesh key={`rep${s}`} material={m('rearWing', mats.body)} position={[s * 0.5, 0.82, -2.15]}>
-            <boxGeometry args={[0.03, 0.5, 0.5]} />
-          </mesh>
-        ))}
-        <mesh material={m('rearWing', mats.carbon)} position={[0, 0.62, -2.05]}>
-          <boxGeometry args={[0.06, 0.5, 0.08]} />
-        </mesh>
+        {meshes('rearWing', geo.rearWing)}
       </PartGroup>
     </group>
   );
@@ -346,8 +324,8 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
 
 /** Rear tyre contact points in car space — used for skid-mark trails. */
 export const REAR_TYRE_OFFSETS: [number, number, number][] = [
-  [-0.84, 0, -1.55],
-  [0.84, 0, -1.55],
+  [-REAR_TRACK_X, 0, REAR_AXLE_Z],
+  [REAR_TRACK_X, 0, REAR_AXLE_Z],
 ];
 
 /** Small helper hook: smoothly animate a numeric value toward a target each frame. */
