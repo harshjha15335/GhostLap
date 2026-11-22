@@ -196,288 +196,287 @@ function SeasonIntel({ season }: { season: SeasonData }) {
     <main className="theme-paper min-h-screen overflow-x-clip bg-paper-green">
       {/* ---------------- orange showroom sheet ---------------- */}
       <section className="paper-tex bg-paper-orange pb-24 pt-16 sm:pb-28">
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-6">
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <PageTitle kicker={<>Drivers & teams intelligence · after R{season.races[done[done.length - 1]]?.round}</>}>
-          Season <br className="sm:hidden" />
-          Showroom
-        </PageTitle>
-        <div className="flex flex-wrap gap-2 pb-2">
-          <Segmented<EntityMode>
-            label="Drivers or teams"
-            value={mode}
-            onChange={setMode}
-            options={[
-              { value: 'drivers', label: `Drivers (${season.drivers.length})` },
-              { value: 'teams', label: `Teams (${season.teams.length})` },
-            ]}
-          />
-          <Segmented<StageId>
-            label="Stage"
-            value={stage}
-            onChange={setStage}
-            options={[
-              { value: 'showroom', label: <span className="flex items-center gap-1.5"><Trophy size={12} /> Podium</span> },
-              { value: 'exploded', label: <span className="flex items-center gap-1.5"><Boxes size={12} /> Exploded</span> },
-            ]}
-          />
-        </div>
-      </header>
-
-      {/* ---------------- 3D stage ---------------- */}
-      <section className="overflow-hidden rounded-[22px] border-[3px] border-ink bg-cream shadow-sticker-lg lg:grid lg:grid-cols-[1fr_360px]">
-        <div ref={stageRef} className="relative h-[58vh] min-h-[380px] select-none lg:h-[600px]" style={{ background: STAGE_BG[stage] }}>
-          <Suspense fallback={<Loader label="Lighting the showroom…" />}>
-            <SeasonStage
-              stage={stage}
-              podium={podium}
-              selected={selected}
-              onSelect={select}
-              carColor={team?.color ?? '#D4FF00'}
-              explode={explode}
-              highlight={highlight}
-              onPartHover={setHoveredPart}
-              hoveredPart={hoveredPart}
-            />
-          </Suspense>
-          <div className="pointer-events-none absolute left-3 top-3 max-w-[calc(100%-24px)] -rotate-1 rounded-md border-2 border-ink bg-cream px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ink shadow-sticker-sm">
-            {stage === 'showroom' ? (
-              <>Podium showroom · {mode === 'drivers' ? "drivers' championship" : "constructors' championship"}</>
-            ) : (
-              <>
-                Exploded assembly ·{' '}
-                <span className="mx-0.5 inline-block h-2 w-2 rounded-full align-middle ring-1 ring-ink" style={{ background: team?.color }} />
-                {team?.name} · R{race?.round}
-                <span className="hidden sm:inline"> · drag to rotate</span>
-              </>
-            )}
-          </div>
-          {stage === 'exploded' && hoveredPart && (
-            <div className="pointer-events-none absolute right-3 top-12 rounded-md border-2 border-ink bg-paper-yellow px-2 py-1 font-mono text-[10px] font-bold uppercase text-ink shadow-sticker-sm sm:top-3">
-              {PART_LABEL[hoveredPart]}
+        <div className="mx-auto max-w-[1600px] px-4 sm:px-6">
+          <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <PageTitle kicker={<>Drivers & teams intelligence · after R{season.races[done[done.length - 1]]?.round}</>}>
+              Season <br className="sm:hidden" />
+              Showroom
+            </PageTitle>
+            <div className="flex flex-wrap gap-2 pb-2">
+              <Segmented<EntityMode>
+                label="Drivers or teams"
+                value={mode}
+                onChange={setMode}
+                options={[
+                  { value: 'drivers', label: `Drivers (${season.drivers.length})` },
+                  { value: 'teams', label: `Teams (${season.teams.length})` },
+                ]}
+              />
+              <Segmented<StageId>
+                label="Stage"
+                value={stage}
+                onChange={setStage}
+                options={[
+                  { value: 'showroom', label: <span className="flex items-center gap-1.5"><Trophy size={12} /> Podium</span> },
+                  { value: 'exploded', label: <span className="flex items-center gap-1.5"><Boxes size={12} /> Exploded</span> },
+                ]}
+              />
             </div>
-          )}
-          {stage === 'exploded' && (
-            <div className="absolute bottom-3 left-3 right-3 max-w-md rounded-lg border-2 border-ink bg-cream p-2.5 font-mono text-[10px] text-ink shadow-sticker sm:right-auto">
-              {activeUpgrades.length ? (
-                activeUpgrades.map((u) => (
-                  <div key={u.title}>
-                    <div className="flex items-center gap-2 font-bold text-ink-blue">
-                      <span className="h-2 w-2 animate-pulse rounded-full bg-paper-yellow ring-1 ring-ink" />
-                      R{u.round} · {upgradeTitle(u)} · {u.source === 'detected' ? 'area unknown' : u.area}
+          </header>
+
+          {/* ---------------- 3D stage ---------------- */}
+          <section className="overflow-hidden rounded-[22px] border-[3px] border-ink bg-cream shadow-sticker-lg lg:grid lg:grid-cols-[1fr_360px]">
+            <div ref={stageRef} className="relative h-[58vh] min-h-[380px] select-none lg:h-[600px]" style={{ background: STAGE_BG[stage] }}>
+              <Suspense fallback={<Loader label="Lighting the showroom…" />}>
+                <SeasonStage
+                  stage={stage}
+                  podium={podium}
+                  selected={selected}
+                  onSelect={select}
+                  carColor={team?.color ?? '#D4FF00'}
+                  explode={explode}
+                  highlight={highlight}
+                  onPartHover={setHoveredPart}
+                  hoveredPart={hoveredPart}
+                />
+              </Suspense>
+              <div className="pointer-events-none absolute left-3 top-3 max-w-[calc(100%-24px)] -rotate-1 rounded-md border-2 border-ink bg-cream px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ink shadow-sticker-sm">
+                {stage === 'showroom' ? (
+                  <>Podium showroom · {mode === 'drivers' ? "drivers' championship" : "constructors' championship"}</>
+                ) : (
+                  <>
+                    Exploded assembly ·{' '}
+                    <span className="mx-0.5 inline-block h-2 w-2 rounded-full align-middle ring-1 ring-ink" style={{ background: team?.color }} />
+                    {team?.name} · R{race?.round}
+                    <span className="hidden sm:inline"> · drag to rotate</span>
+                  </>
+                )}
+              </div>
+              {stage === 'exploded' && hoveredPart && (
+                <div className="pointer-events-none absolute right-3 top-12 rounded-md border-2 border-ink bg-paper-yellow px-2 py-1 font-mono text-[10px] font-bold uppercase text-ink shadow-sticker-sm sm:top-3">
+                  {PART_LABEL[hoveredPart]}
+                </div>
+              )}
+              {stage === 'exploded' && (
+                <div className="absolute bottom-3 left-3 right-3 max-w-md rounded-lg border-2 border-ink bg-cream p-2.5 font-mono text-[10px] text-ink shadow-sticker sm:right-auto">
+                  {activeUpgrades.length ? (
+                    activeUpgrades.map((u) => (
+                      <div key={u.title}>
+                        <div className="flex items-center gap-2 font-bold text-ink-blue">
+                          <span className="h-2 w-2 animate-pulse rounded-full bg-paper-yellow ring-1 ring-ink" />
+                          R{u.round} · {upgradeTitle(u)} · {u.source === 'detected' ? 'area unknown' : u.area}
+                        </div>
+                        <div className="mt-0.5 text-ink">
+                          Fuel-corrected race pace {u.paceBefore?.toFixed(2) ?? '—'}% → {u.paceAfter?.toFixed(2) ?? '—'}% to fastest
+                          {u.paceDelta != null && <span className="font-bold text-ink-blue"> ({u.paceDelta.toFixed(2)} pp)</span>}
+                        </div>
+                        <div className="text-ink/70">
+                          Highlighting {UPGRADE_AREA_PARTS[u.area].map((p) => PART_LABEL[p]).join(' + ')}
+                          {u.source === 'detected' && ' as candidate areas — not confirmed by the team'}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-x-2 text-ink/75">
+                      No upgrade marker for {team?.name} at R{race?.round}.
+                      {nextUpgrade && (
+                        <button type="button" className="font-bold text-ink-blue underline underline-offset-2" onClick={() => jumpToRound(nextUpgrade.round)}>
+                          Jump to R{nextUpgrade.round} →
+                        </button>
+                      )}
                     </div>
-                    <div className="mt-0.5 text-ink">
-                      Fuel-corrected race pace {u.paceBefore?.toFixed(2) ?? '—'}% → {u.paceAfter?.toFixed(2) ?? '—'}% to fastest
-                      {u.paceDelta != null && <span className="font-bold text-ink-blue"> ({u.paceDelta.toFixed(2)} pp)</span>}
-                    </div>
-                    <div className="text-ink/70">
-                      Highlighting {UPGRADE_AREA_PARTS[u.area].map((p) => PART_LABEL[p]).join(' + ')}
-                      {u.source === 'detected' && ' as candidate areas — not confirmed by the team'}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="flex flex-wrap items-center gap-x-2 text-ink/75">
-                  No upgrade marker for {team?.name} at R{race?.round}.
-                  {nextUpgrade && (
-                    <button type="button" className="font-bold text-ink-blue underline underline-offset-2" onClick={() => jumpToRound(nextUpgrade.round)}>
-                      Jump to R{nextUpgrade.round} →
-                    </button>
                   )}
                 </div>
               )}
             </div>
-          )}
-        </div>
 
-        {/* sidebar */}
-        <aside className="paper-tex max-h-none border-t-[3px] border-ink bg-cream p-4 text-ink lg:max-h-[600px] lg:overflow-y-auto lg:border-l-[3px] lg:border-t-0 scrollbar-thin">
-          {stage === 'exploded' ? (
-            <PartsAllocationPanel season={season} drivers={partsDrivers} raceIndex={raceIndex} />
-          ) : (
-            <div className="flex h-full flex-col gap-4">
-              <div>
-                <div className="inline-block -rotate-1 rounded-[4px] bg-ink px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-neon">Centre spotlight</div>
-                <div className="mt-2 flex items-center gap-3">
-                  <span className="font-display text-7xl leading-none text-paper-green">{selected.position != null ? `P${selected.position}` : '—'}</span>
-                  <div className="min-w-0">
-                    <div className="truncate font-display text-2xl uppercase leading-tight tracking-wide">{selected.title}</div>
-                    <div className="font-mono text-[11px] text-ink/70">
-                      <span className="mr-1 inline-block h-2 w-2 rounded-full ring-1 ring-ink" style={{ background: selected.color }} />
-                      {mode === 'drivers' ? `${team?.name} · #${selected.number}` : `${teamDrivers(season, teamId).map((d) => d.code).join(' · ')}`}
+            {/* sidebar */}
+            <aside className="paper-tex max-h-none border-t-[3px] border-ink bg-cream p-4 text-ink lg:max-h-[600px] lg:overflow-y-auto lg:border-l-[3px] lg:border-t-0 scrollbar-thin">
+              {stage === 'exploded' ? (
+                <PartsAllocationPanel season={season} drivers={partsDrivers} raceIndex={raceIndex} />
+              ) : (
+                <div className="flex h-full flex-col gap-4">
+                  <div>
+                    <div className="inline-block -rotate-1 rounded-[4px] bg-ink px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-neon">Centre spotlight</div>
+                    <div className="mt-2 flex items-center gap-3">
+                      <span className="font-display text-7xl leading-none text-paper-green">{selected.position != null ? `P${selected.position}` : '—'}</span>
+                      <div className="min-w-0">
+                        <div className="truncate font-display text-2xl uppercase leading-tight tracking-wide">{selected.title}</div>
+                        <div className="font-mono text-[11px] text-ink/70">
+                          <span className="mr-1 inline-block h-2 w-2 rounded-full ring-1 ring-ink" style={{ background: selected.color }} />
+                          {mode === 'drivers' ? `${team?.name} · #${selected.number}` : `${teamDrivers(season, teamId).map((d) => d.code).join(' · ')}`}
+                        </div>
+                      </div>
                     </div>
+                  </div>
+                  <dl className="grid grid-cols-3 gap-2 font-mono">
+                    {(mode === 'drivers'
+                      ? (() => {
+                          const s = season.driverStandings.find((x) => String(x.driverNumber) === selected.key);
+                          return [
+                            ['Points', s?.points ?? 0],
+                            ['Wins', s?.wins ?? 0],
+                            ['Podiums', s?.podiums ?? 0],
+                          ];
+                        })()
+                      : (() => {
+                          const s = season.constructorStandings.find((x) => x.teamId === selected.key);
+                          return [
+                            ['Points', s?.points ?? 0],
+                            ['Wins', s?.wins ?? 0],
+                            ['Pace steps', teamUpgrades.length],
+                          ];
+                        })()
+                    ).map(([k, v]) => (
+                      <div key={k} className="rounded-md border-2 border-ink bg-white px-2 py-2 shadow-sticker-sm">
+                        <dt className="text-[9px] font-semibold uppercase tracking-widest text-ink/70">{k}</dt>
+                        <dd className="text-xl font-bold tabular-nums text-ink">{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p className="font-mono text-[10px] leading-relaxed text-ink/70">
+                    Top three by points stand on the podium. Pick any {mode === 'drivers' ? 'driver' : 'team'} below (or click a podium car) to
+                    spring it onto the centre spotlight.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setStage('exploded')}
+                    className="mt-auto flex items-center justify-center gap-2 rounded-full border-2 border-ink bg-ghost px-3 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink shadow-sticker transition-transform hover:-translate-y-0.5"
+                  >
+                    <Boxes size={14} /> Explode {teamEntity?.label ?? 'car'} assembly <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
+            </aside>
+
+            {/* exploded controls */}
+            {stage === 'exploded' && (
+              <div className="grid gap-4 border-t-[3px] border-ink bg-cream-light p-4 text-ink lg:col-span-2 lg:grid-cols-[minmax(220px,320px)_1fr]">
+                <div>
+                  <div className="mb-1 flex items-center justify-between font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-ink/75">
+                    <label htmlFor="explode">Explode assembly</label>
+                    <span className="rounded-[3px] bg-ink px-1 tabular-nums text-neon">{Math.round(explode * 100)}%</span>
+                  </div>
+                  <input
+                    id="explode"
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={Math.round(explode * 100)}
+                    onChange={(e) => {
+                      setScrollLink(false);
+                      setExplode(Number(e.target.value) / 100);
+                    }}
+                    className="w-full accent-[#0A3A12]"
+                  />
+                  <label className="mt-1 flex items-center gap-2 font-mono text-[10px] text-ink/75">
+                    <input type="checkbox" checked={scrollLink} onChange={(e) => setScrollLink(e.target.checked)} className="accent-[#0A3A12]" />
+                    Link expansion to page scroll
+                  </label>
+                </div>
+                <div className="min-w-0">
+                  <div className="mb-1 flex items-center justify-between gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-ink/75">
+                    <label htmlFor="round">Round scrubber</label>
+                    <span className="truncate normal-case tracking-normal text-ink">
+                      R{race?.round} {race?.name}
+                    </span>
+                  </div>
+                  <input
+                    id="round"
+                    type="range"
+                    min={0}
+                    max={done.length - 1}
+                    value={scrubPos}
+                    onChange={(e) => setRaceIndex(done[Number(e.target.value)])}
+                    className="w-full accent-[#1D47D6]"
+                  />
+                  <div className="relative mt-1 h-4">
+                    {done.map((idx, k) => {
+                      const r = season.races[idx];
+                      const up = teamUpgrades.some((u) => u.round === r.round);
+                      const left = done.length > 1 ? (k / (done.length - 1)) * 100 : 50;
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setRaceIndex(idx)}
+                          title={`R${r.round} ${r.circuitName}${up ? ' · pace step' : ''}`}
+                          className={`absolute top-0 -translate-x-1/2 font-mono text-[8px] ${idx === raceIndex ? 'font-bold text-ink' : up ? 'text-ink-blue' : 'text-ink/60'} ${
+                            k % 2 && !up && idx !== raceIndex ? 'hidden sm:block' : ''
+                          }`}
+                          style={{ left: `${left}%` }}
+                        >
+                          {up ? '◆' : r.round}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
-              <dl className="grid grid-cols-3 gap-2 font-mono">
-                {(mode === 'drivers'
-                  ? (() => {
-                      const s = season.driverStandings.find((x) => String(x.driverNumber) === selected.key);
-                      return [
-                        ['Points', s?.points ?? 0],
-                        ['Wins', s?.wins ?? 0],
-                        ['Podiums', s?.podiums ?? 0],
-                      ];
-                    })()
-                  : (() => {
-                      const s = season.constructorStandings.find((x) => x.teamId === selected.key);
-                      return [
-                        ['Points', s?.points ?? 0],
-                        ['Wins', s?.wins ?? 0],
-                        ['Pace steps', teamUpgrades.length],
-                      ];
-                    })()
-                ).map(([k, v]) => (
-                  <div key={k} className="rounded-md border-2 border-ink bg-white px-2 py-2 shadow-sticker-sm">
-                    <dt className="text-[9px] font-semibold uppercase tracking-widest text-ink/70">{k}</dt>
-                    <dd className="text-xl font-bold tabular-nums text-ink">{v}</dd>
-                  </div>
-                ))}
-              </dl>
-              <p className="font-mono text-[10px] leading-relaxed text-ink/70">
-                Top three by points stand on the podium. Pick any {mode === 'drivers' ? 'driver' : 'team'} below (or click a podium car) to
-                spring it onto the centre spotlight.
-              </p>
-              <button
-                type="button"
-                onClick={() => setStage('exploded')}
-                className="mt-auto flex items-center justify-center gap-2 rounded-full border-2 border-ink bg-ghost px-3 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink shadow-sticker transition-transform hover:-translate-y-0.5"
-              >
-                <Boxes size={14} /> Explode {teamEntity?.label ?? 'car'} assembly <ChevronRight size={14} />
-              </button>
-            </div>
-          )}
-        </aside>
+            )}
+          </section>
 
-        {/* exploded controls */}
-        {stage === 'exploded' && (
-          <div className="grid gap-4 border-t-[3px] border-ink bg-cream-light p-4 text-ink lg:col-span-2 lg:grid-cols-[minmax(220px,320px)_1fr]">
-            <div>
-              <div className="mb-1 flex items-center justify-between font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-ink/75">
-                <label htmlFor="explode">Explode assembly</label>
-                <span className="rounded-[3px] bg-ink px-1 tabular-nums text-neon">{Math.round(explode * 100)}%</span>
-              </div>
-              <input
-                id="explode"
-                type="range"
-                min={0}
-                max={100}
-                value={Math.round(explode * 100)}
-                onChange={(e) => {
-                  setScrollLink(false);
-                  setExplode(Number(e.target.value) / 100);
-                }}
-                className="w-full accent-[#0A3A12]"
-              />
-              <label className="mt-1 flex items-center gap-2 font-mono text-[10px] text-ink/75">
-                <input type="checkbox" checked={scrollLink} onChange={(e) => setScrollLink(e.target.checked)} className="accent-[#0A3A12]" />
-                Link expansion to page scroll
-              </label>
-            </div>
-            <div className="min-w-0">
-              <div className="mb-1 flex items-center justify-between gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-ink/75">
-                <label htmlFor="round">Round scrubber</label>
-                <span className="truncate normal-case tracking-normal text-ink">
-                  R{race?.round} {race?.name}
-                </span>
-              </div>
-              <input
-                id="round"
-                type="range"
-                min={0}
-                max={done.length - 1}
-                value={scrubPos}
-                onChange={(e) => setRaceIndex(done[Number(e.target.value)])}
-                className="w-full accent-[#1D47D6]"
-              />
-              <div className="relative mt-1 h-4">
-                {done.map((idx, k) => {
-                  const r = season.races[idx];
-                  const up = teamUpgrades.some((u) => u.round === r.round);
-                  const left = done.length > 1 ? (k / (done.length - 1)) * 100 : 50;
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setRaceIndex(idx)}
-                      title={`R${r.round} ${r.circuitName}${up ? ' · pace step' : ''}`}
-                      className={`absolute top-0 -translate-x-1/2 font-mono text-[8px] ${idx === raceIndex ? 'font-bold text-ink' : up ? 'text-ink-blue' : 'text-ink/60'} ${
-                        k % 2 && !up && idx !== raceIndex ? 'hidden sm:block' : ''
-                      }`}
-                      style={{ left: `${left}%` }}
-                    >
-                      {up ? '◆' : r.round}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+          {/* ---------------- selector ---------------- */}
+          <div className="mt-5">
+            <Carousel entities={entities} selectedKey={selected.key} onSelect={select} />
           </div>
-        )}
-      </section>
-
-      {/* ---------------- selector ---------------- */}
-      <div className="mt-5">
-        <Carousel entities={entities} selectedKey={selected.key} onSelect={select} />
-      </div>
-      </div>
+        </div>
       </section>
 
       {/* ---------------- yellow data sheet: blueprint + charts ---------------- */}
       <CurvedSheet bg="bg-paper-yellow" depth={72} className="pb-24">
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-6">
-      <div>
-        <SectionHeading kicker="Blueprint" title="Spec sheet" />
-        {mode === 'drivers' ? (
-          <DriverBlueprint entity={selected} sheet={driverSheet(season, Number(selected.key), bundleList)} teamName={team?.name ?? ''} />
-        ) : (
-          <TeamBlueprint entity={selected} sheet={teamSheet(season, teamId, bundleList)} />
-        )}
-      </div>
+        <div className="mx-auto max-w-[1600px] px-4 sm:px-6">
+          <div>
+            <SectionHeading kicker="Blueprint" title="Spec sheet" />
+            {mode === 'drivers' ? (
+              <DriverBlueprint entity={selected} sheet={driverSheet(season, Number(selected.key), bundleList)} teamName={team?.name ?? ''} />
+            ) : (
+              <TeamBlueprint entity={selected} sheet={teamSheet(season, teamId, bundleList)} />
+            )}
+          </div>
 
-      {/* ---------------- charts ---------------- */}
-      <div className="mt-12">
-        <SectionHeading kicker="Telemetry" title="Form charts" />
-        <div className="grid gap-3 lg:grid-cols-2">
-          <LineChart
-            title="Points progression"
-            subtitle={`Cumulative ${mode === 'drivers' ? 'driver' : 'constructor'} points per completed round`}
-            xLabels={xLabels}
-            series={pointsSeries}
-          />
-          <LineChart
-            title="Qualifying vs race pace"
-            subtitle={`${selDriver ? selDriver.code : team?.name} · gap to fastest (%), lower = faster`}
-            xLabels={xLabels}
-            invert
-            yFormat={(v) => `${v.toFixed(1)}%`}
-            markers={upgradeMarkers}
-            series={[
-              { id: 'Q', label: 'Qualifying', color: '#1D47D6', values: pick(pace?.qualifying) },
-              { id: 'R', label: 'Race (fuel-corrected)', color: '#D45500', values: pick(pace?.raceFuelCorrected), dashed: true },
-            ]}
-            footnote={
-              <>
-                Gaps break where there is no data (DNF / no clean laps). ◆ markers: detected {team?.name} pace steps.
-              </>
-            }
-          />
+          {/* ---------------- charts ---------------- */}
+          <div className="mt-12">
+            <SectionHeading kicker="Telemetry" title="Form charts" />
+            <div className="grid gap-3 lg:grid-cols-2">
+              <LineChart
+                title="Points progression"
+                subtitle={`Cumulative ${mode === 'drivers' ? 'driver' : 'constructor'} points per completed round`}
+                xLabels={xLabels}
+                series={pointsSeries}
+              />
+              <LineChart
+                title="Qualifying vs race pace"
+                subtitle={`${selDriver ? selDriver.code : team?.name} · gap to fastest (%), lower = faster`}
+                xLabels={xLabels}
+                invert
+                yFormat={(v) => `${v.toFixed(1)}%`}
+                markers={upgradeMarkers}
+                series={[
+                  { id: 'Q', label: 'Qualifying', color: '#1D47D6', values: pick(pace?.qualifying) },
+                  { id: 'R', label: 'Race (fuel-corrected)', color: '#D45500', values: pick(pace?.raceFuelCorrected), dashed: true },
+                ]}
+                footnote={
+                  <>
+                    Gaps break where there is no data (DNF / no clean laps). ◆ markers: detected {team?.name} pace steps.
+                  </>
+                }
+              />
+            </div>
+            <div className="mt-3">
+              <UpgradeBadges
+                upgrades={teamUpgrades}
+                teamName={team?.name ?? ''}
+                activeRound={stage === 'exploded' ? race?.round : undefined}
+                onPick={(round) => {
+                  jumpToRound(round);
+                  setStage('exploded');
+                  stageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }}
+              />
+            </div>
+          </div>
         </div>
-        <div className="mt-3">
-          <UpgradeBadges
-            upgrades={teamUpgrades}
-            teamName={team?.name ?? ''}
-            activeRound={stage === 'exploded' ? race?.round : undefined}
-            onPick={(round) => {
-              jumpToRound(round);
-              setStage('exploded');
-              stageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }}
-          />
-        </div>
-      </div>
-
-      </div>
       </CurvedSheet>
 
       {/* ---------------- racing-green sheet: penalties ---------------- */}

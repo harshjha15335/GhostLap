@@ -92,7 +92,7 @@ function FlagCounts({ race }: { race: RaceSummary }) {
 function CardOutline({ race, index }: { race: RaceSummary; index: number }) {
   return (
     <div className={`paper-tex relative flex h-32 items-center justify-center overflow-hidden border-b-[2.5px] border-ink ${sheetFor(race, index)}`}>
-      <span className="absolute left-2.5 top-1.5 font-display text-[26px] leading-none text-ink">{roundLabel(race)}</span>
+      {race.round > 0 && <span className="absolute left-2.5 top-1.5 font-display text-[26px] leading-none text-ink">{roundLabel(race)}</span>}
       {race.outline ? (
         <OfficialOutline
           outline={race.outline}
