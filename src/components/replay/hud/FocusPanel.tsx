@@ -27,38 +27,36 @@ export function FocusPanel() {
   return (
     <section
       aria-label="Focus car telemetry"
-      className="pointer-events-auto w-[200px] rounded-md border border-line bg-panel/90 p-2.5 shadow-xl backdrop-blur md:w-[260px]"
+      className="pointer-events-auto w-[200px] rounded-xl border-2 border-ink bg-cream-light p-2.5 text-ink shadow-sticker md:w-[260px]"
     >
       <div className="flex items-center gap-2">
-        <span className="h-8 w-1 rounded-sm" style={{ background: color }} />
+        <span className="h-9 w-1.5 rounded-[2px] ring-1 ring-ink" style={{ background: color }} />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-1.5">
-            <span className="font-display text-2xl leading-none text-white">P{s.position}</span>
-            <span className="truncate font-display text-lg leading-none tracking-wide" style={{ color }}>
-              {lookup.code(focusDriver)}
-            </span>
+            <span className="font-display text-3xl leading-none text-paper-green">P{s.position}</span>
+            <span className="truncate font-display text-xl leading-none tracking-wide text-ink">{lookup.code(focusDriver)}</span>
           </div>
-          <div className="truncate font-mono text-[10px] text-white/45">
+          <div className="truncate font-mono text-[10px] text-ink/70">
             {d?.fullName ?? `Car ${focusDriver}`} {team ? `· ${team.name}` : ''}
           </div>
         </div>
         <TyreChip compound={s.compound} size="md" />
       </div>
 
-      <dl className="mt-2 grid grid-cols-3 gap-1 font-mono text-[10px]">
+      <dl className="mt-2 grid grid-cols-3 gap-1 rounded-md border-[1.5px] border-ink/20 bg-white px-1.5 py-1 font-mono text-[10px]">
         <div>
-          <dt className="text-white/40">AHEAD</dt>
-          <dd className="truncate text-white/85">
+          <dt className="text-ink/70">AHEAD</dt>
+          <dd className="truncate font-semibold text-ink">
             {s.position === 1 ? '—' : `${ahead ? lookup.code(ahead.driverNumber) : ''} ${fmtGap(s.gapAhead)}`}
           </dd>
         </div>
         <div>
-          <dt className="text-white/40">LEADER</dt>
-          <dd className="text-white/85">{s.position === 1 ? 'LEADER' : fmtGap(s.gapToLeader)}</dd>
+          <dt className="text-ink/70">LEADER</dt>
+          <dd className="font-semibold text-ink">{s.position === 1 ? 'LEADER' : fmtGap(s.gapToLeader)}</dd>
         </div>
         <div>
-          <dt className="text-white/40">TYRE</dt>
-          <dd className="text-white/85">
+          <dt className="text-ink/70">TYRE</dt>
+          <dd className="font-semibold text-ink">
             {s.tyreAge}L · {Math.round((1 - wear) * 100)}%
           </dd>
         </div>
@@ -66,22 +64,21 @@ export function FocusPanel() {
 
       <div className="mt-2">
         <div className="mb-1 flex items-baseline justify-between font-mono text-[10px]">
-          <span className={dirty ? 'text-amber' : 'text-white/45'}>DOWNFORCE{dirty ? ' · DIRTY AIR' : ''}</span>
-          <span className={`tabular-nums ${dirty ? 'text-amber' : 'text-neon'}`}>
+          <span className={`font-semibold ${dirty ? 'text-ink-amber' : 'text-ink/70'}`}>DOWNFORCE{dirty ? ' · DIRTY AIR' : ''}</span>
+          <span className={`font-bold tabular-nums ${dirty ? 'text-ink-amber' : 'text-ink-green'}`}>
             {Math.round(df)}%{dirty ? ` · +${pen.toFixed(2)}s/lap` : ''}
           </span>
         </div>
-        <div className="relative h-2.5 overflow-hidden rounded-sm bg-asphalt ring-1 ring-line">
+        <div className="relative h-3 overflow-hidden rounded-[4px] border-[1.5px] border-ink bg-white">
           <div
             className="absolute inset-y-0 left-0 transition-[width,background-color] duration-300"
             style={{
               width: `${df}%`,
-              background: dirty ? 'linear-gradient(90deg,#FF7A00,#ffb066)' : 'linear-gradient(90deg,#9bbf00,#D4FF00)',
-              boxShadow: dirty ? '0 0 10px #FF7A00' : '0 0 8px rgba(212,255,0,.5)',
+              background: dirty ? 'linear-gradient(90deg,#E5650A,#FF9A3D)' : 'linear-gradient(90deg,#0A3A12,#2F9E3A)',
             }}
           />
           {/* 65 % floor marker = full dirty air */}
-          <div className="absolute inset-y-0 w-px bg-white/30" style={{ left: '65%' }} />
+          <div className="absolute inset-y-0 w-0.5 bg-ink/60" style={{ left: '65%' }} />
         </div>
       </div>
     </section>

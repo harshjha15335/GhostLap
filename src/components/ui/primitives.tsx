@@ -1,30 +1,60 @@
 import type { ReactNode } from 'react';
+import { useIsMobile } from './hooks';
 import type { RaceStatus } from '@/types';
 
-/** Shared pit-wall UI primitives. */
+/** Shared pit-wall UI primitives (colourful paper / sticker theme: ink text on bright sheets). */
 
-export function SectionHeading({ kicker, title, children }: { kicker: string; title: ReactNode; children?: ReactNode }) {
+export type Tone = 'ink' | 'lime';
+
+/**
+ * Section heading for the colourful paper sheets. `tone="ink"` (default) for bright sheets
+ * (lime / orange / yellow / cream), `tone="lime"` for the deep racing-green sheets.
+ */
+export function SectionHeading({ kicker, title, children, tone = 'ink' }: { kicker: string; title: ReactNode; children?: ReactNode; tone?: Tone }) {
+  const lime = tone === 'lime';
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        <div className="font-mono text-[10px] uppercase tracking-[0.28em] text-neon/80">{kicker}</div>
-        <h2 className="mt-1 font-display text-3xl uppercase leading-none tracking-wide text-white sm:text-4xl">{title}</h2>
+        <div
+          className={`inline-block -rotate-1 rounded-[4px] border-2 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.24em] ${
+            lime ? 'border-neon text-neon' : 'border-ink bg-cream text-ink'
+          }`}
+        >
+          {kicker}
+        </div>
+        <h2 className={`mt-1.5 font-display text-4xl uppercase leading-[0.92] tracking-wide sm:text-5xl ${lime ? 'text-neon' : 'text-ink'}`}>{title}</h2>
       </div>
       {children}
     </div>
   );
 }
 
+/** Giant condensed page title (sweet-tape style), ink on bright paper. */
+export function PageTitle({ kicker, children, className = '' }: { kicker: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <div className={`min-w-0 ${className}`}>
+      <div className="inline-flex -rotate-2 items-center gap-2 rounded-md border-2 border-ink bg-cream px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-ink shadow-sticker-sm">
+        <span className="h-1.5 w-1.5 rounded-full bg-ink" />
+        {kicker}
+      </div>
+      <h1 className="mt-2 font-display text-[clamp(3.4rem,9vw,8rem)] uppercase leading-[0.84] tracking-[0.005em] text-paper-green">{children}</h1>
+    </div>
+  );
+}
+
 const statusStyle: Record<RaceStatus, string> = {
-  completed: 'border-neon/40 bg-neon/10 text-neon',
-  cancelled: 'border-crimson/40 bg-crimson/10 text-crimson',
-  upcoming: 'border-ghost/40 bg-ghost/10 text-ghost',
+  completed: 'bg-neon text-ink',
+  cancelled: 'bg-[#D7102A] text-white',
+  upcoming: 'bg-paper-lilac text-ink',
 };
 const statusLabel: Record<RaceStatus, string> = { completed: 'Completed', cancelled: 'Cancelled', upcoming: 'Upcoming' };
 
+/** Die-cut status sticker: flat colour, ink keyline, hard shadow, slight tilt. */
 export function StatusBadge({ status }: { status: RaceStatus }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] ${statusStyle[status]}`}>
+    <span
+      className={`inline-flex shrink-0 -rotate-2 items-center gap-1 rounded-[4px] border-[1.5px] border-ink px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] shadow-sticker-sm ${statusStyle[status]}`}
+    >
       <span className="h-1 w-1 rounded-full bg-current" />
       {statusLabel[status]}
     </span>
@@ -50,7 +80,7 @@ export function Segmented<T extends string>({
   label?: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="inline-flex rounded border border-line bg-asphalt/70 p-0.5">
+    <div role="radiogroup" aria-label={label} className="inline-flex rounded-lg border-2 border-ink bg-cream p-0.5 shadow-sticker-sm">
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -60,9 +90,9 @@ export function Segmented<T extends string>({
             role="radio"
             aria-checked={active}
             onClick={() => onChange(o.value)}
-            className={`rounded-sm font-mono uppercase tracking-[0.14em] transition-colors ${
+            className={`rounded-md font-mono font-semibold uppercase tracking-[0.12em] transition-colors ${
               size === 'sm' ? 'px-2 py-1 text-[10px]' : 'px-3 py-1.5 text-[11px]'
-            } ${active ? 'bg-neon text-asphalt' : 'text-white/60 hover:text-white'}`}
+            } ${active ? 'bg-ink text-neon' : 'text-ink/70 hover:bg-ink/[0.07] hover:text-ink'}`}
           >
             {o.label}
           </button>
@@ -75,24 +105,24 @@ export function Segmented<T extends string>({
 /** Driver code chip with a team-colour bar. */
 export function DriverChip({ code, color, title }: { code: string; color: string; title?: string }) {
   return (
-    <span title={title} className="inline-flex items-center gap-1 rounded-sm bg-white/5 py-0.5 pl-0 pr-1.5 font-mono text-[11px] font-semibold text-white/90">
-      <span className="h-4 w-[3px] rounded-sm" style={{ background: color }} />
+    <span title={title} className="inline-flex items-center gap-1 overflow-hidden rounded-[4px] border border-ink/25 bg-white py-0.5 pl-0 pr-1.5 font-mono text-[11px] font-semibold text-ink">
+      <span className="-my-0.5 h-5 w-[5px]" style={{ background: color }} />
       {code}
     </span>
   );
 }
 
-/** Monospace stat plate used on blueprint sheets. */
+/** Monospace stat plate used on blueprint sheets: white sticker, ink keyline, corner ticks. */
 export function StatPlate({ label, value, sub, accent }: { label: string; value: ReactNode; sub?: ReactNode; accent?: string }) {
   return (
-    <div className="relative border border-white/15 bg-asphalt/60 px-3 py-2">
-      <span className="absolute -left-px -top-px h-2 w-2 border-l border-t border-ghost/80" />
-      <span className="absolute -bottom-px -right-px h-2 w-2 border-b border-r border-ghost/80" />
-      <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/45">{label}</div>
-      <div className="mt-0.5 font-mono text-xl font-semibold tabular-nums" style={{ color: accent ?? '#fff' }}>
+    <div className="relative rounded-md border-2 border-ink bg-white px-3 py-2 shadow-sticker-sm">
+      <span className="absolute left-1 top-1 h-2 w-2 border-l-2 border-t-2 border-paper-blue" />
+      <span className="absolute bottom-1 right-1 h-2 w-2 border-b-2 border-r-2 border-paper-blue" />
+      <div className="font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-ink/70">{label}</div>
+      <div className="mt-0.5 font-mono text-xl font-bold tabular-nums" style={{ color: accent ?? '#0F1A12' }}>
         {value}
       </div>
-      {sub && <div className="font-mono text-[10px] text-white/45">{sub}</div>}
+      {sub && <div className="font-mono text-[10px] text-ink/70">{sub}</div>}
     </div>
   );
 }
@@ -101,3 +131,33 @@ export const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' });
 
 export const fmtPct = (v: number | null | undefined, digits = 2) => (v == null ? '—' : `${v.toFixed(digits)}%`);
+
+/**
+ * A full-bleed colour sheet whose top edge bulges up into the sheet above in a wide
+ * curve (the sweet-tape "curved colour split"). The curve is clipped to the viewport
+ * width, so it never causes horizontal scroll. `bg` is a Tailwind background class.
+ */
+export function CurvedSheet({
+  bg,
+  depth = 64,
+  className = '',
+  children,
+}: {
+  bg: string;
+  /** how far (px) the curve rises above the sheet top at its centre */
+  depth?: number;
+  className?: string;
+  children: ReactNode;
+}) {
+  // phones get a shallower bulge so the curve reads as a gentle arc, not a dome
+  const d = Math.round(useIsMobile() ? depth * 0.55 : depth);
+  const r = Math.round(d / 0.255);
+  return (
+    <section className={`relative ${className}`}>
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 overflow-hidden" style={{ top: -d }}>
+        <div className={`paper-tex absolute inset-y-0 ${bg}`} style={{ left: '-25%', width: '150%', borderRadius: `50% 50% 0 0 / ${r}px ${r}px 0 0` }} />
+      </div>
+      <div className="relative">{children}</div>
+    </section>
+  );
+}

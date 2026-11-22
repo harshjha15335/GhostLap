@@ -82,10 +82,16 @@ export function OfficialOutline({
   outline,
   className,
   strokeWidth = 3.2,
+  color = '#F2F4F7',
+  halo = 'rgba(255,255,255,0.07)',
 }: {
   outline: [number, number][];
   className?: string;
   strokeWidth?: number;
+  /** stroke colour (ink on light paper, near-white on dark) */
+  color?: string;
+  /** wide soft under-stroke */
+  halo?: string;
 }) {
   const { d, start, angle } = useMemo(() => {
     const d = outline.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${y}`).join('') + 'Z';
@@ -95,10 +101,11 @@ export function OfficialOutline({
   }, [outline]);
   return (
     <svg viewBox="-6 -6 112 112" className={className} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      <path d={d} fill="none" stroke="#ffffff" strokeOpacity={0.07} strokeWidth={strokeWidth * 3.2} strokeLinejoin="round" />
-      <path d={d} fill="none" stroke="#F2F4F7" strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
+      <path d={d} fill="none" stroke={halo} strokeWidth={strokeWidth * 3.2} strokeLinejoin="round" />
+      <path d={d} fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
       {/* chequered start/finish marker across the track */}
       <g transform={`translate(${start.x} ${start.y}) rotate(${angle + 90})`}>
+        <rect x={-5.6} y={-2.2} width={11.2} height={4.4} fill="#fff" />
         <rect x={-5} y={-1.6} width={10} height={3.2} fill="#080B10" />
         {[-5, -2.5, 0, 2.5].map((x, i) => (
           <g key={x}>

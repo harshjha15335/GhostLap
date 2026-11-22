@@ -6,9 +6,8 @@ import type { CircuitGeometry } from '@/types';
 import { createCircuitCurve, type CircuitCurve } from '@/engine/circuitCurve';
 import { useCanvasDpr, useInView, useIsMobile } from '@/components/ui/hooks';
 import { CircuitEnvironment } from '@/components/track/CircuitEnvironment';
+import { SkyDome } from '@/components/track/SkyDome';
 import { SECTOR_COLORS } from './TrackOutline';
-
-const BG = '#080B10';
 
 /** Thin sector-coloured line hovering over the racing line (the legend's S1/S2/S3). */
 function SectorLine({ circuit, curve }: { circuit: CircuitGeometry; curve: CircuitCurve }) {
@@ -79,7 +78,7 @@ function GhostRunner({ curve }: { curve: CircuitCurve }) {
   );
 }
 
-/** Late-afternoon sun with a shadow frustum sized to the circuit block. */
+/** Bright midday sun with a shadow frustum sized to the circuit block. */
 function Sun({ curve, shadows }: { curve: CircuitCurve; shadows: boolean }) {
   const ref = useRef<THREE.DirectionalLight>(null);
   const span = useMemo(() => {
@@ -104,8 +103,8 @@ function Sun({ curve, shadows }: { curve: CircuitCurve; shadows: boolean }) {
     <directionalLight
       ref={ref}
       position={[140, 170, 90]}
-      intensity={2.3}
-      color="#ffe2bd"
+      intensity={2.6}
+      color="#fff1d6"
       castShadow={shadows}
       shadow-mapSize={[2048, 2048]}
       shadow-bias={-0.0004}
@@ -153,11 +152,11 @@ export default function CircuitInspector({ circuit }: { circuit: CircuitGeometry
         camera={{ position: [0, 120, 150], fov: 38, near: 1, far: 2000 }}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
       >
-        <color attach="background" args={[BG]} />
-        <fog attach="fog" args={[BG, 330, 700]} />
-        <hemisphereLight args={['#c7dcff', '#2a3326', 0.85]} />
-        <ambientLight intensity={0.18} />
-        <directionalLight position={[-120, 60, -100]} intensity={0.35} color="#8fb4ff" />
+        {/* bright daytime sky (background + horizon fog come from the dome) */}
+        <SkyDome fogNear={380} fogFar={900} />
+        <hemisphereLight args={['#dcefff', '#5d7a3e', 1.05]} />
+        <ambientLight intensity={0.28} />
+        <directionalLight position={[-120, 60, -100]} intensity={0.45} color="#bcd8ff" />
         {circuit && <Scene key={circuit.slug} circuit={circuit} shadows={shadows} mobile={mobile} />}
         <CameraFit />
         <OrbitControls

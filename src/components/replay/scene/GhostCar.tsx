@@ -145,7 +145,7 @@ function GhostInner({ bundle, curve, ghost }: { bundle: RaceBundle; curve: Circu
         <Html center position={[0, 2.6, 0]} zIndexRange={[19, 0]} style={{ pointerEvents: 'none' }}>
           <div
             ref={label}
-            className="whitespace-nowrap rounded-sm border border-ghost/70 bg-asphalt/70 px-1.5 py-0.5 font-mono text-[11px] font-semibold leading-none text-ghost shadow-[0_0_12px_rgba(0,245,212,.6)]"
+            className="whitespace-nowrap rounded-[4px] border-2 border-ink bg-ghost px-1.5 py-0.5 font-mono text-[11px] font-bold leading-none text-ink shadow-sticker-sm"
           >
             GHOST
           </div>

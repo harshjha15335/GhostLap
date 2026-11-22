@@ -36,27 +36,27 @@ export function RaceSelector() {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex min-w-0 max-w-full items-center gap-2 rounded-md border border-line bg-panel/85 px-2.5 py-1.5 text-left backdrop-blur hover:border-neon/50"
+        className="flex min-w-0 max-w-full items-center gap-2 rounded-xl border-2 border-ink bg-cream-light px-2.5 py-1.5 text-left text-ink shadow-sticker transition-transform hover:-translate-y-px"
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className="shrink-0 rounded-sm bg-neon px-1 font-mono text-[10px] font-bold text-asphalt">
+        <span className="shrink-0 -rotate-3 rounded-[4px] border-[1.5px] border-ink bg-neon px-1 font-mono text-[10px] font-bold text-ink">
           R{String(current?.round ?? 0).padStart(2, '0')}
         </span>
         <span className="min-w-0">
-          <span className="block truncate font-display text-[15px] leading-tight tracking-wide text-white md:text-lg">
+          <span className="block truncate font-display text-[15px] leading-tight tracking-wide text-ink md:text-lg">
             {current?.name?.toUpperCase() ?? 'LOADING…'}
           </span>
-          <span className="hidden truncate font-mono text-[10px] text-white/45 md:block">
+          <span className="hidden truncate font-mono text-[10px] text-ink/70 md:block">
             {current ? `${current.circuitName} · ${current.country} · ${new Date(current.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}` : ''}
           </span>
         </span>
-        <ChevronDown size={16} className={`shrink-0 text-white/60 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={16} className={`shrink-0 text-ink transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <ul
           role="listbox"
-          className="scrollbar-thin absolute left-0 top-full z-40 mt-1 max-h-[60vh] w-[min(320px,calc(100vw-24px))] overflow-y-auto rounded-md border border-line bg-asphalt/95 py-1 shadow-2xl"
+          className="scrollbar-thin absolute left-0 top-full z-40 mt-2 max-h-[60vh] w-[min(320px,calc(100vw-24px))] overflow-y-auto rounded-xl border-2 border-ink bg-cream-light py-1 text-ink shadow-sticker"
         >
           {races.map((r) => {
             const ok = r.status === 'completed' && r.hasBundle;
@@ -73,15 +73,15 @@ export function RaceSelector() {
                     if (!active) navigate(`/replay/${r.slug}?autoplay=1`);
                   }}
                   className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm ${
-                    active ? 'bg-neon/10 text-neon' : ok ? 'text-white/85 hover:bg-white/5' : 'cursor-not-allowed text-white/30'
+                    active ? 'bg-neon font-semibold text-ink' : ok ? 'text-ink hover:bg-ink/[0.07]' : 'cursor-not-allowed text-ink/55'
                   }`}
                 >
-                  <span className="w-7 font-mono text-[10px] text-white/40">{r.n ? `R${String(r.n).padStart(2, '0')}` : '—'}</span>
+                  <span className="w-7 font-mono text-[10px] text-ink/70">{r.n ? `R${String(r.n).padStart(2, '0')}` : '—'}</span>
                   <span className="flex-1 truncate">{r.name}</span>
                   {r.status !== 'completed' && (
                     <span
-                      className={`rounded-[3px] px-1 font-mono text-[9px] uppercase ${
-                        r.status === 'cancelled' ? 'bg-crimson/20 text-crimson' : 'bg-white/10 text-white/50'
+                      className={`rounded-[3px] border border-ink px-1 font-mono text-[9px] font-bold uppercase ${
+                        r.status === 'cancelled' ? 'bg-[#D7102A] text-white' : 'bg-paper-lilac text-ink'
                       }`}
                     >
                       {r.status}
@@ -91,7 +91,7 @@ export function RaceSelector() {
               </li>
             );
           })}
-          {!season && <li className="px-3 py-2 font-mono text-xs text-white/50">Loading calendar…</li>}
+          {!season && <li className="px-3 py-2 font-mono text-xs text-ink/70">Loading calendar…</li>}
         </ul>
       )}
     </div>
@@ -105,7 +105,7 @@ export function CameraSwitch({ vertical = false }: { vertical?: boolean }) {
     <div
       role="group"
       aria-label="Camera"
-      className={`flex overflow-hidden rounded-md border border-line bg-panel/85 backdrop-blur ${vertical ? 'flex-col' : ''}`}
+      className={`flex overflow-hidden rounded-lg border-2 border-ink bg-cream-light shadow-sticker-sm ${vertical ? 'flex-col' : ''}`}
     >
       {CAMS.map(({ id, label, key, Icon }) => (
         <button
@@ -114,8 +114,8 @@ export function CameraSwitch({ vertical = false }: { vertical?: boolean }) {
           onClick={() => setCamera(id)}
           title={`${label} camera (${key})`}
           aria-pressed={camera === id}
-          className={`flex h-9 items-center gap-1.5 px-2.5 font-mono text-[11px] uppercase tracking-wide ${
-            camera === id ? 'bg-neon text-asphalt' : 'text-white/70 hover:text-white'
+          className={`flex h-9 items-center gap-1.5 px-2.5 font-mono text-[11px] font-semibold uppercase tracking-wide ${
+            camera === id ? 'bg-neon text-ink' : 'text-ink/75 hover:bg-ink/[0.07] hover:text-ink'
           }`}
         >
           <Icon size={14} />
@@ -127,10 +127,10 @@ export function CameraSwitch({ vertical = false }: { vertical?: boolean }) {
 }
 
 const STATUS_STYLE: Record<TrackStatusType | 'FLAG', { text: string; cls: string }> = {
-  SC: { text: 'SAFETY CAR', cls: 'bg-[#FFD400] text-asphalt' },
-  VSC: { text: 'VIRTUAL SAFETY CAR', cls: 'bg-amber text-asphalt' },
-  RED: { text: 'RED FLAG', cls: 'bg-crimson text-white' },
-  FLAG: { text: 'CHEQUERED FLAG', cls: 'bg-white text-asphalt' },
+  SC: { text: 'SAFETY CAR', cls: 'bg-[#FFD400] text-ink' },
+  VSC: { text: 'VIRTUAL SAFETY CAR', cls: 'bg-amber text-ink' },
+  RED: { text: 'RED FLAG', cls: 'bg-[#D7102A] text-white' },
+  FLAG: { text: 'CHEQUERED FLAG', cls: 'bg-white text-ink' },
 };
 
 export function TrackStatusBanner() {
@@ -147,7 +147,7 @@ export function TrackStatusBanner() {
   const s = STATUS_STYLE[key];
   return (
     <div
-      className={`pointer-events-none flex items-center gap-2 rounded-sm px-3 py-1 font-display text-sm tracking-[0.18em] shadow-lg md:text-base ${s.cls} ${
+      className={`pointer-events-none flex -rotate-1 items-center gap-2 rounded-md border-2 border-ink px-3 py-1 font-display text-sm tracking-[0.18em] shadow-sticker md:text-base ${s.cls} ${
         key === 'FLAG' ? 'bg-[repeating-linear-gradient(45deg,#fff_0_8px,#ddd_8px_16px)]' : 'animate-pulse'
       }`}
       role="status"

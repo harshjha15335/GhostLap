@@ -2,7 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: dark; }
+:root {
+  color-scheme: dark;
+  /* crumpled-paper relief + fine grain, inline SVG (no downloads); used by .paper-tex */
+  --tex-crumple: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'720'%20height%3D'720'%3E%3Cfilter%20id%3D'f'%20x%3D'0'%20y%3D'0'%20width%3D'100%25'%20height%3D'100%25'%3E%3CfeTurbulence%20type%3D'fractalNoise'%20baseFrequency%3D'0.0065'%20numOctaves%3D'5'%20seed%3D'11'%20stitchTiles%3D'stitch'%2F%3E%3CfeDiffuseLighting%20lighting-color%3D'%23fff'%20surfaceScale%3D'2.6'%3E%3CfeDistantLight%20azimuth%3D'225'%20elevation%3D'52'%2F%3E%3C%2FfeDiffuseLighting%3E%3C%2Ffilter%3E%3Crect%20width%3D'100%25'%20height%3D'100%25'%20filter%3D'url(%23f)'%20opacity%3D'0.3'%2F%3E%3C%2Fsvg%3E");
+  --tex-grain: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'240'%20height%3D'240'%3E%3Cfilter%20id%3D'g'%3E%3CfeTurbulence%20type%3D'fractalNoise'%20baseFrequency%3D'0.9'%20numOctaves%3D'2'%20stitchTiles%3D'stitch'%2F%3E%3CfeColorMatrix%20values%3D'0%200%200%200%200%20%200%200%200%200%200%20%200%200%200%200%200%20%200%200%200%200.09%200'%2F%3E%3C%2Ffilter%3E%3Crect%20width%3D'100%25'%20height%3D'100%25'%20filter%3D'url(%23g)'%2F%3E%3C%2Fsvg%3E");
+}
 html, body, #root { min-height: 100%; background: #080B10; }
 body { overflow-x: hidden; }
 
@@ -17,7 +22,39 @@ body { overflow-x: hidden; }
 }
 .sticker { box-shadow: 0 2px 0 rgba(0,0,0,.6), 0 10px 24px rgba(0,0,0,.45); }
 .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
-.scrollbar-thin::-webkit-scrollbar-thumb { background: #232A36; border-radius: 3px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(15,26,18,.35); border-radius: 3px; }
+
+/* ---------- colourful paper theme ---------- */
+
+/*
+ * Crumpled-paper texture over whatever background-color the element has:
+ *   <section class="paper-tex bg-paper-lime">…
+ * The relief is multiplied onto the flat colour, so it works on any sheet colour.
+ */
+.paper-tex {
+  background-image: var(--tex-crumple), var(--tex-grain);
+  background-size: 720px 720px, 240px 240px;
+  background-blend-mode: multiply, multiply;
+}
+/* light page scheme: ink text on bright paper */
+.theme-paper { color-scheme: light; color: #0F1A12; }
+
+/* blueprint "drafting paper" grid (light) */
+.drafting-grid {
+  background-image:
+    linear-gradient(rgba(44,92,255,0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(44,92,255,0.16) 1px, transparent 1px),
+    linear-gradient(rgba(44,92,255,0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(44,92,255,0.07) 1px, transparent 1px);
+  background-size: 80px 80px, 80px 80px, 16px 16px, 16px 16px;
+}
+
+/* visible keyboard focus on every colour sheet: ink ring + lime halo */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid #0F1A12;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px #D4FF00;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }

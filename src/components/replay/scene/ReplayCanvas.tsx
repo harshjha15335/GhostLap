@@ -11,6 +11,7 @@ import { Track } from './Track';
 import { Cars } from './Cars';
 import { GhostCar } from './GhostCar';
 import { CameraRig } from './CameraRig';
+import { SkyDome } from '@/components/track/SkyDome';
 
 /** Advances the race clock and samples car states once per frame (runs before everything else). */
 function RaceClock() {
@@ -44,12 +45,12 @@ const Scene = memo(function Scene({ bundle, timeline }: { bundle: RaceBundle; ti
   const curve = useMemo(() => createCircuitCurve(bundle.circuit), [bundle]);
   return (
     <>
-      <color attach="background" args={['#080B10']} />
-      <fog attach="fog" args={['#080B10', 120, 520]} />
-      <hemisphereLight args={['#b8c6ff', '#0a0c10', 0.55]} />
-      <ambientLight intensity={0.25} />
-      <directionalLight position={[80, 140, 60]} intensity={1.6} />
-      <directionalLight position={[-90, 60, -80]} intensity={0.45} color="#7fb0ff" />
+      {/* bright daytime sky; background + horizon-haze fog come from the dome */}
+      <SkyDome fogNear={170} fogFar={720} />
+      <hemisphereLight args={['#dcefff', '#5d7a3e', 1.0]} />
+      <ambientLight intensity={0.3} />
+      <directionalLight position={[80, 140, 60]} intensity={2.1} color="#fff3dc" />
+      <directionalLight position={[-90, 60, -80]} intensity={0.5} color="#bcd8ff" />
       <RaceClock />
       <Track circuit={bundle.circuit} curve={curve} />
       <Cars bundle={bundle} timeline={timeline} curve={curve} />

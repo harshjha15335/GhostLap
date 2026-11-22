@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * Site-wide die-cut sticker cursor: a cream arrow, swapping to a cream pointing hand over
+ * Site-wide die-cut sticker cursor: a cream arrow with an ink keyline (readable on every paper colour), swapping to a cream pointing hand over
  * anything clickable and while the button is held. Mouse / fine pointers only — touch keeps
  * the native behaviour. One listener + one rAF tick per pointer move; no React re-renders.
  */
@@ -83,7 +83,7 @@ export default function StickerCursor() {
     >
       {/* arrow: tip at (3,2) */}
       <svg ref={arrow} width="40" height="46" viewBox="0 0 46 54" className="-translate-x-[3px] -translate-y-[2px] drop-shadow-[0_5px_8px_rgba(0,0,0,0.45)]">
-        <path d="M3 2 L43 30 L25 33 L33 50 L25 53 L17 36 L4 47 Z" fill="#FBF6EA" />
+        <path d="M3 2 L43 30 L25 33 L33 50 L25 53 L17 36 L4 47 Z" fill="#FBF6EA" stroke="#0F1A12" strokeWidth="2.2" strokeLinejoin="round" />
         <path
           d="M7.5 8.5 L36 28.2 L21.8 30.6 L29.2 45.6 L26.2 47 L18.8 31.8 L8.4 40.2 Z"
           fill="#E6D7B6"
@@ -105,6 +105,9 @@ export default function StickerCursor() {
         <path
           d="M19 1.5c-3.3 0-5.6 2.4-5.6 5.6v16.2l-2.1-2c-2.4-2.3-6-2.3-8.2-.1-2.1 2.1-2 5.5.1 7.7l9.6 11.2c2.8 3.3 5.7 6.6 9.6 8.6 2.4 1.2 5 1.8 7.7 1.8h2.7c7.4 0 12.2-5.5 12.2-12.7V25.4c0-3-2.3-5.3-5.2-5.3-1 0-1.9.3-2.7.8-.6-2.5-2.8-4.3-5.4-4.3-1.2 0-2.3.4-3.2 1-.8-2.2-2.9-3.7-5.3-3.7-.8 0-1.6.2-2.3.5V7.1c0-3.2-2.4-5.6-5.6-5.6z"
           fill="#FBF6EA"
+          stroke="#0F1A12"
+          strokeWidth="2.2"
+          strokeLinejoin="round"
         />
         <path
           d="M19 5.3c-1.2 0-1.9.8-1.9 1.9v21.3l-1.3.6-7-6.6c-.9-.8-2.2-.8-3 0-.8.8-.8 2 0 2.9l9.7 11.4c2.7 3.1 5.2 6 8.6 7.7 1.9 1 4 1.4 6.1 1.4h2.7c5.2 0 8.5-3.8 8.5-9V25.4c0-.9-.7-1.6-1.5-1.6s-1.6.7-1.6 1.6v5.1h-3.7v-9.3c0-1-.8-1.7-1.8-1.7-1 0-1.7.7-1.7 1.7v8.6H28V18.3c0-1-.8-1.8-1.8-1.8s-1.7.8-1.7 1.8v11.1h-3.7V7.2c0-1.1-.7-1.9-1.8-1.9z"
