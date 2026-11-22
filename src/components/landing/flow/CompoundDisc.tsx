@@ -1,79 +1,66 @@
-import { useId, type CSSProperties } from 'react';
-import { COMPOUND_STYLE, type CompoundKey } from './theme';
+import type { CSSProperties } from 'react';
+import type { Compound } from '@/types';
+import TyreBadge from '@/components/ui/TyreBadge';
+import type { CompoundKey } from './theme';
+
+const TO_COMPOUND: Record<CompoundKey, Compound> = {
+  SOFT: 'SOFT',
+  MEDIUM: 'MEDIUM',
+  HARD: 'HARD',
+  INTER: 'INTERMEDIATE',
+  WET: 'WET',
+};
 
 /**
- * Generic tyre-compound disc: black tread, coloured sidewall band with ring
- * text, silver rim and a big compound letter on the hub. No manufacturer marks.
+ * Landing tyre-compound disc: the shared Pirelli-style <TyreBadge> (black tyre,
+ * compound sidewall arcs, PIRELLI / P ZERO lettering, silver multi-spoke wheel)
+ * sized to fill its box. `label` + `color` add a small hub tag (e.g. the
+ * championship leader's code in team colour) on top of the real tyre artwork.
  */
 export default function CompoundDisc({
   compound,
   size,
   color,
   label,
-  ring,
-  letter,
+  spin = 0,
   className = '',
   style,
 }: {
   compound: CompoundKey;
   /** CSS size (px number or any CSS length) */
   size: number | string;
-  /** override band colour (team-colour variant) */
+  /** hub-tag colour (only drawn together with `label`) */
   color?: string;
-  /** override hub label (default: the compound name) */
+  /** optional hub tag text */
   label?: string;
-  /** override ring text */
+  /** kept for call-site compatibility; the Pirelli artwork has fixed sidewall text */
   ring?: string;
-  /** override the hub letter */
+  /** kept for call-site compatibility */
   letter?: string;
+  /** wheel rotation, degrees */
+  spin?: number;
   className?: string;
   style?: CSSProperties;
 }) {
-  const raw = useId().replace(/[^a-zA-Z0-9]/g, '');
-  const s = COMPOUND_STYLE[compound];
-  const band = color ?? s.color;
-  const text = ring ?? `${compound} · ${s.tagline} · GHOSTLAP 26 · `;
-  const hub = label ?? compound;
   const sz = typeof size === 'number' ? `${size}px` : size;
+  // numeric sizes drive TyreBadge's small-size simplification; "100%" discs are large
+  const px = typeof size === 'number' ? size : 200;
   return (
-    <div className={`relative shrink-0 ${className}`} style={{ width: sz, height: sz, ...style }}>
-      <svg viewBox="0 0 200 200" className="block h-full w-full drop-shadow-[0_10px_14px_rgba(0,0,0,0.28)]" aria-hidden>
-        <defs>
-          <radialGradient id={`rim${raw}`} cx="42%" cy="38%" r="70%">
-            <stop offset="0" stopColor="#f4f6f8" />
-            <stop offset="0.55" stopColor="#9aa1aa" />
-            <stop offset="1" stopColor="#4a5058" />
-          </radialGradient>
-          <radialGradient id={`hub${raw}`} cx="45%" cy="40%" r="65%">
-            <stop offset="0" stopColor="#2a2f37" />
-            <stop offset="1" stopColor="#0c0f14" />
-          </radialGradient>
-          <path id={`rp${raw}`} d="M100,100 m-79,0 a79,79 0 1,1 158,0 a79,79 0 1,1 -158,0" />
-        </defs>
-        {/* tyre + tread */}
-        <circle cx="100" cy="100" r="99" fill="#14161a" />
-        <circle cx="100" cy="100" r="95.5" fill="none" stroke="#24272d" strokeWidth="5" strokeDasharray="5 4" />
-        {/* sidewall band */}
-        <circle cx="100" cy="100" r="79" fill="none" stroke={band} strokeWidth="21" />
-        <text fontFamily="Anton, Impact, sans-serif" fontSize="12.5" letterSpacing="1.4" fill={s.ink === '#FFFFFF' && !color ? '#fff' : '#0b0d10'} dominantBaseline="central">
-          <textPath href={`#rp${raw}`} startOffset="0" textLength={490} lengthAdjust="spacing">
-            {text}
-          </textPath>
-        </text>
-        {/* rim */}
-        <circle cx="100" cy="100" r="67" fill={`url(#rim${raw})`} />
-        <circle cx="100" cy="100" r="58" fill={`url(#hub${raw})`} />
-        {Array.from({ length: 10 }, (_, i) => (
-          <rect key={i} x="98" y="44" width="4" height="15" rx="2" fill="#5c636d" transform={`rotate(${i * 36} 100 100)`} />
-        ))}
-        <circle cx="100" cy="100" r="40" fill={band} />
-        <text x="100" y="98" textAnchor="middle" dominantBaseline="central" fontFamily="Anton, Impact, sans-serif" fontSize="44" fill={s.ink === '#FFFFFF' && !color ? '#fff' : '#0b0d10'}>
-          {letter ?? s.letter}
-        </text>
-        <text x="100" y="127" textAnchor="middle" fontFamily="Anton, Impact, sans-serif" fontSize="7.5" letterSpacing="1.2" fill={s.ink === '#FFFFFF' && !color ? '#fff' : '#0b0d10'}>
-          {hub}
-        </text>
-      </svg>
+    <div className={`relative shrink-0 ${className}`} style={{ width: sz, height: sz, containerType: 'inline-size', ...style }}>
+      <TyreBadge
+        compound={TO_COMPOUND[compound]}
+        size={px}
+        spin={spin}
+        className="block h-full w-full drop-shadow-[0_10px_14px_rgba(0,0,0,0.28)]"
+      />
+      {label && (
+        <span
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border-2 border-[#080B10] px-[0.6em] py-[0.15em] font-mono font-bold uppercase leading-none"
+          style={{ background: color ?? '#F2F2F2', color: '#080B10', fontSize: 'max(8px, 7cqw)' }}
+        >
+          {label}
+        </span>
+      )}
     </div>
   );
 }
