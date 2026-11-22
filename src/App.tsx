@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { DEFAULT_RACE_SLUG } from '@/types';
 import PitWallNav from '@/components/ui/PitWallNav';
 import Loader from '@/components/ui/Loader';
+import StickerCursor from '@/components/ui/StickerCursor';
 
 // Each route is code-split so only one route's WebGL scene is mounted at a time.
 const Landing = lazy(() => import('@/components/landing/Landing'));
@@ -14,6 +15,7 @@ export default function App() {
   return (
     <>
       <PitWallNav />
+      <StickerCursor />
       <Suspense fallback={<Loader />}>
         <Routes>
           <Route path="/" element={<Landing />} />

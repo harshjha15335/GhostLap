@@ -22,3 +22,6 @@ body { overflow-x: hidden; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
+
+/* Sticker cursor (StickerCursor.tsx) replaces the native pointer on fine-pointer devices. */
+html.sticker-cursor, html.sticker-cursor * { cursor: none !important; }

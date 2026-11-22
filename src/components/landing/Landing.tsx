@@ -23,7 +23,6 @@ const CSS = `
 .kinetic-letter { padding: 0 0.008em; }
 .tele-delta[data-gain="1"] { background: #D4FF00; color: #080B10; }
 .tele-delta[data-gain="0"] { background: #FF1E1E; color: #fff; }
-.landing-fine, .landing-fine a, .landing-fine button { cursor: none; }
 @keyframes hs-pulse { 0%,100% { transform: scale(1); opacity: .9 } 50% { transform: scale(1.35); opacity: .35 } }
 .hs-ring { animation: hs-pulse 1.8s ease-in-out infinite; }
 @keyframes cue { 0%,100% { transform: translateY(0) } 50% { transform: translateY(4px) } }

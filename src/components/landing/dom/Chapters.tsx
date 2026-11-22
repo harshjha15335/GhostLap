@@ -24,7 +24,6 @@ const HEADLINE = [
 ];
 
 export function HeroChapter({
-  stats,
   reduced,
   soundOn,
   onToggleSound,
@@ -36,17 +35,11 @@ export function HeroChapter({
 }) {
   return (
     <div className="relative flex min-h-[100svh] flex-col px-4 pb-8 pt-16 sm:px-8">
-      <div className="flex items-start justify-between gap-4 font-mono text-[11px] uppercase tracking-[0.22em] text-white/70">
-        <div>
-          <div className="text-white">
-            GHOSTLAP <span className="text-neon">//</span> 2026 FIELD GUIDE
-          </div>
-          <div className="mt-1 text-white/40">Vol. 01 · Night Session</div>
-        </div>
+      <div className="flex justify-end">
         <button
           type="button"
           onClick={onToggleSound}
-          className="pointer-events-auto rounded-full border border-white/25 px-3 py-1 text-[10px] text-white/70 transition hover:border-neon hover:text-neon"
+          className="pointer-events-auto rounded-full border border-white/25 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.22em] text-white/70 transition hover:border-neon hover:text-neon"
           aria-pressed={soundOn}
         >
           SFX {soundOn ? 'ON' : 'OFF'}
@@ -54,26 +47,20 @@ export function HeroChapter({
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <div className="sticker mb-6 inline-flex -rotate-2 items-center gap-2 rounded-full border-2 border-asphalt bg-neon px-4 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-asphalt sm:text-xs">
-          <span>2026 Season</span>
-          <span aria-hidden>·</span>
-          <span className="rounded-sm bg-asphalt px-1.5 text-neon">[GHOSTLAP]</span>
-          <span aria-hidden>·</span>
-          <span>22 Cars</span>
+        {/* kicker: WE'RE [sticker] HERE TO */}
+        <div className="relative z-10 mb-[-0.35em] flex items-center justify-center gap-[0.4em] font-display text-[clamp(22px,4.2vw,52px)] uppercase leading-none text-white">
+          <span className="-rotate-2">We&apos;re</span>
+          <span className="sticker inline-flex -rotate-[8deg] items-center rounded-[0.45em] border-[0.09em] border-asphalt bg-neon px-[0.35em] py-[0.08em] text-asphalt shadow-[0_0.08em_0_#080B10]">
+            Ghost<span className="text-crimson">Lap</span>
+          </span>
+          <span className="rotate-2">here to</span>
         </div>
         <div className="pointer-events-auto">
-          <KineticHeadline lines={HEADLINE} reduced={reduced} className="text-[clamp(84px,22vw,240px)] sm:text-[clamp(96px,15vw,240px)]" />
+          <KineticHeadline wonky lines={HEADLINE} reduced={reduced} className="text-[clamp(96px,24vw,300px)] sm:text-[clamp(110px,17vw,300px)]" />
         </div>
-        <p className="mt-6 max-w-md text-balance text-sm text-white/70 sm:text-base">
-          A kinetic debrief of the 2026 season — and a ghost car for every call that was never made.
-        </p>
       </div>
 
-      <div className="flex flex-wrap items-end justify-between gap-3 font-mono text-[10px] uppercase tracking-[0.2em] text-white/50 sm:text-[11px]">
-        <span>
-          <span className="text-white">{fmt(stats.completed, stats.ready)}</span> races run ·{' '}
-          <span className="text-white">{fmt(stats.overtakes, stats.ready)}</span> overtakes logged
-        </span>
+      <div className="flex justify-center font-mono text-[10px] uppercase tracking-[0.2em] sm:text-[11px]">
         <span className="scroll-cue flex items-center gap-2 text-neon">
           Scroll to drive <span aria-hidden>↓</span>
         </span>

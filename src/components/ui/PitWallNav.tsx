@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
-import { useSeason } from '@/store/seasonStore';
 
 /** Fixed 48px pit-wall top bar shared by every route. */
 const links = [
@@ -10,34 +9,6 @@ const links = [
   { to: '/replay', label: 'Race Lab', match: (p: string) => p.startsWith('/replay') },
   { to: '/season', label: 'Season', match: (p: string) => p.startsWith('/season') },
 ];
-
-function SeasonTicker() {
-  const season = useSeason();
-  if (!season) return null;
-  const done = season.races.filter((r) => r.status === 'completed').length;
-  const total = season.races.filter((r) => r.status !== 'cancelled').length;
-  const next = season.races.find((r) => r.status === 'upcoming');
-  return (
-    <div className="hidden items-center gap-3 font-mono text-[10px] uppercase tracking-[0.18em] text-white/45 lg:flex">
-      <span className="flex items-center gap-1.5">
-        <span className="h-1.5 w-1.5 rounded-full bg-ghost shadow-[0_0_8px_#00F5D4]" />
-        OpenF1 · {season.year}
-      </span>
-      <span className="text-white/20">/</span>
-      <span>
-        R{done}/{total} complete
-      </span>
-      {next && (
-        <>
-          <span className="text-white/20">/</span>
-          <span>
-            Next <span className="text-white/70">{next.circuitName}</span>
-          </span>
-        </>
-      )}
-    </div>
-  );
-}
 
 export default function PitWallNav() {
   const { pathname } = useLocation();
@@ -75,7 +46,6 @@ export default function PitWallNav() {
         </nav>
 
         <div className="ml-auto flex items-center gap-3">
-          <SeasonTicker />
           <button
             type="button"
             className="flex h-8 w-8 items-center justify-center rounded border border-line text-white/80 md:hidden"

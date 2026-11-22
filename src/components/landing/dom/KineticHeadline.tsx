@@ -13,16 +13,24 @@ interface Spring {
 }
 
 const K = 260;
+/** [rotate deg, translateY em] resting pose per letter — the cut-out, stuck-on look */
+const WONK: [number, number][] = [
+  [-5, 0.02], [3, -0.03], [-2, 0.01], [4, 0.03], [-3, -0.02], [2, 0.02], [-4, 0],
+  [5, -0.02], [-2, 0.03], [3, 0.01], [-5, -0.01], [2, 0.02], [-3, 0.03], [4, -0.02],
+];
 const C = 16;
 
 export default function KineticHeadline({
   lines,
   reduced,
   className = '',
+  wonky = false,
 }: {
   lines: { text: string; className: string }[];
   reduced: boolean;
   className?: string;
+  /** hand-set, sticker-like resting tilt per letter (deterministic) */
+  wonky?: boolean;
 }) {
   const root = useRef<HTMLHeadingElement>(null);
   const letters = useRef<HTMLSpanElement[]>([]);
@@ -145,7 +153,7 @@ export default function KineticHeadline({
               <span key={wi} className="inline-block whitespace-nowrap">
                 {[...word].map((ch) => {
                   const idx = n++;
-                  return (
+                  const letter = (
                     <span
                       key={idx}
                       ref={(e) => {
@@ -154,6 +162,13 @@ export default function KineticHeadline({
                       className={`kinetic-letter inline-block origin-bottom will-change-transform ${line.className}`}
                     >
                       {ch}
+                    </span>
+                  );
+                  if (!wonky) return letter;
+                  const t = WONK[idx % WONK.length];
+                  return (
+                    <span key={idx} className="inline-block" style={{ transform: `translateY(${t[1]}em) rotate(${t[0]}deg)` }}>
+                      {letter}
                     </span>
                   );
                 })}
