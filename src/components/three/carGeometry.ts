@@ -985,6 +985,13 @@ export function getCarGeometry(detail: Detail): CarGeometry {
   return g;
 }
 
+let puCache: Pick<CarGeometry, 'ice' | 'ers'> | null = null;
+/** Just the power-unit internals (ICE + ERS) — the W17 model has no engine, F1Car adds these for the exploded view. */
+export function getPowerUnitGeometry(): Pick<CarGeometry, 'ice' | 'ers'> {
+  if (!puCache) puCache = cache.high ? { ice: cache.high.ice, ers: cache.high.ers } : { ice: buildIce(true), ers: buildErs(true) };
+  return puCache;
+}
+
 export function carStats(detail: Detail) {
   const g = getCarGeometry(detail);
   let tris = 0;

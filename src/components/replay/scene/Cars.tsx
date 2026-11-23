@@ -59,7 +59,8 @@ export const Cars = memo(function Cars({ bundle, timeline, curve }: CarsProps) {
     const wakeGeo = makeWakeGeometry();
     const haloGeo = makeHaloGeometry();
     const hitGeo = new THREE.BoxGeometry(3.2, 2.2, 6.5);
-    const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false });
+    // pick target only: never drawn (material.visible = false), still raycast by the click handler
+    const hitMat = new THREE.MeshBasicMaterial({ visible: false });
     const wakeMats = bundle.cars.map(
       () =>
         new THREE.MeshBasicMaterial({
@@ -144,10 +145,11 @@ export const Cars = memo(function Cars({ bundle, timeline, curve }: CarsProps) {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
       const mat = m.material as THREE.MeshStandardMaterial;
-      // F1Car tags its compound-ring material (rings are merged, so not a TorusGeometry any more)
-      if (mat && (mat.userData?.tyreRing === true || (m.geometry?.type === 'TorusGeometry' && mat.toneMapped === false))) found.add(mat);
+      // F1Car tags its compound-ring material (W17 low LOD: the "rings" mesh)
+      if (mat && mat.userData?.tyreRing === true) found.add(mat);
     });
-    return [...found];
+    // the model streams in after mount: don't cache "no rings yet"
+    return found.size ? [...found] : null;
   };
 
   useFrame((_, dt) => {
@@ -244,7 +246,7 @@ export const Cars = memo(function Cars({ bundle, timeline, curve }: CarsProps) {
         const hm = shared.haloMats[i];
         hm.color.copy(rt.color);
         hm.opacity = 0.18 + 0.42 * (1 - wear);
-        const rings = rt.ringMats[i] ?? (rt.ringMats[i] = findRings(i));
+        const rings = rt.ringMats[i] || (rt.ringMats[i] = findRings(i));
         if (rings)
           for (const m of rings) {
             m.color.copy(rt.color);

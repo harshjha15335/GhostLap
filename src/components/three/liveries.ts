@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 
 /**
- * Team liveries for the procedural F1Car and DriverFigure.
+ * Team liveries for F1Car (W17 model + procedural fallback) and DriverFigure.
  *
- * Every car body is ONE MeshStandardMaterial whose `map` is a livery atlas texture, chosen as:
+ * The W17's painted bodywork carries a second UV set (TEXCOORD_1, built by
+ * scripts/models) that maps into this same atlas layout with W17-fitted planar projections
+ * (scripts/models/lib/atlas.mjs), so one team atlas skins both cars. The livery atlas is chosen as:
  *   1. an explicit `liveryTexture` prop, else
  *   2. the team's baked atlas `public/liveries/<teamId>.webp` (`-sm` for detail="low" / small
  *      screens), lazy-loaded once and shared by every car of that team, else (while it loads
@@ -265,23 +267,30 @@ const teamTex = new Map<string, TeamTexEntry>();
 
 export const isSmallScreen = () => typeof window !== 'undefined' && !!window.matchMedia?.('(max-width: 768px)').matches;
 
+/** Team atlas resolutions: 'sm' 512×256, 'md' 1024×512, '2x' 2048×1024 (W17 high-LOD close-ups). */
+export type AtlasRes = 'sm' | 'md' | '2x';
+const RES_SUFFIX: Record<AtlasRes, string> = { sm: '-sm', md: '', '2x': '-2x' };
+
 /** URL of a team's baked atlas texture. */
-export const teamLiveryUrl = (teamId: string, small: boolean) => `${import.meta.env.BASE_URL}liveries/${teamId}${small ? '-sm' : ''}.webp`;
+export const teamAtlasUrl = (teamId: string, res: AtlasRes) => `${import.meta.env.BASE_URL}liveries/${teamId}${RES_SUFFIX[res]}.webp`;
+export const teamLiveryUrl = (teamId: string, small: boolean) => teamAtlasUrl(teamId, small ? 'sm' : 'md');
 
 /**
  * Returns the team's baked atlas if already loaded; otherwise starts the (single, shared)
  * load and calls `onReady` once it arrives. Unknown teams / failed loads return null.
+ * Textures use three's default flipY = true (the W17's TEXCOORD_1 and the procedural car's
+ * UVs are authored for that).
  */
-export function requestTeamLiveryTexture(teamId: string, small: boolean, onReady: () => void): THREE.Texture | null {
+export function requestTeamAtlas(teamId: string, res: AtlasRes, onReady: () => void): THREE.Texture | null {
   if (!LIVERIES[teamId]) return null;
-  const key = `${teamId}|${small ? 's' : 'l'}`;
+  const key = `${teamId}|${res}`;
   let e = teamTex.get(key);
   if (!e) {
     const entry: TeamTexEntry = { tex: null, failed: false, waiters: new Set() };
     e = entry;
     teamTex.set(key, entry);
     new THREE.TextureLoader().load(
-      teamLiveryUrl(teamId, small),
+      teamAtlasUrl(teamId, res),
       (t) => {
         t.colorSpace = THREE.SRGBColorSpace;
         t.anisotropy = 8;
@@ -301,6 +310,10 @@ export function requestTeamLiveryTexture(teamId: string, small: boolean, onReady
   return null;
 }
 
-export function cancelTeamLiveryRequest(teamId: string, small: boolean, onReady: () => void) {
-  teamTex.get(`${teamId}|${small ? 's' : 'l'}`)?.waiters.delete(onReady);
+export function cancelTeamAtlasRequest(teamId: string, res: AtlasRes, onReady: () => void) {
+  teamTex.get(`${teamId}|${res}`)?.waiters.delete(onReady);
 }
+
+/** Back-compat wrappers (procedural car): small → 'sm', else 'md'. */
+export const requestTeamLiveryTexture = (teamId: string, small: boolean, onReady: () => void) => requestTeamAtlas(teamId, small ? 'sm' : 'md', onReady);
+export const cancelTeamLiveryRequest = (teamId: string, small: boolean, onReady: () => void) => cancelTeamAtlasRequest(teamId, small ? 'sm' : 'md', onReady);

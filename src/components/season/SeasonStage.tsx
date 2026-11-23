@@ -181,7 +181,7 @@ function Tier({ place, x, h, entity, selected, onSelect }: { place: number; x: n
           onPointerOut={() => (document.body.style.cursor = '')}
         >
           <group ref={car} position={[0, 0, -0.75]} scale={0.74}>
-            <F1Car teamId={entity.teamId} color={entity.color} accent={entity.color} number={entity.number} tyreGlow={0.4} tyreColor="#D4FF00" />
+            <F1Car detail="mid" teamId={entity.teamId} color={entity.color} accent={entity.color} number={entity.number} tyreGlow={0.4} tyreColor="#D4FF00" />
           </group>
           {drivers.map((d, i) => (
             <DriverFigure

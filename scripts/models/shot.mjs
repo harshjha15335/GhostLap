@@ -26,6 +26,17 @@ page.on('response', async (r) => {
   } catch {}
 });
 await page.goto(url, { waitUntil: 'load', timeout: 120000 });
+// CLICKS="TEAMS;EXPLODED" clicks those (text) buttons in order, SCROLL=px scrolls first,
+// EVAL="js" runs in the page before the screenshot
+if (process.env.SCROLL) {
+  await page.waitForTimeout(3000);
+  await page.mouse.wheel(0, Number(process.env.SCROLL));
+}
+for (const t of (process.env.CLICKS ?? '').split(';').filter(Boolean)) {
+  await page.waitForTimeout(2500);
+  await page.getByText(t, { exact: false }).first().click();
+}
+if (process.env.EVAL) await page.evaluate(process.env.EVAL);
 if (Number(wait) > 0) await page.waitForTimeout(Number(wait));
 else await page.waitForFunction(() => window.__ready === true, null, { timeout: 120000 });
 await page.screenshot({ path: out });
