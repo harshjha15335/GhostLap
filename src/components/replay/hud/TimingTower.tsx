@@ -104,13 +104,13 @@ export function TimingTower() {
       aria-label="Live timing"
       className="pointer-events-auto w-[178px] select-none overflow-hidden rounded-xl border-2 border-ink bg-cream-light text-ink shadow-sticker md:w-[248px]"
     >
-      <header className="paper-tex flex items-center justify-between border-b-2 border-ink bg-paper-green px-2 py-1.5">
-        <span className="font-display text-[15px] tracking-wider text-neon">TIMING</span>
+      <header className="pop-dots flex items-center justify-between border-b-2 border-ink bg-pop-blue px-2 py-1.5">
+        <span className="font-display text-[15px] tracking-wider text-cream">TIMING</span>
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => setMode(mode === 'gap' ? 'int' : 'gap')}
-            className="rounded-[4px] border-[1.5px] border-ink bg-neon px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink"
+            className="rounded-[4px] border-[1.5px] border-ink bg-pop-sun px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink"
             title="Toggle gap to leader / interval"
           >
             {mode === 'gap' ? 'GAP' : 'INT'}
@@ -152,7 +152,7 @@ export function TimingTower() {
                   isGhost
                     ? 'bg-ghost/45'
                     : isFocus
-                      ? 'bg-neon'
+                      ? 'bg-pop-sun'
                       : 'hover:bg-ink/[0.07]'
                 } ${r.flag === 'DNF' ? 'opacity-60' : ''}`}
               >

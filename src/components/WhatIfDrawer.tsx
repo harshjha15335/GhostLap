@@ -100,18 +100,18 @@ export default function WhatIfDrawer() {
     <aside
       aria-label="What If? strategy simulator"
       aria-hidden={!open}
-      className={`theme-paper paper-tex fixed inset-x-0 bottom-0 z-40 flex max-h-[80dvh] flex-col overflow-hidden rounded-t-2xl border-2 border-b-0 border-ink bg-cream text-ink shadow-[0_-6px_0_rgba(15,26,18,.9)] transition-[transform,visibility] duration-300 ease-out
-        md:inset-x-auto md:bottom-0 md:right-0 md:top-12 md:max-h-none md:w-[400px] md:rounded-none md:rounded-l-2xl md:border-b-2 md:border-r-0 md:border-t-0 md:shadow-[-6px_0_0_rgba(15,26,18,.9)]
+      className={`theme-paper pop-dots fixed inset-x-0 bottom-0 z-40 flex max-h-[80dvh] flex-col overflow-hidden rounded-t-2xl border-2 border-b-0 border-ink bg-cream text-ink shadow-[0_-6px_0_rgba(23,15,51,.9)] transition-[transform,visibility] duration-300 ease-out
+        md:inset-x-auto md:bottom-0 md:right-0 md:top-12 md:max-h-none md:w-[400px] md:rounded-none md:rounded-l-2xl md:border-b-2 md:border-r-0 md:border-t-0 md:shadow-[-6px_0_0_rgba(23,15,51,.9)]
         ${open ? 'visible translate-y-0 md:translate-x-0' : 'invisible translate-y-full md:translate-x-full md:translate-y-0'}`}
     >
-      <header className="paper-tex relative flex items-center gap-2 border-b-2 border-ink bg-neon px-4 pb-2.5 pt-3.5 md:pt-2.5">
+      <header className="pop-dots relative flex items-center gap-2 border-b-2 border-ink bg-pop-pink px-4 pb-2.5 pt-3.5 md:pt-2.5">
         <span className="absolute left-1/2 top-1.5 h-1 w-10 -translate-x-1/2 rounded-full bg-ink/40 md:hidden" />
         <span className="flex h-8 w-8 -rotate-6 items-center justify-center rounded-lg border-2 border-ink bg-ghost shadow-sticker-sm">
           <Sparkles size={16} className="text-ink" />
         </span>
         <div className="flex-1">
           <h2 className="font-display text-2xl leading-none tracking-wide text-ink">
-            WHAT IF<span className="text-paper-green">?</span>
+            WHAT IF<span className="text-cream [text-shadow:0.05em_0.06em_0_#170F33]">?</span>
           </h2>
           <p className="font-mono text-[10px] font-semibold text-ink/75">Ghost Car strategy simulator</p>
         </div>
@@ -162,7 +162,7 @@ function Presets({ bundle, scenario }: { bundle: RaceBundle; scenario: WhatIfSce
   return (
     <section className="mb-4" aria-label="One-tap scenarios">
       <h3 className="mb-2 flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-ink/75">
-        <Zap size={12} className="fill-neon text-ink" /> One-tap scenarios
+        <Zap size={12} className="fill-pop-pink text-ink" /> One-tap scenarios
       </h3>
       <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
         {ready
@@ -314,7 +314,7 @@ function ManualControls({ bundle, open }: { bundle: RaceBundle; open: boolean })
             const L0 = Number(e.target.value);
             update((d) => freshDraft(bundle, d.driver, L0, d.avoidPenalties));
           }}
-          className="h-6 w-full accent-[#0A3A12]"
+          className="h-6 w-full accent-[#FF2E88]"
         />
       </label>
 
@@ -352,7 +352,7 @@ function ManualControls({ bundle, open }: { bundle: RaceBundle; open: boolean })
                   const offset = Number(e.target.value);
                   update((d) => ({ ...d, stops: d.stops.map((x) => (x.id === s.id ? { ...x, offset } : x)) }));
                 }}
-                className="h-6 w-full accent-[#0A3A12]"
+                className="h-6 w-full accent-[#FF2E88]"
                 aria-label={`Stop ${i + 1} lap offset`}
               />
               <div className="mt-1 grid grid-cols-4 gap-1">
@@ -362,7 +362,7 @@ function ManualControls({ bundle, open }: { bundle: RaceBundle; open: boolean })
                     type="button"
                     onClick={() => update((d) => ({ ...d, stops: d.stops.map((x) => (x.id === s.id ? { ...x, compound: c } : x)) }))}
                     className={`flex h-8 items-center justify-center gap-1 rounded-md font-mono text-[10px] ${
-                      s.compound === c ? 'border-2 border-ink bg-neon font-bold text-ink' : 'border-[1.5px] border-ink/30 text-ink/75 hover:border-ink hover:text-ink'
+                      s.compound === c ? 'border-2 border-ink bg-pop-sun font-bold text-ink' : 'border-[1.5px] border-ink/30 text-ink/75 hover:border-ink hover:text-ink'
                     }`}
                     aria-pressed={s.compound === c}
                   >
@@ -408,7 +408,7 @@ function ManualControls({ bundle, open }: { bundle: RaceBundle; open: boolean })
           onChange={(e) => update((d) => ({ ...d, avoidPenalties: e.target.checked }))}
           className="peer sr-only"
         />
-        <span className="relative h-6 w-11 rounded-full border-2 border-ink bg-ink/15 transition-colors after:absolute after:left-px after:top-px after:h-[18px] after:w-[18px] after:rounded-full after:border-2 after:border-ink after:bg-white after:transition-transform peer-checked:bg-paper-green peer-checked:after:translate-x-5 peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink" />
+        <span className="relative h-6 w-11 rounded-full border-2 border-ink bg-ink/15 transition-colors after:absolute after:left-px after:top-px after:h-[18px] after:w-[18px] after:rounded-full after:border-2 after:border-ink after:bg-white after:transition-transform peer-checked:bg-pop-pink peer-checked:after:translate-x-5 peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink" />
       </label>
 
       <div className="mt-3 grid grid-cols-2 gap-2">
@@ -492,7 +492,7 @@ function VerdictCard({ bundle, timeline, ghost, slug }: { bundle: RaceBundle; ti
   return (
     <section
       aria-label="Verdict"
-      className="paper-tex relative mb-5 overflow-hidden rounded-2xl border-[2.5px] border-ink bg-paper-green p-4 text-cream shadow-sticker"
+      className="pop-dots relative mb-5 overflow-hidden rounded-2xl border-[2.5px] border-ink bg-pop-uv-deep p-4 text-cream shadow-sticker"
     >
       <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-cream/75">
         <span className="-rotate-2 rounded-[4px] border-[1.5px] border-ink bg-ghost px-1 font-bold text-ink">VERDICT</span>
@@ -504,12 +504,12 @@ function VerdictCard({ bundle, timeline, ghost, slug }: { bundle: RaceBundle; ti
       <div className="mt-3 flex items-center gap-2">
         <span className="h-10 w-1.5 rounded-[2px] ring-1 ring-cream/60" style={{ background: color }} />
         <div className="min-w-0">
-          <div className="font-display text-3xl leading-none tracking-wide text-neon">{d?.lastName?.toUpperCase() ?? lookup.code(dn)}</div>
+          <div className="font-display text-3xl leading-none tracking-wide text-pop-sun">{d?.lastName?.toUpperCase() ?? lookup.code(dn)}</div>
           <div className="truncate font-mono text-[10px] text-cream/75">{team?.name ?? ''} · ghost strategy</div>
         </div>
         <div
           className={`ml-auto rotate-2 rounded-lg border-2 border-ink px-2 py-1 font-display text-xl leading-none shadow-sticker-sm ${
-            g > 0 ? 'bg-neon text-ink' : g < 0 ? 'bg-[#FF5A5A] text-ink' : 'bg-cream text-ink'
+            g > 0 ? 'bg-pop-sun text-ink' : g < 0 ? 'bg-[#FF5A5A] text-ink' : 'bg-cream text-ink'
           }`}
         >
           {g > 0 ? `+${g}` : g < 0 ? g : '±0'} POS
@@ -537,7 +537,7 @@ function VerdictCard({ bundle, timeline, ghost, slug }: { bundle: RaceBundle; ti
       {/* position battle */}
       <svg viewBox={`0 -4 ${W} ${H + 8}`} className="mt-3 h-16 w-full" preserveAspectRatio="none" aria-label="Running position: reality vs ghost">
         <rect x={fromX} y={-4} width={W - fromX} height={H + 8} fill="rgba(0,245,212,.12)" />
-        <path d={path(realPos)} fill="none" stroke="rgba(246,241,227,.7)" strokeWidth={1.75} vectorEffect="non-scaling-stroke" />
+        <path d={path(realPos)} fill="none" stroke="rgba(255,247,238,.7)" strokeWidth={1.75} vectorEffect="non-scaling-stroke" />
         <path d={path(ghost.positionByLap)} fill="none" stroke="#00F5D4" strokeWidth={2.5} vectorEffect="non-scaling-stroke" />
       </svg>
       <div className="flex justify-between font-mono text-[9px] text-cream/70">
@@ -553,7 +553,7 @@ function VerdictCard({ bundle, timeline, ghost, slug }: { bundle: RaceBundle; ti
           {keyOvertakes.map((o, i) => (
             <li key={i} className="flex items-center gap-2 font-mono text-[11px]">
               <span className="w-8 text-cream/70">L{o.lap}</span>
-              <span className={o.gained ? 'text-neon' : 'text-[#FF8A8A]'}>{o.gained ? '▲ passes' : '▼ passed by'}</span>
+              <span className={o.gained ? 'text-pop-sun' : 'text-[#FF8A8A]'}>{o.gained ? '▲ passes' : '▼ passed by'}</span>
               <span className="h-3 w-1 rounded-[1px] ring-1 ring-cream/50" style={{ background: lookup.color(o.driverNumber) }} />
               <span className="font-semibold text-cream">{lookup.code(o.driverNumber)}</span>
             </li>
@@ -571,7 +571,7 @@ function VerdictCard({ bundle, timeline, ghost, slug }: { bundle: RaceBundle; ti
         >
           {copied ? <Check size={14} /> : <Link2 size={14} />} {copied ? 'LINK COPIED' : 'COPY SHARE LINK'}
         </button>
-        <span className="font-display text-base tracking-wider text-neon">GHOSTLAP</span>
+        <span className="font-display text-base tracking-wider text-pop-sun">GHOSTLAP</span>
       </div>
       <div className="mt-1.5 truncate font-mono text-[9px] text-cream/70">
         {ghost.scenario.stops.map((s) => `L${s.lap} ${COMPOUND_SHORT[s.compound]}`).join(' · ') || 'no stops'}

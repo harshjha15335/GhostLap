@@ -33,7 +33,7 @@ export function FocusPanel() {
         <span className="h-9 w-1.5 rounded-[2px] ring-1 ring-ink" style={{ background: color }} />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-1.5">
-            <span className="font-display text-3xl leading-none text-paper-green">P{s.position}</span>
+            <span className="font-display text-3xl leading-none text-ink-pink">P{s.position}</span>
             <span className="truncate font-display text-xl leading-none tracking-wide text-ink">{lookup.code(focusDriver)}</span>
           </div>
           <div className="truncate font-mono text-[10px] text-ink/70">
@@ -65,7 +65,7 @@ export function FocusPanel() {
       <div className="mt-2">
         <div className="mb-1 flex items-baseline justify-between font-mono text-[10px]">
           <span className={`font-semibold ${dirty ? 'text-ink-amber' : 'text-ink/70'}`}>DOWNFORCE{dirty ? ' · DIRTY AIR' : ''}</span>
-          <span className={`font-bold tabular-nums ${dirty ? 'text-ink-amber' : 'text-ink-green'}`}>
+          <span className={`font-bold tabular-nums ${dirty ? 'text-ink-amber' : 'text-ink-blue'}`}>
             {Math.round(df)}%{dirty ? ` · +${pen.toFixed(2)}s/lap` : ''}
           </span>
         </div>
@@ -74,7 +74,7 @@ export function FocusPanel() {
             className="absolute inset-y-0 left-0 transition-[width,background-color] duration-300"
             style={{
               width: `${df}%`,
-              background: dirty ? 'linear-gradient(90deg,#E5650A,#FF9A3D)' : 'linear-gradient(90deg,#0A3A12,#2F9E3A)',
+              background: dirty ? 'linear-gradient(90deg,#E5650A,#FF9A3D)' : 'linear-gradient(90deg,#1A22C4,#2D3BFF)',
             }}
           />
           {/* 65 % floor marker = full dirty air */}

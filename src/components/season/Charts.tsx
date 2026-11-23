@@ -4,7 +4,7 @@ import { upgradeTitle } from './seasonStats';
 
 /** Lightweight SVG line charts (no chart lib) on light sticker cards. One y-axis, 2.5px lines, crosshair tooltip. */
 
-const CARD = '#FFFCF3'; // cream-light card face (marker outlines)
+const CARD = '#FFFCF8'; // cream-light card face (marker outlines)
 
 function useWidth<T extends HTMLElement>(): [React.RefObject<T>, number] {
   const ref = useRef<T>(null);
@@ -122,7 +122,7 @@ export function LineChart({
         <svg width={W} height={H} className="block max-w-full touch-pan-y" onPointerMove={onMove} onPointerLeave={() => setHover(null)} role="img" aria-label={title}>
           {ticks.map((t) => (
             <g key={t}>
-              <line x1={m.l} x2={W - m.r} y1={y(t)} y2={y(t)} stroke="rgba(15,26,18,0.12)" strokeWidth={1} />
+              <line x1={m.l} x2={W - m.r} y1={y(t)} y2={y(t)} stroke="rgba(23,15,51,0.12)" strokeWidth={1} />
               <text x={m.l - 6} y={y(t)} dy="0.32em" textAnchor="end" className="fill-ink/70 font-mono text-[9px]">
                 {yFormat(t)}
               </text>
@@ -138,7 +138,7 @@ export function LineChart({
           {markers?.map((mk) => (
             <g key={mk.index}>
               <line x1={x(mk.index)} x2={x(mk.index)} y1={m.t} y2={m.t + ih} stroke="#00725F" strokeOpacity={0.55} strokeDasharray="2 3" />
-              <path d={`M${x(mk.index) - 4.5} ${m.t} L${x(mk.index) + 4.5} ${m.t} L${x(mk.index)} ${m.t + 7}Z`} fill="#00F5D4" stroke="#0F1A12" strokeWidth={1.2} />
+              <path d={`M${x(mk.index) - 4.5} ${m.t} L${x(mk.index) + 4.5} ${m.t} L${x(mk.index)} ${m.t + 7}Z`} fill="#00F5D4" stroke="#170F33" strokeWidth={1.2} />
             </g>
           ))}
           {series.map((s) => (
@@ -160,7 +160,7 @@ export function LineChart({
           })}
           {hover != null && (
             <g pointerEvents="none">
-              <line x1={x(hover)} x2={x(hover)} y1={m.t} y2={m.t + ih} stroke="#0F1A12" strokeOpacity={0.45} />
+              <line x1={x(hover)} x2={x(hover)} y1={m.t} y2={m.t + ih} stroke="#170F33" strokeOpacity={0.45} />
               {series.map((s) =>
                 s.values[hover] != null ? (
                   <circle key={s.id} cx={x(hover)} cy={y(s.values[hover] as number)} r={4.5} fill={s.color} stroke={CARD} strokeWidth={2} />
@@ -218,7 +218,7 @@ export function UpgradeBadges({ upgrades, teamName, onPick, activeRound }: { upg
               type="button"
               onClick={() => onPick?.(u.round)}
               className={`rounded-md border-2 border-ink px-2.5 py-1.5 text-left font-mono text-ink shadow-sticker-sm transition-transform hover:-translate-y-0.5 ${
-                activeRound === u.round ? 'bg-neon' : 'bg-white'
+                activeRound === u.round ? 'bg-pop-sun' : 'bg-white'
               }`}
             >
               <div className="text-[9px] font-semibold uppercase tracking-widest text-ink/70">

@@ -2,13 +2,14 @@ import type { ReactNode } from 'react';
 import { useIsMobile } from './hooks';
 import type { RaceStatus } from '@/types';
 
-/** Shared pit-wall UI primitives (colourful paper / sticker theme: ink text on bright sheets). */
+/** Shared pit-wall UI primitives (Pit-Lane Pop sticker theme: ink text on bright sheets). */
 
 export type Tone = 'ink' | 'lime';
 
 /**
- * Section heading for the colourful paper sheets. `tone="ink"` (default) for bright sheets
- * (lime / orange / yellow / cream), `tone="lime"` for the deep racing-green sheets.
+ * Section heading for the pop sheets. `tone="ink"` (default) for light sheets
+ * (chalk / sunshine / magenta), `tone="lime"` (historic name) for the deep saturated
+ * sheets (ultramarine / ultraviolet), where it switches to sunshine + chalk.
  */
 export function SectionHeading({ kicker, title, children, tone = 'ink' }: { kicker: string; title: ReactNode; children?: ReactNode; tone?: Tone }) {
   const lime = tone === 'lime';
@@ -17,19 +18,19 @@ export function SectionHeading({ kicker, title, children, tone = 'ink' }: { kick
       <div className="min-w-0">
         <div
           className={`inline-block -rotate-1 rounded-[4px] border-2 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.24em] ${
-            lime ? 'border-neon text-neon' : 'border-ink bg-cream text-ink'
+            lime ? 'border-cream bg-ink text-cream' : 'border-ink bg-cream text-ink'
           }`}
         >
           {kicker}
         </div>
-        <h2 className={`mt-1.5 font-display text-4xl uppercase leading-[0.92] tracking-wide sm:text-5xl ${lime ? 'text-neon' : 'text-ink'}`}>{title}</h2>
+        <h2 className={`mt-1.5 font-display text-4xl uppercase leading-[0.92] tracking-wide sm:text-5xl ${lime ? 'text-pop-sun' : 'text-ink'}`}>{title}</h2>
       </div>
       {children}
     </div>
   );
 }
 
-/** Giant condensed page title (sweet-tape style), ink on bright paper. */
+/** Giant condensed page title: chalk letters with a hard ink drop on a saturated sheet. */
 export function PageTitle({ kicker, children, className = '' }: { kicker: ReactNode; children: ReactNode; className?: string }) {
   return (
     <div className={`min-w-0 ${className}`}>
@@ -37,15 +38,15 @@ export function PageTitle({ kicker, children, className = '' }: { kicker: ReactN
         <span className="h-1.5 w-1.5 rounded-full bg-ink" />
         {kicker}
       </div>
-      <h1 className="mt-2 font-display text-[clamp(3.4rem,9vw,8rem)] uppercase leading-[0.84] tracking-[0.005em] text-paper-green">{children}</h1>
+      <h1 className="mt-2 font-display text-[clamp(3.4rem,9vw,8rem)] uppercase leading-[0.84] tracking-[0.005em] text-cream [text-shadow:0.045em_0.055em_0_#170F33]">{children}</h1>
     </div>
   );
 }
 
 const statusStyle: Record<RaceStatus, string> = {
-  completed: 'bg-neon text-ink',
+  completed: 'bg-pop-sun text-ink',
   cancelled: 'bg-[#D7102A] text-white',
-  upcoming: 'bg-paper-lilac text-ink',
+  upcoming: 'bg-pop-sky text-ink',
 };
 const statusLabel: Record<RaceStatus, string> = { completed: 'Completed', cancelled: 'Cancelled', upcoming: 'Upcoming' };
 
@@ -92,7 +93,7 @@ export function Segmented<T extends string>({
             onClick={() => onChange(o.value)}
             className={`rounded-md font-mono font-semibold uppercase tracking-[0.12em] transition-colors ${
               size === 'sm' ? 'px-2 py-1 text-[10px]' : 'px-3 py-1.5 text-[11px]'
-            } ${active ? 'bg-ink text-neon' : 'text-ink/70 hover:bg-ink/[0.07] hover:text-ink'}`}
+            } ${active ? 'bg-ink text-pop-sun' : 'text-ink/70 hover:bg-ink/[0.07] hover:text-ink'}`}
           >
             {o.label}
           </button>
@@ -116,10 +117,10 @@ export function DriverChip({ code, color, title }: { code: string; color: string
 export function StatPlate({ label, value, sub, accent }: { label: string; value: ReactNode; sub?: ReactNode; accent?: string }) {
   return (
     <div className="relative rounded-md border-2 border-ink bg-white px-3 py-2 shadow-sticker-sm">
-      <span className="absolute left-1 top-1 h-2 w-2 border-l-2 border-t-2 border-paper-blue" />
-      <span className="absolute bottom-1 right-1 h-2 w-2 border-b-2 border-r-2 border-paper-blue" />
+      <span className="absolute left-1 top-1 h-2 w-2 border-l-2 border-t-2 border-pop-pink" />
+      <span className="absolute bottom-1 right-1 h-2 w-2 border-b-2 border-r-2 border-pop-pink" />
       <div className="font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-ink/70">{label}</div>
-      <div className="mt-0.5 font-mono text-xl font-bold tabular-nums" style={{ color: accent ?? '#0F1A12' }}>
+      <div className="mt-0.5 font-mono text-xl font-bold tabular-nums" style={{ color: accent ?? '#170F33' }}>
         {value}
       </div>
       {sub && <div className="font-mono text-[10px] text-ink/70">{sub}</div>}
@@ -134,7 +135,7 @@ export const fmtPct = (v: number | null | undefined, digits = 2) => (v == null ?
 
 /**
  * A full-bleed colour sheet whose top edge bulges up into the sheet above in a wide
- * curve (the sweet-tape "curved colour split"). The curve is clipped to the viewport
+ * curve (a curved colour split). The curve is clipped to the viewport
  * width, so it never causes horizontal scroll. `bg` is a Tailwind background class.
  */
 export function CurvedSheet({
@@ -155,7 +156,7 @@ export function CurvedSheet({
   return (
     <section className={`relative ${className}`}>
       <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 overflow-hidden" style={{ top: -d }}>
-        <div className={`paper-tex absolute inset-y-0 ${bg}`} style={{ left: '-25%', width: '150%', borderRadius: `50% 50% 0 0 / ${r}px ${r}px 0 0` }} />
+        <div className={`pop-dots absolute inset-y-0 ${bg}`} style={{ left: '-25%', width: '150%', borderRadius: `50% 50% 0 0 / ${r}px ${r}px 0 0` }} />
       </div>
       <div className="relative">{children}</div>
     </section>

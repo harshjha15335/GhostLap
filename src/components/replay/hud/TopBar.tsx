@@ -40,7 +40,7 @@ export function RaceSelector() {
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className="shrink-0 -rotate-3 rounded-[4px] border-[1.5px] border-ink bg-neon px-1 font-mono text-[10px] font-bold text-ink">
+        <span className="shrink-0 -rotate-3 rounded-[4px] border-[1.5px] border-ink bg-pop-pink px-1 font-mono text-[10px] font-bold text-ink">
           R{String(current?.round ?? 0).padStart(2, '0')}
         </span>
         <span className="min-w-0">
@@ -73,7 +73,7 @@ export function RaceSelector() {
                     if (!active) navigate(`/replay/${r.slug}?autoplay=1`);
                   }}
                   className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm ${
-                    active ? 'bg-neon font-semibold text-ink' : ok ? 'text-ink hover:bg-ink/[0.07]' : 'cursor-not-allowed text-ink/55'
+                    active ? 'bg-pop-sun font-semibold text-ink' : ok ? 'text-ink hover:bg-ink/[0.07]' : 'cursor-not-allowed text-ink/55'
                   }`}
                 >
                   <span className="w-7 font-mono text-[10px] text-ink/70">{r.n ? `R${String(r.n).padStart(2, '0')}` : '—'}</span>
@@ -81,7 +81,7 @@ export function RaceSelector() {
                   {r.status !== 'completed' && (
                     <span
                       className={`rounded-[3px] border border-ink px-1 font-mono text-[9px] font-bold uppercase ${
-                        r.status === 'cancelled' ? 'bg-[#D7102A] text-white' : 'bg-paper-lilac text-ink'
+                        r.status === 'cancelled' ? 'bg-[#D7102A] text-white' : 'bg-pop-sky text-ink'
                       }`}
                     >
                       {r.status}
@@ -115,7 +115,7 @@ export function CameraSwitch({ vertical = false }: { vertical?: boolean }) {
           title={`${label} camera (${key})`}
           aria-pressed={camera === id}
           className={`flex h-9 items-center gap-1.5 px-2.5 font-mono text-[11px] font-semibold uppercase tracking-wide ${
-            camera === id ? 'bg-neon text-ink' : 'text-ink/75 hover:bg-ink/[0.07] hover:text-ink'
+            camera === id ? 'bg-pop-pink text-ink' : 'text-ink/75 hover:bg-ink/[0.07] hover:text-ink'
           }`}
         >
           <Icon size={14} />

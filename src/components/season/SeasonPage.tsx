@@ -60,7 +60,7 @@ function Carousel({ entities, selectedKey, onSelect }: { entities: Entity[]; sel
             aria-selected={active}
             onClick={() => onSelect(e.key)}
             className={`group relative flex w-[132px] shrink-0 snap-start flex-col overflow-hidden rounded-xl border-2 border-ink px-3 pb-2 pt-4 text-left text-ink transition-transform ${
-              active ? '-translate-y-1 -rotate-1 bg-neon shadow-sticker' : 'bg-cream shadow-sticker-sm hover:-translate-y-0.5'
+              active ? '-translate-y-1 -rotate-1 bg-pop-sun shadow-sticker' : 'bg-cream shadow-sticker-sm hover:-translate-y-0.5'
             }`}
           >
             <span className="absolute inset-x-0 top-0 h-[7px] border-b-2 border-ink" style={{ background: e.color }} />
@@ -171,7 +171,7 @@ function SeasonIntel({ season }: { season: SeasonData }) {
     const me = list.find((s) => s.key === selected.key);
     const rival = list.find((s) => s.pos === (selected.position === 1 ? 2 : 1));
     const rivalEntity = entities.find((e) => e.key === rival?.key);
-    const out: Series[] = [{ id: selected.label, label: selected.title, color: '#1D47D6', values: pick(me?.pbr) }];
+    const out: Series[] = [{ id: selected.label, label: selected.title, color: '#2D3BFF', values: pick(me?.pbr) }];
     if (rival && rivalEntity) out.push({ id: rivalEntity.label, label: `${rivalEntity.title} (P${rival.pos})`, color: '#6B7280', values: pick(rival.pbr), dashed: true });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -193,10 +193,11 @@ function SeasonIntel({ season }: { season: SeasonData }) {
   const selDriver = mode === 'drivers' ? season.drivers.find((d) => String(d.number) === selected.key) : undefined;
 
   return (
-    <main className="theme-paper min-h-screen overflow-x-clip bg-paper-green">
-      {/* ---------------- orange showroom sheet ---------------- */}
-      <section className="paper-tex bg-paper-orange pb-24 pt-16 sm:pb-28">
-        <div className="mx-auto max-w-[1600px] px-4 sm:px-6">
+    <main className="theme-paper min-h-screen overflow-x-clip bg-pop-uv">
+      {/* ---------------- hot-magenta showroom sheet ---------------- */}
+      <section className="pop-dots relative bg-pop-pink pb-24 pt-16 sm:pb-28">
+        <div className="pop-halftone" />
+        <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6">
           <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <PageTitle kicker={<>Drivers & teams intelligence · after R{season.races[done[done.length - 1]]?.round}</>}>
               Season <br className="sm:hidden" />
@@ -253,7 +254,7 @@ function SeasonIntel({ season }: { season: SeasonData }) {
                 )}
               </div>
               {stage === 'exploded' && hoveredPart && (
-                <div className="pointer-events-none absolute right-3 top-12 rounded-md border-2 border-ink bg-paper-yellow px-2 py-1 font-mono text-[10px] font-bold uppercase text-ink shadow-sticker-sm sm:top-3">
+                <div className="pointer-events-none absolute right-3 top-12 rounded-md border-2 border-ink bg-pop-sun px-2 py-1 font-mono text-[10px] font-bold uppercase text-ink shadow-sticker-sm sm:top-3">
                   {PART_LABEL[hoveredPart]}
                 </div>
               )}
@@ -263,7 +264,7 @@ function SeasonIntel({ season }: { season: SeasonData }) {
                     activeUpgrades.map((u) => (
                       <div key={u.title}>
                         <div className="flex items-center gap-2 font-bold text-ink-blue">
-                          <span className="h-2 w-2 animate-pulse rounded-full bg-paper-yellow ring-1 ring-ink" />
+                          <span className="h-2 w-2 animate-pulse rounded-full bg-pop-sun ring-1 ring-ink" />
                           R{u.round} · {upgradeTitle(u)} · {u.source === 'detected' ? 'area unknown' : u.area}
                         </div>
                         <div className="mt-0.5 text-ink">
@@ -291,15 +292,15 @@ function SeasonIntel({ season }: { season: SeasonData }) {
             </div>
 
             {/* sidebar */}
-            <aside className="paper-tex max-h-none border-t-[3px] border-ink bg-cream p-4 text-ink lg:max-h-[600px] lg:overflow-y-auto lg:border-l-[3px] lg:border-t-0 scrollbar-thin">
+            <aside className="pop-dots max-h-none border-t-[3px] border-ink bg-cream p-4 text-ink lg:max-h-[600px] lg:overflow-y-auto lg:border-l-[3px] lg:border-t-0 scrollbar-thin">
               {stage === 'exploded' ? (
                 <PartsAllocationPanel season={season} drivers={partsDrivers} raceIndex={raceIndex} />
               ) : (
                 <div className="flex h-full flex-col gap-4">
                   <div>
-                    <div className="inline-block -rotate-1 rounded-[4px] bg-ink px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-neon">Centre spotlight</div>
+                    <div className="inline-block -rotate-1 rounded-[4px] bg-ink px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-pop-sun">Centre spotlight</div>
                     <div className="mt-2 flex items-center gap-3">
-                      <span className="font-display text-7xl leading-none text-paper-green">{selected.position != null ? `P${selected.position}` : '—'}</span>
+                      <span className="font-display text-7xl leading-none text-ink-pink">{selected.position != null ? `P${selected.position}` : '—'}</span>
                       <div className="min-w-0">
                         <div className="truncate font-display text-2xl uppercase leading-tight tracking-wide">{selected.title}</div>
                         <div className="font-mono text-[11px] text-ink/70">
@@ -355,7 +356,7 @@ function SeasonIntel({ season }: { season: SeasonData }) {
                 <div>
                   <div className="mb-1 flex items-center justify-between font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-ink/75">
                     <label htmlFor="explode">Explode assembly</label>
-                    <span className="rounded-[3px] bg-ink px-1 tabular-nums text-neon">{Math.round(explode * 100)}%</span>
+                    <span className="rounded-[3px] bg-ink px-1 tabular-nums text-pop-sun">{Math.round(explode * 100)}%</span>
                   </div>
                   <input
                     id="explode"
@@ -367,10 +368,10 @@ function SeasonIntel({ season }: { season: SeasonData }) {
                       setScrollLink(false);
                       setExplode(Number(e.target.value) / 100);
                     }}
-                    className="w-full accent-[#0A3A12]"
+                    className="w-full accent-[#FF2E88]"
                   />
                   <label className="mt-1 flex items-center gap-2 font-mono text-[10px] text-ink/75">
-                    <input type="checkbox" checked={scrollLink} onChange={(e) => setScrollLink(e.target.checked)} className="accent-[#0A3A12]" />
+                    <input type="checkbox" checked={scrollLink} onChange={(e) => setScrollLink(e.target.checked)} className="accent-[#FF2E88]" />
                     Link expansion to page scroll
                   </label>
                 </div>
@@ -388,7 +389,7 @@ function SeasonIntel({ season }: { season: SeasonData }) {
                     max={done.length - 1}
                     value={scrubPos}
                     onChange={(e) => setRaceIndex(done[Number(e.target.value)])}
-                    className="w-full accent-[#1D47D6]"
+                    className="w-full accent-[#2D3BFF]"
                   />
                   <div className="relative mt-1 h-4">
                     {done.map((idx, k) => {
@@ -423,8 +424,8 @@ function SeasonIntel({ season }: { season: SeasonData }) {
         </div>
       </section>
 
-      {/* ---------------- yellow data sheet: blueprint + charts ---------------- */}
-      <CurvedSheet bg="bg-paper-yellow" depth={72} className="pb-24">
+      {/* ---------------- sunshine data sheet: blueprint + charts ---------------- */}
+      <CurvedSheet bg="bg-pop-sun" depth={72} className="pb-24">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6">
           <div>
             <SectionHeading kicker="Blueprint" title="Spec sheet" />
@@ -453,7 +454,7 @@ function SeasonIntel({ season }: { season: SeasonData }) {
                 yFormat={(v) => `${v.toFixed(1)}%`}
                 markers={upgradeMarkers}
                 series={[
-                  { id: 'Q', label: 'Qualifying', color: '#1D47D6', values: pick(pace?.qualifying) },
+                  { id: 'Q', label: 'Qualifying', color: '#2D3BFF', values: pick(pace?.qualifying) },
                   { id: 'R', label: 'Race (fuel-corrected)', color: '#D45500', values: pick(pace?.raceFuelCorrected), dashed: true },
                 ]}
                 footnote={
@@ -479,8 +480,8 @@ function SeasonIntel({ season }: { season: SeasonData }) {
         </div>
       </CurvedSheet>
 
-      {/* ---------------- racing-green sheet: penalties ---------------- */}
-      <CurvedSheet bg="bg-paper-green" depth={72} className="pb-24">
+      {/* ---------------- ultraviolet sheet: penalties ---------------- */}
+      <CurvedSheet bg="bg-pop-uv" depth={72} className="pb-24">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6">
           <SectionHeading kicker="FIA stewards" title="Penalties & incidents" tone="lime" />
           <PenaltyLog season={season} />
@@ -494,7 +495,7 @@ export default function SeasonPage() {
   const season = useSeason();
   if (!season)
     return (
-      <main className="theme-paper paper-tex min-h-screen bg-paper-orange pt-12">
+      <main className="theme-paper pop-dots min-h-screen bg-pop-pink pt-12">
         <Loader label="Loading season…" />
       </main>
     );

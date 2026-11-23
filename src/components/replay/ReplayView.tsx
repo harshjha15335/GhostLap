@@ -119,7 +119,7 @@ export default function ReplayView() {
             {status === 'error' ? (
               <span className="inline-block rounded-md border-2 border-ink bg-[#D7102A] px-3 py-2 text-white shadow-sticker">Couldn’t load {slug}: {error}</span>
             ) : (
-              <span className="inline-block -rotate-2 animate-pulse rounded-full border-2 border-ink bg-neon px-4 py-2 text-ink shadow-sticker">Warming tyres · {slug.toUpperCase()}</span>
+              <span className="inline-block -rotate-2 animate-pulse rounded-full border-2 border-ink bg-pop-sun px-4 py-2 text-ink shadow-sticker">Warming tyres · {slug.toUpperCase()}</span>
             )}
           </div>
         </div>

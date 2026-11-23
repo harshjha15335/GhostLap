@@ -16,12 +16,12 @@ const roundLabel = (r: RaceSummary) => (r.round > 0 ? `R${String(r.round).padSta
 const launchHref = (slug: string) => `/replay/${slug}?autoplay=1`;
 
 /** Sticker colours the completed rounds' map panels cycle through (by calendar index). */
-const CARD_SHEETS = ['bg-paper-orange', 'bg-paper-yellow', 'bg-paper-sky', 'bg-neon', 'bg-paper-lilac'];
+const CARD_SHEETS = ['bg-pop-pink', 'bg-pop-sky', 'bg-pop-papaya', 'bg-cream-dark'];
 const sheetFor = (race: RaceSummary, index: number) =>
   race.status === 'cancelled'
-    ? 'bg-[repeating-linear-gradient(45deg,#E8E0CA_0_10px,#DCD2B6_10px_20px)]'
+    ? 'bg-[repeating-linear-gradient(45deg,#F2E6D9_0_10px,#E3D3C2_10px_20px)]'
     : race.status === 'upcoming'
-      ? 'bg-cream-dark'
+      ? 'bg-[#E9E4F5]'
       : CARD_SHEETS[index % CARD_SHEETS.length];
 
 function useBundle(slug: string | null, enabled = true) {
@@ -91,12 +91,12 @@ function FlagCounts({ race }: { race: RaceSummary }) {
 
 function CardOutline({ race, index }: { race: RaceSummary; index: number }) {
   return (
-    <div className={`paper-tex relative flex h-32 items-center justify-center overflow-hidden border-b-[2.5px] border-ink ${sheetFor(race, index)}`}>
+    <div className={`pop-dots relative flex h-32 items-center justify-center overflow-hidden border-b-[2.5px] border-ink ${sheetFor(race, index)}`}>
       {race.round > 0 && <span className="absolute left-2.5 top-1.5 font-display text-[26px] leading-none text-ink">{roundLabel(race)}</span>}
       {race.outline ? (
         <OfficialOutline
           outline={race.outline}
-          color="#0F1A12"
+          color="#170F33"
           halo="rgba(255,255,255,0.65)"
           strokeWidth={3.4}
           className={`h-[86%] w-[86%] ${race.status === 'completed' ? '' : 'opacity-70'}`}
@@ -120,7 +120,7 @@ function CircuitCard({ race, index, selected, onSelect }: { race: RaceSummary; i
   return (
     <article
       className={`group flex flex-col overflow-hidden rounded-2xl border-[2.5px] border-ink bg-cream text-ink transition-transform duration-200 hover:-translate-y-1 ${
-        selected ? 'shadow-sticker-lg ring-4 ring-neon ring-offset-2 ring-offset-paper-green' : 'shadow-sticker'
+        selected ? 'shadow-sticker-lg ring-4 ring-pop-pink ring-offset-2 ring-offset-pop-sun' : 'shadow-sticker'
       }`}
     >
       <CardOutline race={race} index={index} />
@@ -165,7 +165,7 @@ function CircuitCard({ race, index, selected, onSelect }: { race: RaceSummary; i
               </button>
               <Link
                 to={launchHref(race.slug)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border-2 border-ink bg-neon px-2 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-ink shadow-sticker-sm transition-transform hover:-translate-y-px active:translate-y-px"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border-2 border-ink bg-pop-pink px-2 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-ink shadow-sticker-sm transition-transform hover:-translate-y-px active:translate-y-px"
               >
                 <Play size={12} fill="currentColor" /> Launch race
               </Link>
@@ -201,7 +201,7 @@ function InspectorPanel({ race, bundle }: { race: RaceSummary; bundle: RaceBundl
           <StatusBadge status={race.status} />
           <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-ink/70">{race.country}</span>
         </div>
-        <h2 className="mt-2 font-display text-4xl uppercase leading-[0.92] tracking-wide text-paper-green">{race.name}</h2>
+        <h2 className="mt-2 font-display text-4xl uppercase leading-[0.92] tracking-wide text-ink-blue">{race.name}</h2>
         <div className="mt-1 font-mono text-[11px] text-ink/70">{race.circuitName}</div>
       </div>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 rounded-lg border-2 border-ink bg-white px-3 py-3 font-mono text-[11px] shadow-sticker-sm">
@@ -237,7 +237,7 @@ function InspectorPanel({ race, bundle }: { race: RaceSummary; bundle: RaceBundl
       </div>
       <Link
         to={launchHref(race.slug)}
-        className="mt-auto flex items-center justify-center gap-2 rounded-full border-[2.5px] border-ink bg-neon px-4 py-2.5 font-display text-xl uppercase tracking-wide text-ink shadow-sticker transition-transform hover:-translate-y-0.5 active:translate-y-px"
+        className="mt-auto flex items-center justify-center gap-2 rounded-full border-[2.5px] border-ink bg-pop-pink px-4 py-2.5 font-display text-xl uppercase tracking-wide text-ink shadow-sticker transition-transform hover:-translate-y-0.5 active:translate-y-px"
       >
         <Play size={16} fill="currentColor" /> Launch race
       </Link>
@@ -272,23 +272,24 @@ function Directory({ season }: { season: SeasonData }) {
   };
 
   return (
-    <main className="theme-paper min-h-screen overflow-x-clip bg-paper-green">
-      {/* ---------------- lime header sheet: title + 3D inspector ---------------- */}
-      <section className="paper-tex bg-neon pb-24 pt-16 sm:pb-28">
-        <div className="mx-auto max-w-[1600px] px-4 sm:px-6">
+    <main className="theme-paper min-h-screen overflow-x-clip bg-pop-sun">
+      {/* ---------------- ultramarine header sheet: title + 3D inspector ---------------- */}
+      <section className="pop-dots relative bg-pop-blue pb-24 pt-16 sm:pb-28">
+        <div className="pop-halftone pop-halftone-light" />
+        <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6">
           <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <PageTitle kicker={`Calendar · ${season.races.length} events`}>
               Circuit <br className="sm:hidden" />
               Directory
             </PageTitle>
             <div className="flex flex-wrap gap-2 pb-2 font-mono text-[11px] font-semibold uppercase tracking-wider">
-              <span className="rotate-[-3deg] rounded-md border-2 border-ink bg-paper-green px-2 py-1 text-neon shadow-sticker-sm">
+              <span className="rotate-[-3deg] rounded-md border-2 border-ink bg-pop-sun px-2 py-1 text-ink shadow-sticker-sm">
                 <span className="font-display text-base">{counts.completed}</span> completed
               </span>
               <span className="rotate-[2deg] rounded-md border-2 border-ink bg-[#D7102A] px-2 py-1 text-white shadow-sticker-sm">
                 <span className="font-display text-base">{counts.cancelled}</span> cancelled
               </span>
-              <span className="rotate-[-1deg] rounded-md border-2 border-ink bg-paper-lilac px-2 py-1 text-ink shadow-sticker-sm">
+              <span className="rotate-[-1deg] rounded-md border-2 border-ink bg-pop-sky px-2 py-1 text-ink shadow-sticker-sm">
                 <span className="font-display text-base">{counts.upcoming}</span> upcoming
               </span>
             </div>
@@ -299,7 +300,7 @@ function Directory({ season }: { season: SeasonData }) {
               ref={inspectorRef}
               className="scroll-mt-16 overflow-hidden rounded-[22px] border-[3px] border-ink bg-cream shadow-sticker-lg lg:grid lg:grid-cols-[1fr_380px]"
             >
-              <div className="relative h-[46vh] min-h-[320px] bg-[#CFE7F5] lg:h-[560px]">
+              <div className="relative h-[46vh] min-h-[320px] bg-[#BFE6FF] lg:h-[560px]">
                 <Suspense fallback={<Loader label="Laying tarmac…" />}>
                   <CircuitInspector circuit={circuit} />
                 </Suspense>
@@ -312,19 +313,19 @@ function Directory({ season }: { season: SeasonData }) {
                   3D inspector<span className="hidden sm:inline"> · drag to orbit · scroll to zoom</span>
                 </div>
               </div>
-              <div className="paper-tex border-t-[3px] border-ink bg-cream lg:border-l-[3px] lg:border-t-0">
+              <div className="pop-dots border-t-[3px] border-ink bg-cream lg:border-l-[3px] lg:border-t-0">
                 <InspectorPanel race={selected} bundle={bundle} />
               </div>
             </section>
           )}
           {selected && (
-            <p className="mt-4 font-mono text-[10px] leading-relaxed text-ink/75">
+            <p className="mt-4 font-mono text-[10px] leading-relaxed text-cream/85">
               Layout: OpenF1 location telemetry · Track widths:{' '}
-              <a className="underline decoration-ink/40 hover:text-ink" href="https://github.com/TUMFTM/racetrack-database" target="_blank" rel="noreferrer">
+              <a className="underline decoration-cream/50 hover:text-pop-sun" href="https://github.com/TUMFTM/racetrack-database" target="_blank" rel="noreferrer">
                 TUMFTM racetrack-database
               </a>{' '}
               (LGPL-3.0, from OpenStreetMap) · Layout approach inspired by{' '}
-              <a className="underline decoration-ink/40 hover:text-ink" href="https://github.com/makakashan/F1TrackViewer" target="_blank" rel="noreferrer">
+              <a className="underline decoration-cream/50 hover:text-pop-sun" href="https://github.com/makakashan/F1TrackViewer" target="_blank" rel="noreferrer">
                 Boxlane/F1TrackViewer
               </a>{' '}
               (MIT) · Surroundings are procedural, not mapped.
@@ -333,10 +334,10 @@ function Directory({ season }: { season: SeasonData }) {
         </div>
       </section>
 
-      {/* ---------------- racing-green calendar sheet (curved split) ---------------- */}
-      <CurvedSheet bg="bg-paper-green" depth={72} className="pb-20">
+      {/* ---------------- sunshine calendar sheet (curved split) ---------------- */}
+      <CurvedSheet bg="bg-pop-sun" depth={72} className="pb-20">
         <div className="mx-auto max-w-[1600px] px-4 pt-2 sm:px-6">
-          <SectionHeading kicker="All rounds" title="2026 Calendar" tone="lime">
+          <SectionHeading kicker="All rounds" title="2026 Calendar">
             <Segmented<Filter>
               label="Filter races"
               value={filter}
@@ -363,7 +364,7 @@ export default function CircuitsPage() {
   const season = useSeason();
   if (!season)
     return (
-      <main className="theme-paper paper-tex min-h-screen bg-neon pt-12">
+      <main className="theme-paper pop-dots min-h-screen bg-pop-blue pt-12">
         <Loader label="Loading calendar…" />
       </main>
     );

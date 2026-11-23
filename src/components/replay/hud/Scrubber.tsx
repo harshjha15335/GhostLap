@@ -16,9 +16,9 @@ const PIN_STYLE: Record<RaceEventType, { color: string; glyph: string; label: st
   PENALTY: { color: '#FF7A00', glyph: 'P', label: 'Penalty' },
   FASTEST_LAP: { color: '#B44CFF', glyph: '⏱', label: 'Fastest Lap' },
   PIT: { color: '#EDEFF2', glyph: '', label: 'Pit Stops' },
-  OVERTAKE: { color: '#D4FF00', glyph: '', label: 'Overtakes' },
+  OVERTAKE: { color: '#FF2E88', glyph: '', label: 'Overtakes' },
 };
-// status bands sit on the racing-green timeline strip
+// status bands sit on the midnight-ink timeline strip
 const BAND: Record<string, string> = { SC: 'rgba(255,212,0,.42)', VSC: 'rgba(255,122,0,.42)', RED: 'rgba(255,30,30,.5)' };
 
 interface Popover {
@@ -36,7 +36,7 @@ function LapReadout() {
   return (
     <div className="flex items-baseline gap-2 font-mono">
       <span className="font-display text-xl leading-none tracking-wide text-ink md:text-2xl">
-        LAP <span className="text-paper-green">{lap}</span>
+        LAP <span className="text-ink-pink">{lap}</span>
         <span className="text-ink/60">/{timeline.totalLaps}</span>
       </span>
       <span className="hidden text-[11px] tabular-nums text-ink/70 sm:inline">{fmtRaceClock(time)}</span>
@@ -177,7 +177,7 @@ export function Scrubber() {
         <button
           type="button"
           onClick={togglePlay}
-          className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-ink bg-neon text-ink shadow-sticker-sm transition-transform active:scale-95"
+          className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-ink bg-pop-pink text-ink shadow-sticker-sm transition-transform active:scale-95"
           aria-label={playing ? 'Pause' : 'Play'}
         >
           {playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
@@ -201,7 +201,7 @@ export function Scrubber() {
                 key={sp}
                 type="button"
                 onClick={() => setSpeed(sp)}
-                className={`px-2 py-1 font-mono text-[11px] font-semibold ${sp === speed ? 'bg-ink text-neon' : 'text-ink/75 hover:bg-ink/[0.07] hover:text-ink'}`}
+                className={`px-2 py-1 font-mono text-[11px] font-semibold ${sp === speed ? 'bg-ink text-pop-sun' : 'text-ink/75 hover:bg-ink/[0.07] hover:text-ink'}`}
               >
                 {sp}×
               </button>
@@ -213,7 +213,7 @@ export function Scrubber() {
               const i = PLAYBACK_SPEEDS.indexOf(speed as (typeof PLAYBACK_SPEEDS)[number]);
               setSpeed(PLAYBACK_SPEEDS[(i + 1) % PLAYBACK_SPEEDS.length]);
             }}
-            className="h-9 min-w-[52px] rounded-md border-2 border-ink bg-ink px-2 font-mono text-xs font-bold text-neon sm:hidden"
+            className="h-9 min-w-[52px] rounded-md border-2 border-ink bg-ink px-2 font-mono text-xs font-bold text-pop-sun sm:hidden"
             aria-label="Change playback speed"
           >
             {speed}×
@@ -250,7 +250,7 @@ export function Scrubber() {
           onPointerMove={onMove}
           onPointerUp={onUp}
           onPointerCancel={onUp}
-          className="relative h-10 cursor-pointer touch-none rounded-md border-2 border-ink bg-paper-green md:h-9"
+          className="relative h-10 cursor-pointer touch-none rounded-md border-2 border-ink bg-ink md:h-9"
           role="slider"
           aria-label="Race position"
           aria-valuemin={1}
@@ -280,7 +280,7 @@ export function Scrubber() {
               aria-label={`${b.type} laps ${b.startLap}–${b.endLap}`}
             />
           ))}
-          <div ref={fillRef} className="pointer-events-none absolute inset-y-0 left-0 rounded-l bg-neon/15" />
+          <div ref={fillRef} className="pointer-events-none absolute inset-y-0 left-0 rounded-l bg-pop-pink/20" />
           {/* lap grid */}
           {model.labels.map((l) => (
             <div key={l} className="pointer-events-none absolute inset-y-0 w-px bg-white/[0.12]" style={{ left: `${model.lapX(l)}%` }}>
@@ -306,15 +306,15 @@ export function Scrubber() {
           })}
           {/* playhead */}
           <div ref={headRef} className="pointer-events-none absolute -top-1 bottom-[-4px] w-0">
-            <div className="absolute -left-[2px] top-0 h-full w-1 border-x border-ink bg-neon" />
-            <div className="absolute -left-[8px] -top-1.5 h-4 w-4 rotate-45 rounded-[3px] border-2 border-ink bg-neon" />
+            <div className="absolute -left-[2px] top-0 h-full w-1 border-x border-ink bg-cream" />
+            <div className="absolute -left-[8px] -top-1.5 h-4 w-4 rotate-45 rounded-[3px] border-2 border-ink bg-pop-sun" />
           </div>
         </div>
       </div>
 
       {/* legend */}
       <div className="mt-1.5 hidden flex-wrap gap-x-3 gap-y-1 font-mono text-[9.5px] text-ink/70 md:flex">
-        <span><i className="mr-1 inline-block h-2 w-2 border border-ink bg-[#D4FF00]" />overtakes</span>
+        <span><i className="mr-1 inline-block h-2 w-2 border border-ink bg-[#FF2E88]" />overtakes</span>
         <span><i className="mr-1 inline-block h-2 w-2 border border-ink bg-[#EDEFF2]" />pit stops</span>
         <span><i className="mr-1 inline-block h-2 w-2 border border-ink bg-[#FFD400]" />SC</span>
         <span><i className="mr-1 inline-block h-2 w-2 border border-ink bg-[#FF7A00]" />VSC / penalty</span>
@@ -342,7 +342,7 @@ export function Scrubber() {
               <li key={i}>
                 <button
                   type="button"
-                  className="w-full rounded px-0.5 text-left text-[12px] leading-snug text-ink hover:bg-neon"
+                  className="w-full rounded px-0.5 text-left text-[12px] leading-snug text-ink hover:bg-pop-sun"
                   onClick={() => e.driverNumber != null && useRaceLab.getState().setFocusDriver(e.driverNumber)}
                 >
                   {describe(e)}

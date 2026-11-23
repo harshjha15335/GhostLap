@@ -22,17 +22,17 @@ interface Row {
 /** Flat-colour sticker tags (all ≥ 4.5:1 text contrast). */
 const RED_TAG = 'bg-[#D7102A] text-white';
 const TAG_STYLE: Partial<Record<Row['tag'], string>> = {
-  TIME: 'bg-paper-orange text-ink',
+  TIME: 'bg-pop-papaya text-ink',
   DRIVE_THROUGH: RED_TAG,
   STOP_GO: RED_TAG,
   GRID: RED_TAG,
-  WARNING: 'bg-paper-yellow text-ink',
-  REPRIMAND: 'bg-paper-yellow text-ink',
+  WARNING: 'bg-pop-sun text-ink',
+  REPRIMAND: 'bg-pop-sun text-ink',
   INVESTIGATION: 'bg-white text-ink',
   CRASH: RED_TAG,
   DNF: 'bg-ink text-cream',
-  SC: 'bg-paper-orange text-ink',
-  VSC: 'bg-paper-yellow text-ink',
+  SC: 'bg-pop-papaya text-ink',
+  VSC: 'bg-pop-sun text-ink',
   RED: RED_TAG,
 };
 
@@ -84,7 +84,7 @@ export default function PenaltyLog({ season }: { season: SeasonData }) {
 
   return (
     <div className="overflow-hidden rounded-[20px] border-[3px] border-ink bg-cream text-ink shadow-sticker-lg">
-      <div className="paper-tex flex flex-col gap-3 border-b-[3px] border-ink bg-neon p-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="pop-dots flex flex-col gap-3 border-b-[3px] border-ink bg-pop-sun p-3 lg:flex-row lg:items-center lg:justify-between">
         <Segmented<Kind>
           size="sm"
           label="Record type"
@@ -200,7 +200,7 @@ export default function PenaltyLog({ season }: { season: SeasonData }) {
         <button
           type="button"
           onClick={() => setLimit((l) => l + 60)}
-          className="w-full border-t-[3px] border-ink bg-paper-green py-3 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-neon hover:brightness-125"
+          className="w-full border-t-[3px] border-ink bg-ink py-3 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-pop-sun hover:bg-pop-blue-deep"
         >
           Show more · {filtered.length - limit} remaining
         </button>

@@ -4,15 +4,15 @@ import { useFrame, useThree } from '@react-three/fiber';
 
 /**
  * Bright daytime sky shared by the circuit inspector and the Race Lab: one inverted
- * sphere (1 draw call) with a vertical gradient from a saturated zenith blue to a warm,
- * pale horizon. It follows the camera, ignores fog/depth, and sets the scene background
+ * sphere (1 draw call) with a vertical gradient from an ultramarine "Pit-Lane Pop" zenith
+ * to a pale, magenta-blushed horizon. It follows the camera, ignores fog/depth, and sets the scene background
  * + fog to the horizon colour so the diorama's far edges melt into the haze.
  */
 export const SKY = {
-  zenith: '#3E8EF0',
-  mid: '#8FD0FF',
-  horizon: '#E4F3FF',
-  ground: '#7FC2F2',
+  zenith: '#2D4BFF',
+  mid: '#86C6FF',
+  horizon: '#FCE9F3',
+  ground: '#8EC2F5',
 } as const;
 
 const vert = /* glsl */ `

@@ -7,40 +7,46 @@ export default {
         asphalt: '#080B10',     // deep asphalt base
         panel: '#10151F',       // elevated pit-wall panels
         track: '#141820',       // track ribbon
-        neon: '#D4FF00',        // Pirelli-neon chartreuse
+        neon: '#D4FF00',        // logo chartreuse (Logo.tsx only - not a theme colour any more)
         crimson: '#FF1E1E',     // soft-tyre crimson
         ghost: '#00F5D4',       // ghost car cyan
         amber: '#FF7A00',       // dirty-air warning amber
         line: '#232A36',
-        // Colourful "paper" theme (sweet-tape style flat colours). `bg-paper` keeps the old
-        // carbon-asphalt meaning; `bg-paper-lime` etc. are the bright sheets.
-        paper: {
-          DEFAULT: '#0B0E14',   // carbon-asphalt paper (legacy)
-          lime: '#D4FF00',
-          green: '#0A3A12',     // deep racing green
-          'green-deep': '#062A0C',
-          orange: '#FF7A00',
-          'orange-deep': '#E5650A',
-          yellow: '#FFD400',
-          blue: '#2C5CFF',      // blueprint blue
-          'blue-deep': '#1C3FC4',
-          lilac: '#B9A6FF',
-          sky: '#8FD3FF',
+        // "Pit-Lane Pop" theme: flat, saturated pop-art sheets on warm chalk, midnight-plum
+        // ink keylines and a halftone-dot surface motif (see src/styles/index.css).
+        pop: {
+          blue: '#2D3BFF',      // electric ultramarine - dominant sheet colour
+          'blue-deep': '#1A22C4',
+          pink: '#FF2E88',      // hot magenta - primary accent / CTAs (ink text)
+          'pink-deep': '#D1146B',
+          sun: '#FFD23F',       // sunshine yellow - highlights / badges
+          'sun-deep': '#F2B400',
+          uv: '#7A2CFF',        // ultraviolet - secondary sheet (chalk text)
+          'uv-deep': '#5214D1',
+          papaya: '#FF8A3D',    // minor accent
+          sky: '#9ED8FF',       // pale sky for light panels / 3D skies
         },
-        cream: { DEFAULT: '#F6F1E3', light: '#FFFCF3', dark: '#E8E0CA' },
-        ink: { DEFAULT: '#0F1A12', soft: '#545B51' },
-        // AA-safe (≥ 4.5:1 on cream / white / lime) text versions of the accent colours
+        // legacy alias still used by a file outside this theme pass (SeasonStage.tsx)
+        paper: { DEFAULT: '#0B0E14', yellow: '#FFD23F' },
+        // warm chalk base (name kept from the previous theme so every usage compiles)
+        cream: { DEFAULT: '#FFF7EE', light: '#FFFCF8', dark: '#F2E6D9' },
+        ink: { DEFAULT: '#170F33', soft: '#5A5470' },
+        // AA-safe (>= 4.5:1 on chalk / white) text versions of the accent colours
         'ink-teal': '#00725F',
         'ink-red': '#C8102E',
         'ink-amber': '#9C4400',
         'ink-green': '#0A6B2A',
-        'ink-blue': '#1D47D6',
+        'ink-blue': '#2D3BFF',
+        'ink-pink': '#C2005C',
+        'ink-uv': '#5A14E0',
       },
       boxShadow: {
-        // hard, offset "sticker" drop shadows with an ink keyline colour
-        'sticker-sm': '2px 3px 0 0 #0F1A12',
-        sticker: '4px 5px 0 0 #0F1A12',
-        'sticker-lg': '8px 10px 0 0 #0F1A12',
+        // hard, offset "sticker" drop shadows in ink, plus coloured pop variants
+        'sticker-sm': '2px 3px 0 0 #170F33',
+        sticker: '4px 5px 0 0 #170F33',
+        'sticker-lg': '8px 10px 0 0 #170F33',
+        'pop-pink': '4px 5px 0 0 #FF2E88',
+        'pop-blue': '4px 5px 0 0 #2D3BFF',
       },
       fontFamily: {
         display: ['"Anton"', 'Impact', 'system-ui', 'sans-serif'],
