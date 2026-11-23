@@ -5,7 +5,7 @@ import { C } from './theme';
 
 /* ----------------------------------------------------------------------------
  * "Photo sticker" cards: rounded squircles with a thick offset edge and a strip
- * of tape, built entirely from DOM/SVG with real app data.
+ * chequered tab, built entirely from DOM/SVG with real app data.
  * ------------------------------------------------------------------------- */
 
 export function Sticker({
@@ -44,10 +44,10 @@ export function Sticker({
 
 const mono = 'font-mono uppercase tracking-[0.14em]';
 
-/** Real circuit outline (orange section, left). */
+/** Real circuit outline (ultramarine section, left). */
 export function TrackSticker({ race, reduced }: { race: FeatureRace | null; reduced: boolean }) {
   return (
-    <Sticker bg={C.violet} edge="#3d22c9" tilt={-7} className="h-full w-full">
+    <Sticker bg={C.pink} edge={C.pinkDeep} tilt={-7} className="h-full w-full">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.25),transparent_60%)]" />
       <div className={`absolute left-[10%] top-[9%] ${mono} text-[0.62em] text-white/80`}>
         {race ? `R${race.round} · ${race.circuitName}` : 'Loading circuit…'}
@@ -55,19 +55,19 @@ export function TrackSticker({ race, reduced }: { race: FeatureRace | null; redu
       <svg viewBox="-6 -6 112 112" className="absolute inset-[14%_8%_12%_8%] h-[74%] w-[84%]" aria-hidden>
         {race && (
           <>
-            <path d={race.outline} fill="none" stroke="#080B10" strokeWidth="9" strokeLinejoin="round" opacity="0.45" transform="translate(-1.5 2.5)" />
-            <path d={race.outline} fill="none" stroke={C.neon} strokeWidth="6" strokeLinejoin="round" />
-            <path d={race.outline} fill="none" stroke="#080B10" strokeWidth="0.8" strokeDasharray="2 3" />
-            <circle cx={race.start[0]} cy={race.start[1]} r="4" fill="#fff" stroke="#080B10" strokeWidth="1.5" />
+            <path d={race.outline} fill="none" stroke={C.ink} strokeWidth="9" strokeLinejoin="round" opacity="0.45" transform="translate(-1.5 2.5)" />
+            <path d={race.outline} fill="none" stroke={C.cream} strokeWidth="6" strokeLinejoin="round" />
+            <path d={race.outline} fill="none" stroke="#170F33" strokeWidth="0.8" strokeDasharray="2 3" />
+            <circle cx={race.start[0]} cy={race.start[1]} r="4" fill="#fff" stroke="#170F33" strokeWidth="1.5" />
             {!reduced && (
-              <circle r="3.6" fill={C.ghost} stroke="#080B10" strokeWidth="1">
+              <circle r="3.6" fill={C.ghost} stroke="#170F33" strokeWidth="1">
                 <animateMotion dur="7s" repeatCount="indefinite" path={race.outline} />
               </circle>
             )}
           </>
         )}
       </svg>
-      <div className={`absolute bottom-[8%] right-[9%] rounded-full bg-[#080B10] px-[0.7em] py-[0.25em] ${mono} text-[0.55em] text-neon`}>
+      <div className={`absolute bottom-[8%] right-[9%] rounded-full bg-ink px-[0.7em] py-[0.25em] ${mono} text-[0.55em] text-pop-sun`}>
         {race?.laps ? `${race.laps} laps` : 'real trace'}
       </div>
     </Sticker>
@@ -81,7 +81,7 @@ export function TowerSticker({ race }: { race: FeatureRace | null }) {
       <div className="absolute inset-0 flex flex-col px-[9%] pb-[9%] pt-[13%]">
         <div className={`flex items-center justify-between ${mono} text-[0.55em] text-white/55`}>
           <span>Classification</span>
-          <span className="text-neon">FLAG</span>
+          <span className="text-pop-sun">FLAG</span>
         </div>
         <div className="mt-[6%] flex flex-1 flex-col justify-between">
           {(race?.tower.length ? race.tower : Array.from({ length: 5 }, (_, i) => ({ pos: i + 1, code: '···', color: '#3a404a', gap: '' }))).map((r) => (
@@ -89,7 +89,7 @@ export function TowerSticker({ race }: { race: FeatureRace | null }) {
               <span className="w-[1.4em] text-white/45">{r.pos}</span>
               <span className="h-[1.1em] w-[0.28em] rounded-full" style={{ background: r.color }} />
               <span className="tracking-[0.08em]">{r.code}</span>
-              <span className={`ml-auto text-[0.82em] ${r.gap === 'WIN' ? 'text-neon' : 'text-white/60'}`}>{r.gap}</span>
+              <span className={`ml-auto text-[0.82em] ${r.gap === 'WIN' ? 'text-pop-sun' : 'text-white/60'}`}>{r.gap}</span>
             </div>
           ))}
         </div>
@@ -102,8 +102,8 @@ export function TowerSticker({ race }: { race: FeatureRace | null }) {
 /** Perspective track card for TO REPLAY. */
 export function Track3DSticker({ race, reduced }: { race: FeatureRace | null; reduced: boolean }) {
   return (
-    <Sticker bg={C.lilac} edge="#7d66e0" tilt={-4} className="h-full w-full">
-      <div className="absolute inset-0 bg-[linear-gradient(160deg,#cbbcff_0%,#8f76ff_100%)]" />
+    <Sticker bg={C.sky} edge={C.blueDeep} tilt={-4} className="h-full w-full">
+      <div className="absolute inset-0 bg-[linear-gradient(160deg,#9ED8FF_0%,#2D3BFF_100%)]" />
       <div className="absolute inset-0" style={{ perspective: '600px' }}>
         <svg
           viewBox="-6 -6 112 112"
@@ -113,7 +113,7 @@ export function Track3DSticker({ race, reduced }: { race: FeatureRace | null; re
         >
           {race && (
             <>
-              <path d={race.outline} fill="none" stroke="#2b1a7a" strokeWidth="14" strokeLinejoin="round" transform="translate(0 5)" opacity="0.55" />
+              <path d={race.outline} fill="none" stroke="#170F33" strokeWidth="14" strokeLinejoin="round" transform="translate(0 5)" opacity="0.55" />
               <path d={race.outline} fill="none" stroke="#14161a" strokeWidth="11" strokeLinejoin="round" />
               <path d={race.outline} fill="none" stroke="#f2f2f2" strokeWidth="0.9" strokeDasharray="3 3" />
               {!reduced && (
@@ -130,7 +130,7 @@ export function Track3DSticker({ race, reduced }: { race: FeatureRace | null; re
           )}
         </svg>
       </div>
-      <div className={`absolute left-[9%] top-[8%] rounded-md bg-[#080B10] px-[0.6em] py-[0.25em] ${mono} text-[0.5em] text-neon`}>▶ 3D replay</div>
+      <div className={`absolute left-[9%] top-[8%] rounded-md bg-ink px-[0.6em] py-[0.25em] ${mono} text-[0.5em] text-pop-sun`}>▶ 3D replay</div>
     </Sticker>
   );
 }
@@ -178,7 +178,7 @@ export function GhostSticker({ race }: { race: FeatureRace | null }) {
 export function VerdictSticker({ race }: { race: FeatureRace | null }) {
   const p = race?.preset;
   return (
-    <div className="rotate-[-6deg] rounded-[0.5em] border-[0.12em] border-[#080B10] bg-white px-[0.6em] py-[0.4em] text-[#080B10] shadow-[0_0.4em_1em_rgba(0,0,0,0.25)]">
+    <div className="rotate-[-6deg] rounded-[0.5em] border-[0.12em] border-[#170F33] bg-white px-[0.6em] py-[0.4em] text-[#170F33] shadow-[0_0.4em_1em_rgba(0,0,0,0.25)]">
       <div className="font-display text-[2.2em] leading-[0.95]">{p ? `${p.gained > 0 ? '+' : ''}${p.gained} POS` : 'GHOST'}</div>
       <div className="mt-[0.2em] font-mono text-[0.55em] font-semibold uppercase tracking-[0.1em]">
         {p ? (
@@ -204,21 +204,21 @@ export function SeasonSticker({ stats }: { stats: LandingStats }) {
     ['Penalties', f(stats.penaltiesIssued)],
   ];
   return (
-    <Sticker bg={C.orange} edge={C.orangeDeep} tilt={-6} className="h-full w-full">
+    <Sticker bg={C.sun} edge={C.sunDeep} tilt={-6} className="h-full w-full">
       <div className="absolute inset-0 flex flex-col p-[10%]">
-        <div className={`${mono} text-[0.55em] font-semibold text-[#080B10]/70`}>2026 debrief</div>
+        <div className={`${mono} text-[0.55em] font-semibold text-[#170F33]/70`}>2026 debrief</div>
         <div className="mt-[4%] grid flex-1 grid-cols-2 gap-[6%]">
           {cells.map(([k, v]) => (
-            <div key={k} className="flex flex-col justify-center rounded-[0.6em] bg-[#080B10] px-[0.6em]">
-              <div className="font-display text-[1.9em] leading-none text-neon">{v}</div>
+            <div key={k} className="flex flex-col justify-center rounded-[0.6em] bg-[#170F33] px-[0.6em]">
+              <div className="font-display text-[1.9em] leading-none text-pop-sun">{v}</div>
               <div className={`${mono} mt-[0.3em] text-[0.42em] text-white/60`}>{k}</div>
             </div>
           ))}
         </div>
-        <div className={`mt-[6%] ${mono} text-[0.55em] font-semibold text-[#080B10]`}>
+        <div className={`mt-[6%] ${mono} text-[0.55em] font-semibold text-[#170F33]`}>
           {stats.leader ? (
             <>
-              Leader <span className="rounded bg-[#080B10] px-1" style={{ color: stats.leader.color }}>{stats.leader.code}</span> · {stats.leader.points} pts
+              Leader <span className="rounded bg-[#170F33] px-1" style={{ color: stats.leader.color }}>{stats.leader.code}</span> · {stats.leader.points} pts
             </>
           ) : (
             'standings: no data yet'
@@ -234,8 +234,8 @@ export function NeutralSticker({ stats }: { stats: LandingStats }) {
   const f = (n: number) => (stats.ready ? String(n) : '—');
   return (
     <Sticker bg="#F2F2F2" edge="#b9bcc2" tilt={7} tapeDark className="h-full w-full">
-      <div className="absolute inset-0 flex flex-col justify-between p-[11%] text-[#080B10]">
-        <div className={`${mono} text-[0.55em] font-semibold text-[#080B10]/60`}>Race control</div>
+      <div className="absolute inset-0 flex flex-col justify-between p-[11%] text-[#170F33]">
+        <div className={`${mono} text-[0.55em] font-semibold text-[#170F33]/60`}>Race control</div>
         <div className="flex items-end gap-[8%]">
           {[
             ['SC', stats.safetyCars, '#FFD400'],

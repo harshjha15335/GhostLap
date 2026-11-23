@@ -20,17 +20,18 @@ import LandingScene from './scene/LandingScene';
 import { useLandingStats } from './stats';
 
 const CSS = `
-.kl-ink { color: ${PALETTE.ink}; }
-.kl-cream { color: ${PALETTE.cream}; text-shadow: 0 0.04em 0 ${PALETTE.ink}; }
-.kl-wipe { position:absolute; left:0; right:0; top:-16vh; height:134vh; background: var(--wipe, ${PALETTE.chartreuse}); border-radius: 50% 50% 0 0 / 14vh 14vh 0 0; overflow:hidden; }
+.kl-hero { color: ${PALETTE.cream}; text-shadow: 0.035em 0.045em 0 ${PALETTE.ink}; }
+.kl-cream { color: ${PALETTE.cream}; text-shadow: 0.03em 0.04em 0 ${PALETTE.ink}; }
+.kl-sun { color: ${PALETTE.sun}; text-shadow: 0.03em 0.04em 0 ${PALETTE.ink}; }
+.kl-wipe { position:absolute; left:0; right:0; top:-16vh; height:134vh; background: var(--wipe, ${PALETTE.drive}); border-radius: 50% 50% 0 0 / 14vh 14vh 0 0; overflow:hidden; }
 .kinetic-letter { padding: 0 0.008em; }
-.tele-delta[data-gain="1"] { background: #D4FF00; color: #080B10; }
+.tele-delta[data-gain="1"] { background: ${PALETTE.sun}; color: ${PALETTE.ink}; }
 .tele-delta[data-gain="0"] { background: #FF1E1E; color: #fff; }
 @keyframes hs-pulse { 0%,100% { transform: scale(1); opacity: .9 } 50% { transform: scale(1.35); opacity: .35 } }
 .hs-ring { animation: hs-pulse 1.8s ease-in-out infinite; }
 @keyframes cue { 0%,100% { transform: translateY(0) } 50% { transform: translateY(4px) } }
 .scroll-cue span { display:inline-block; animation: cue 1.4s ease-in-out infinite; }
-.launch-cta { box-shadow: 0 3px 0 #080B10, 0 0 0 2px #D4FF00, 0 18px 50px rgba(212,255,0,.25); }
+.launch-cta { box-shadow: 0 3px 0 ${PALETTE.ink}, 0 0 0 2px ${PALETTE.horizon}, 0 18px 50px rgba(255,46,136,.25); }
 .drive-card { transition: transform .4s cubic-bezier(.2,.8,.2,1); }
 .drive-card:hover { transform: rotate(0deg) translateY(-3px) !important; }
 @media (prefers-reduced-motion: reduce) { .hs-ring, .scroll-cue span { animation: none; } }
@@ -167,7 +168,7 @@ export default function Landing() {
   const reg = choreo.register;
 
   return (
-    <div className={`relative text-white ${fine ? 'landing-fine' : ''}`} style={{ overflowX: 'clip', background: PALETTE.chartreuse }}>
+    <div className={`relative text-white ${fine ? 'landing-fine' : ''}`} style={{ overflowX: 'clip', background: PALETTE.sky }}>
       <style>{FLOW_CSS + CSS}</style>
 
       {/* the one persistent WebGL world */}
@@ -180,7 +181,7 @@ export default function Landing() {
           path={path}
           live={sceneLive}
         />
-        {/* curved paper wipe between sets (position / opacity / colour driven by the camera rig) */}
+        {/* curved colour wipe between sets (position / opacity / colour driven by the camera rig) */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div
             ref={(el) => {
@@ -189,7 +190,7 @@ export default function Landing() {
             className="kl-wipe"
             style={{ opacity: 0, transform: 'translate3d(0,125%,0)' }}
           >
-            <div className="fl-paper" />
+            <div className="pop-halftone" />
           </div>
         </div>
       </div>
@@ -208,8 +209,8 @@ export default function Landing() {
           const on = choreo.active === i;
           return (
             <div key={label} className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em]">
-              <span className={`rounded-[3px] px-1.5 py-0.5 transition ${on ? 'bg-asphalt text-neon' : 'text-transparent'}`}>{label}</span>
-              <span className={`block h-[2px] transition-all ${on ? 'w-8 bg-asphalt' : 'w-4 bg-asphalt/35'}`} />
+              <span className={`rounded-[3px] px-1.5 py-0.5 transition ${on ? 'bg-[#170F33] text-[#FFD23F]' : 'text-transparent'}`}>{label}</span>
+              <span className={`block h-[2px] transition-all ${on ? 'w-8 bg-[#FFF7EE]' : 'w-4 bg-[#FFF7EE]/45'}`} />
             </div>
           );
         })}

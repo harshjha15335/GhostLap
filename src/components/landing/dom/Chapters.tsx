@@ -12,10 +12,10 @@ const fmt = (n: number, ready: boolean) => (ready ? n.toLocaleString('en-GB') : 
 
 export function ChapterTag({ n, title, className = '', ink = false }: { n: number; title: string; className?: string; ink?: boolean }) {
   return (
-    <div className={`flex items-center gap-3 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] ${ink ? 'text-[#0E3B1C]/80' : 'text-white/70'} ${className}`}>
-      <span className={`rounded-[3px] px-1.5 py-0.5 font-semibold ${ink ? 'bg-[#0E3B1C] text-neon' : 'bg-neon text-asphalt'}`}>CH.{String(n).padStart(2, '0')}</span>
+    <div className={`flex items-center gap-3 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] ${ink ? 'text-ink/80' : 'text-cream/85'} ${className}`}>
+      <span className={`rounded-[3px] px-1.5 py-0.5 font-semibold ${ink ? 'bg-ink text-pop-sun' : 'bg-pop-sun text-ink'}`}>CH.{String(n).padStart(2, '0')}</span>
       <span>{title}</span>
-      <span className={`hidden h-px w-16 sm:block ${ink ? 'bg-[#0E3B1C]/40' : 'bg-white/25'}`} />
+      <span className={`hidden h-px w-16 sm:block ${ink ? 'bg-ink/40' : 'bg-cream/40'}`} />
     </div>
   );
 }
@@ -23,8 +23,8 @@ export function ChapterTag({ n, title, className = '', ink = false }: { n: numbe
 /* ---------------------------------- 01 hero --------------------------------- */
 
 const HEADLINE = [
-  { text: 'REWRITE', className: 'kl-ink' },
-  { text: 'THE RACE', className: 'kl-ink' },
+  { text: 'REWRITE', className: 'kl-hero' },
+  { text: 'THE RACE', className: 'kl-hero' },
 ];
 
 export function HeroChapter({
@@ -48,7 +48,7 @@ export function HeroChapter({
         <button
           type="button"
           onClick={onToggleSound}
-          className="pointer-events-auto rounded-full border-2 border-[#0E3B1C]/70 px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-[#0E3B1C] transition hover:bg-[#0E3B1C] hover:text-neon"
+          className="pointer-events-auto rounded-full border-2 border-cream/80 px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-cream transition hover:bg-cream hover:text-pop-blue"
           aria-pressed={soundOn}
         >
           SFX {soundOn ? 'ON' : 'OFF'}
@@ -58,7 +58,7 @@ export function HeroChapter({
       {/* the big stacked title owns the first screen; the 3D car sits on the horizon right below it */}
       <div ref={headRef} className="flex flex-col items-center pt-[7svh] text-center sm:pt-[3svh]">
         {/* kicker: WE'RE [sticker] HERE TO */}
-        <div className="relative z-10 mb-[-0.32em] flex items-center justify-center gap-[0.4em] font-display text-[clamp(24px,min(4.2vw,7svh),54px)] uppercase leading-none text-[#0E3B1C]">
+        <div className="relative z-10 mb-[-0.32em] flex items-center justify-center gap-[0.4em] font-display text-[clamp(24px,min(4.2vw,7svh),54px)] uppercase leading-none text-cream">
           <span className="-rotate-2">We&apos;re</span>
           <Logo tilt={-8} />
           <span className="rotate-2">here to</span>
@@ -76,7 +76,7 @@ export function HeroChapter({
       <div className="flex-1" />
 
       <div ref={cueRef} className="flex justify-center font-mono text-[10px] uppercase tracking-[0.2em] sm:justify-start sm:text-[11px]">
-        <span className="scroll-cue flex items-center gap-2 rounded-full border-2 border-[#0E3B1C] bg-[#C8FF1A] px-3 py-1.5 font-semibold text-[#0E3B1C] shadow-[0_3px_0_#0E3B1C]">
+        <span className="scroll-cue flex items-center gap-2 rounded-full border-2 border-ink bg-pop-sun px-3 py-1.5 font-semibold text-ink shadow-[0_3px_0_#170F33]">
           Scroll to drive <span aria-hidden>↓</span>
         </span>
       </div>
@@ -87,7 +87,7 @@ export function HeroChapter({
 /* -------------------------------- 02 specimen ------------------------------- */
 
 export const HOTSPOTS: { id: HotspotId; label: string; code: string; body: string; color: string }[] = [
-  { id: 'aero', label: 'Active Aero Wings', code: 'AA-26', body: 'Front and rear flaps open for a low-drag straight-line mode, then close for corner grip.', color: '#D4FF00' },
+  { id: 'aero', label: 'Active Aero Wings', code: 'AA-26', body: 'Front and rear flaps open for a low-drag straight-line mode, then close for corner grip.', color: '#FFD23F' },
   { id: 'halo', label: 'Halo', code: 'HL-26', body: 'Titanium cockpit hoop over the survival cell.', color: '#F2F2F2' },
   { id: 'wake', label: 'Dirty-Air Wake', code: 'DA-26', body: 'Turbulent air shed behind the car, robbing a follower of downforce.', color: '#FF7A00' },
   { id: 'tyres', label: 'Compound Tyre Rings', code: 'TY-26', body: 'Glowing sidewall rings: red soft, yellow medium, white hard.', color: '#FF1E1E' },
@@ -97,13 +97,13 @@ export function SpecimenChapter({ hover, setHover }: { hover: HotspotId | null; 
   return (
     <div className="sticky top-0 flex h-[100svh] flex-col justify-end px-4 pb-8 pt-16 sm:justify-center sm:px-8 sm:pb-0">
       <div className="max-w-[420px]">
-        <ChapterTag n={2} title="Specimen study" />
-        <h2 className="mt-4 font-display text-[clamp(44px,9vw,104px)] uppercase leading-[0.9] text-[#F6F3E6]">
+        <ChapterTag n={2} title="Specimen study" ink />
+        <h2 className="mt-4 font-display text-[clamp(44px,9vw,104px)] uppercase leading-[0.9] text-ink">
           The 2026
           <br />
-          <span className="text-[#C8FF1A]">machine</span>
+          <span className="kl-cream">machine</span>
         </h2>
-        <p className="mt-3 max-w-sm text-sm text-[#F6F3E6]/75">
+        <p className="mt-3 max-w-sm text-sm font-medium text-ink/85">
           Narrower, lighter, wings that move. Tilt it with your cursor; tap a tag to dissect it.
         </p>
         <ul className="pointer-events-auto mt-5 grid grid-cols-2 gap-2 sm:grid-cols-1">
@@ -118,7 +118,7 @@ export function SpecimenChapter({ hover, setHover }: { hover: HotspotId | null; 
                 onBlur={() => setHover(null)}
                 onClick={() => setHover(hover === h.id ? null : h.id)}
                 className={`flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.12em] transition ${
-                  hover === h.id ? 'border-[#C8FF1A] bg-[#C8FF1A] text-[#0E3B1C]' : 'border-[#F6F3E6]/20 bg-[#0A2E15]/70 text-[#F6F3E6]/85'
+                  hover === h.id ? 'border-ink bg-pop-sun text-ink' : 'border-ink bg-ink/90 text-cream/90'
                 }`}
               >
                 <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: h.color, boxShadow: `0 0 10px ${h.color}` }} />
@@ -158,7 +158,7 @@ export function HotspotPins({ bus, hover, setHover }: { bus: LandingBus; hover: 
             <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ background: h.color }} />
           </button>
           <div
-            className={`pointer-events-none absolute left-5 top-3 w-max max-w-[220px] origin-top-left rounded-md border bg-asphalt/90 px-2.5 py-1.5 backdrop-blur transition ${
+            className={`pointer-events-none absolute left-5 top-3 w-max max-w-[220px] origin-top-left rounded-md border bg-ink/90 px-2.5 py-1.5 backdrop-blur transition ${
               hover === h.id ? 'scale-100 border-white/40' : 'scale-95 border-white/10 max-sm:hidden'
             }`}
           >
@@ -193,14 +193,14 @@ function Card({
 }) {
   return (
     <article
-      className="drive-card pointer-events-auto relative rounded-xl border border-white/10 bg-panel/85 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-5"
+      className="drive-card pointer-events-auto relative rounded-xl border-2 border-ink bg-ink/95 p-4 text-cream shadow-[6px_8px_0_rgba(23,15,51,0.35)] sm:p-5"
       style={{ transform: `rotate(${tilt}deg)` }}
     >
-      <span className="absolute -top-3 left-4 rounded-[3px] px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-asphalt" style={{ background: accent }}>
+      <span className="absolute -top-3 left-4 rounded-[3px] px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink" style={{ background: accent }}>
         {kicker}
       </span>
       {tag && (
-        <span className="sticker absolute -right-2 -top-4 rotate-6 rounded-full border-2 border-asphalt bg-white px-2 py-0.5 font-mono text-[10px] font-semibold uppercase text-asphalt">
+        <span className="sticker absolute -right-2 -top-4 rotate-6 rounded-full border-2 border-ink bg-pop-pink px-2 py-0.5 font-mono text-[10px] font-semibold uppercase text-ink">
           {tag}
         </span>
       )}
@@ -271,23 +271,23 @@ export function DriveChapter({
   const r = stats.ready;
   const f = (n: number) => fmt(n, r);
   const cards: ReactNode[] = [
-    <Card key="fav" kicker="Favourites vs results" title="Pole is power" accent="#D4FF00" tilt={-1.5} tag={r ? `${stats.distinctWinners} winners` : undefined}>
-      <Big v={r ? `${stats.poleWins}/${stats.completed}` : '—'} unit="poles → wins" color="#D4FF00" />
-      <Bar value={stats.poleWins} max={stats.completed} color="#D4FF00" />
+    <Card key="fav" kicker="Favourites vs results" title="Pole is power" accent="#FF2E88" tilt={-1.5} tag={r ? `${stats.distinctWinners} winners` : undefined}>
+      <Big v={r ? `${stats.poleWins}/${stats.completed}` : '—'} unit="poles → wins" color="#FF2E88" />
+      <Bar value={stats.poleWins} max={stats.completed} color="#FF2E88" />
       <div className="mt-3">
         <Row k="Won from quali top 3" v={r ? `${stats.top3QualiWins} of ${stats.completed}` : '—'} />
         <Row k="Different winners" v={f(stats.distinctWinners)} />
       </div>
     </Card>,
-    <Card key="upg" kicker="Team upgrades" title="Pace steps" accent="#00F5D4" tilt={1.2}>
-      <Big v={f(stats.upgradeSteps)} unit={`detected · ${r ? stats.upgradeTeams : '—'} teams`} color="#00F5D4" />
+    <Card key="upg" kicker="Team upgrades" title="Pace steps" accent="#9ED8FF" tilt={1.2}>
+      <Big v={f(stats.upgradeSteps)} unit={`detected · ${r ? stats.upgradeTeams : '—'} teams`} color="#9ED8FF" />
       {stats.biggestUpgrade && (
         <div className="mt-3 rounded-md border border-white/10 bg-black/30 p-2.5 font-mono text-[11px] uppercase tracking-[0.08em]">
           <div className="text-white/50">Biggest step</div>
           <div className="mt-1 flex items-center gap-2 text-white">
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: stats.biggestUpgrade.color }} />
             {stats.biggestUpgrade.team} · R{stats.biggestUpgrade.round}
-            <span className="ml-auto text-ghost">{stats.biggestUpgrade.delta.toFixed(2)}%</span>
+            <span className="ml-auto text-pop-sky">{stats.biggestUpgrade.delta.toFixed(2)}%</span>
           </div>
         </div>
       )}
@@ -313,9 +313,9 @@ export function DriveChapter({
       </div>
       <Row k="Overtakes logged (2026)" v={f(stats.overtakes)} />
     </Card>,
-    <Card key="cliff" kicker="Telemetry" title="Tyre cliff" accent="#FFD400" tilt={-1.4}>
+    <Card key="cliff" kicker="Telemetry" title="Tyre cliff" accent="#FFD23F" tilt={-1.4}>
       <svg viewBox="0 0 220 70" className="h-[70px] w-full" aria-hidden>
-        <path d="M4 18 C60 22 110 26 146 32 S178 40 186 64" fill="none" stroke="#FFD400" strokeWidth="3" strokeLinecap="round" />
+        <path d="M4 18 C60 22 110 26 146 32 S178 40 186 64" fill="none" stroke="#FFD23F" strokeWidth="3" strokeLinecap="round" />
         <line x1="150" y1="6" x2="150" y2="66" stroke="#FF1E1E" strokeDasharray="3 4" />
         <text x="154" y="14" fill="#FF1E1E" fontSize="9" fontFamily="JetBrains Mono">CLIFF</text>
       </svg>
@@ -419,19 +419,19 @@ export function DriveChapter({
       {/* sticky stage: HUD + cards over the circuit */}
       <div className="sticky top-0 h-[100svh] overflow-hidden">
         <div ref={hud} className="absolute inset-x-0 top-[60px] z-10 flex items-start justify-between gap-3 px-4 opacity-0 transition-opacity duration-300 sm:px-8">
-          <div className="min-w-0 rounded-md bg-asphalt/70 px-2.5 py-1.5 backdrop-blur-sm">
+          <div className="min-w-0 rounded-md border-2 border-ink bg-ink/90 px-2.5 py-1.5">
             <span ref={hudText} className="block font-mono text-[9px] uppercase tracking-[0.18em] text-white/85 sm:text-[11px]">
               SCROLL DRIVE · 00/06 · 0%
             </span>
             <span className="mt-1.5 block h-[3px] w-full overflow-hidden rounded-full bg-white/15">
-              <span ref={bar} className="block h-full w-full origin-left rounded-full bg-crimson" style={{ transform: 'scaleX(0)' }} />
+              <span ref={bar} className="block h-full w-full origin-left rounded-full bg-pop-pink" style={{ transform: 'scaleX(0)' }} />
             </span>
           </div>
           {map && (
-            <svg viewBox="0 0 100 100" className="h-16 w-16 shrink-0 rounded-md bg-asphalt/70 p-1 backdrop-blur-sm sm:h-24 sm:w-24" aria-hidden>
+            <svg viewBox="0 0 100 100" className="h-16 w-16 shrink-0 rounded-md border-2 border-ink bg-ink/90 p-1 sm:h-24 sm:w-24" aria-hidden>
               <path d={map.d} fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
               <circle cx={map.pts[0][0]} cy={map.pts[0][1]} r="3" fill="#F2F2F2" />
-              <circle ref={dot} cx={map.pts[0][0]} cy={map.pts[0][1]} r="4.5" fill="#E10600" stroke="#080B10" strokeWidth="1.5" />
+              <circle ref={dot} cx={map.pts[0][0]} cy={map.pts[0][1]} r="4.5" fill="#FF2E88" stroke="#170F33" strokeWidth="1.5" />
             </svg>
           )}
         </div>
@@ -450,12 +450,12 @@ export function DriveChapter({
       </div>
       <div className="absolute inset-x-0 top-0 px-4 pt-20 sm:px-8" style={{ height: layout.introPx }}>
         <ChapterTag n={3} title="Scroll drive" ink />
-        <h2 className="mt-4 max-w-3xl font-display text-[clamp(44px,8vw,112px)] uppercase leading-[0.9] text-[#0E3B1C]">
+        <h2 className="mt-4 max-w-3xl font-display text-[clamp(44px,8vw,112px)] uppercase leading-[0.9] text-ink">
           The season,
           <br />
-          in <span className="text-[#E10600]">tyre marks</span>
+          in <span className="text-pop-blue">tyre marks</span>
         </h2>
-        <p className="mt-3 inline-block max-w-md rounded-[4px] bg-[#0E3B1C] px-2 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[#C8FF1A]">
+        <p className="mt-3 inline-block max-w-md rounded-[4px] bg-ink px-2 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-pop-sun">
           Six numbers from the 2026 season · scroll to drive
         </p>
       </div>
@@ -469,21 +469,21 @@ export function FlowChapter({ stats }: { stats: LandingStats }) {
   return (
     <div className="sticky top-0 flex h-[100svh] flex-col justify-between px-4 pb-6 pt-16 sm:px-8">
       <div>
-        <ChapterTag n={4} title="22-car flow" ink />
-        <h2 className="mt-3 font-display text-[clamp(40px,7vw,96px)] uppercase leading-[0.9] text-[#0E3B1C]">
-          22 cars.
+        <ChapterTag n={4} title="22-car flow" />
+        <h2 className="mt-3 font-display text-[clamp(40px,7vw,96px)] uppercase leading-[0.9]">
+          <span className="kl-cream">22 cars.</span>
           <br />
-          <span className="kl-cream">One ribbon.</span>
+          <span className="kl-sun">One ribbon.</span>
         </h2>
       </div>
       <div className="pointer-events-auto max-w-3xl">
-        <div className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#0E3B1C]/80">The 2026 grid · team colours</div>
+        <div className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-cream/85">The 2026 grid · team colours</div>
         <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-11">
           {stats.grid.map((g, i) => (
             <span
               key={`${g.code}-${i}`}
               title={g.team}
-              className="flex items-center gap-1.5 rounded-[4px] border border-white/10 bg-asphalt/70 px-1.5 py-1 font-mono text-[10px] font-semibold text-white/85 backdrop-blur"
+              className="flex items-center gap-1.5 rounded-[4px] border border-ink bg-ink/85 px-1.5 py-1 font-mono text-[10px] font-semibold text-cream/90"
             >
               <span className="h-2 w-1 rounded-full" style={{ background: g.color }} />
               {g.code}

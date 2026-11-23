@@ -6,7 +6,7 @@ import { S_CENTER_Z } from '../layout';
 import type { FlowCar } from '../stats';
 import { PALETTE } from '../palette';
 import { miniCarGeometry, ribbonGeometry, samplePoints } from './geometry';
-import Road, { PaperGround, autoKerbs, buildFrames } from './Road';
+import Road, { HalftoneGround, autoKerbs, buildFrames } from './Road';
 import { trackTextTexture, wakeTexture } from './textures';
 
 const HALF_W = 10;
@@ -51,11 +51,11 @@ export default function SCurveFlow({ bus, grid }: { bus: LandingBus; grid: FlowC
 
   const road = useMemo(() => {
     const frames = buildFrames(center);
-    return { points: center, width: HALF_W * 2, kerbs: autoKerbs(frames, 70), runoff: 2.6, runoffColor: '#2FA84F' };
+    return { points: center, width: HALF_W * 2, kerbs: autoKerbs(frames, 70), runoff: 2.6, runoffColor: PALETTE.sun };
   }, [center]);
 
   const mats = useMemo(() => {
-    const textTex = trackTextTexture(TEXT, PALETTE.ink);
+    const textTex = trackTextTexture(TEXT, PALETTE.cream);
     textTex.flipY = false;
     textTex.repeat.set(1 / (TEXT_H * (2048 / 160)), 1);
     const wakeTex = wakeTexture();
@@ -209,7 +209,7 @@ export default function SCurveFlow({ bus, grid }: { bus: LandingBus; grid: FlowC
 
   return (
     <group ref={root}>
-      <PaperGround color={PALETTE.lilac} center={[0, S_CENTER_Z]} size={[900, 700]} />
+      <HalftoneGround color={PALETTE.flow} center={[0, S_CENTER_Z]} size={[900, 700]} />
       <Road spec={road} />
       <mesh geometry={geo.text} material={mats.text} renderOrder={3} />
       <instancedMesh ref={cars} args={[carGeo, mats.car, N]} frustumCulled={false} />

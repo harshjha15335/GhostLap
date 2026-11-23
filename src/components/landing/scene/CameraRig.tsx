@@ -23,8 +23,8 @@ const WINDOWS: [number, number][] = [
 ];
 /** set on stage per scene chapter */
 const SET_OF: SceneSet[] = ['studio', 'studio', 'circuit', 'studio'];
-/** paper colour of the wipe that hides the set change INTO chapter i (matches that chapter's ground) */
-const WIPE_OF = ['', '', PALETTE.chartreuse, PALETTE.lilac];
+/** colour of the wipe that hides the set change INTO chapter i (matches that chapter's ground) */
+const WIPE_OF = ['', '', PALETTE.drive, PALETTE.flow];
 
 const UP = new THREE.Vector3(0, 1, 0);
 const AX = new THREE.Vector3(1, 0, 0);
@@ -77,7 +77,7 @@ function fitDistance(aspect: number, frac: number, vfrac: number, carW = 5.4, ca
 
 /**
  * Hero geometry (document px): the car sits centred just under the headline, and the
- * backdrop's curved horizon runs through its lower body, like a product on a paper set.
+ * backdrop's curved horizon runs through its lower body, like a product on a studio sweep.
  */
 export function heroGeom(c: { aspect: number; vh: number; bus: LandingBus }) {
   const portrait = c.aspect < 0.9;
@@ -305,7 +305,7 @@ export default function CameraRig({ bus, layout }: { bus: LandingBus; layout: La
           blend(from, to, w, out);
           return;
         }
-        // a curved paper sheet in the next chapter's colour slides up over the screen,
+        // a curved colour sheet in the next chapter's colour slides up over the screen,
         // the set swaps under it, then it carries on up and off (its straight bottom
         // edge reveals the new ground, which is the same colour)
         wipeC = WIPE_OF[i];

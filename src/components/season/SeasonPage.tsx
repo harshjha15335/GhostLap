@@ -234,7 +234,7 @@ function SeasonIntel({ season }: { season: SeasonData }) {
                   podium={podium}
                   selected={selected}
                   onSelect={select}
-                  carColor={team?.color ?? '#D4FF00'}
+                  carColor={team?.color ?? '#FF2E88'}
                   explode={explode}
                   highlight={highlight}
                   onPartHover={setHoveredPart}

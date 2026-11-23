@@ -25,7 +25,7 @@ interface Item {
 
 function RoundButton({ children }: { children: ReactNode }) {
   return (
-    <span className="flex h-full w-full items-center justify-center rounded-full shadow-[0_10px_18px_rgba(0,0,0,0.3)]" style={{ background: C.neon, color: C.green }}>
+    <span className="flex h-full w-full items-center justify-center rounded-full shadow-[0_10px_18px_rgba(0,0,0,0.3)]" style={{ background: C.pink, color: C.ink }}>
       {children}
     </span>
   );
@@ -236,11 +236,10 @@ export default function PitExit({
       ref={bind}
       data-chapter="pit-exit"
       className="pointer-events-auto relative z-[1] overflow-x-clip"
-      style={{ height, background: C.green, color: C.neon }}
+      style={{ height, background: C.uv, color: C.sun }}
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="fl-paper" style={{ opacity: 0.5 }} />
-        <div className="fl-grain" />
+        <div className="pop-halftone" />
       </div>
       <div className="relative" style={{ paddingTop: depth + (mobile ? 30 : 44) }}>
         <nav aria-label="Footer" className="fl-nav flex items-start justify-between px-4 font-display uppercase sm:px-6" style={{ fontSize: mobile ? 20 : Math.min(40, vp.w * 0.028) }}>
@@ -253,13 +252,13 @@ export default function PitExit({
         <div className="mt-[4vh] flex flex-col items-center" aria-hidden>
           <div
             className="relative z-[1] -rotate-6 rounded-[50%] border-[3px] px-[1.1em] py-[0.35em] font-display leading-none"
-            style={{ borderColor: C.neon, background: C.greenDeep, fontSize: mobile ? 28 : Math.min(54, vp.w * 0.036) }}
+            style={{ borderColor: C.sun, background: C.uvDeep, fontSize: mobile ? 28 : Math.min(54, vp.w * 0.036) }}
           >
-            GHOST<span style={{ color: '#fff' }}>LAP</span>
+            GHOST<span style={{ color: C.cream }}>LAP</span>
           </div>
           <div className="-mt-[0.1em] flex flex-col items-center font-display leading-[1.02]" style={{ fontSize: mobile ? vp.w * 0.25 : Math.min(200, vp.w * 0.13) }}>
-            <ArchWord text="REWRITE" color={C.neon} amount={0.16} />
-            <ArchWord text="THE RACE" color={C.neon} amount={0.16} />
+            <ArchWord text="REWRITE" color={C.sun} amount={0.16} />
+            <ArchWord text="THE RACE" color={C.sun} amount={0.16} />
           </div>
         </div>
       </div>
@@ -304,12 +303,12 @@ export default function PitExit({
         })}
       </div>
 
-      <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-3 pb-3 font-mono text-[10px] uppercase tracking-[0.18em] sm:text-[11px]" style={{ color: C.neon }}>
-        <span className="rounded-md px-2 py-1" style={{ background: C.greenDeep }}>
+      <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-3 pb-3 font-mono text-[10px] uppercase tracking-[0.18em] sm:text-[11px]" style={{ color: C.cream }}>
+        <span className="rounded-md px-2 py-1" style={{ background: C.ink }}>
           Data: OpenF1 · Not affiliated with Formula 1
         </span>
         {toast && (
-          <span className="rounded-md px-2 py-1" style={{ background: C.neon, color: C.green }} role="status">
+          <span className="rounded-md px-2 py-1" style={{ background: C.sun, color: C.ink }} role="status">
             {toast}
           </span>
         )}

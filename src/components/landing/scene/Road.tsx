@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
-import { acquirePaperTexture, releasePaperTexture, roadAsphaltTexture } from './textures';
+import { acquireHalftoneTexture, releaseHalftoneTexture, roadAsphaltTexture } from './textures';
 
 /**
  * A crisp, readable stretch of race track laid along a dense centre line:
@@ -412,10 +412,10 @@ export default function Road({ spec }: { spec: RoadSpec }) {
   );
 }
 
-/** Large flat paper-textured ground in one colour (unlit, exact brand colour). */
-export function PaperGround({ color, center, size, tile = 120 }: { color: string; center: [number, number]; size: [number, number]; tile?: number }) {
-  const tex = useMemo(() => acquirePaperTexture(), []);
-  useEffect(() => () => releasePaperTexture(), []);
+/** Large flat ground in one colour with a halftone dot screen (unlit, exact brand colour). */
+export function HalftoneGround({ color, center, size, tile = 120 }: { color: string; center: [number, number]; size: [number, number]; tile?: number }) {
+  const tex = useMemo(() => acquireHalftoneTexture(), []);
+  useEffect(() => () => releaseHalftoneTexture(), []);
   const mat = useMemo(() => {
     const m = new THREE.MeshBasicMaterial({ color, toneMapped: false, depthWrite: false });
     return m;

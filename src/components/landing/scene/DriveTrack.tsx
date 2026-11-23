@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import { REAR_TYRE_OFFSETS } from '@/components/three/F1Car';
 import type { LandingBus } from '../bus';
 import { ROAD_WIDTH, type DrivePath } from './drivePath';
-import Road, { PaperGround } from './Road';
+import { PALETTE } from '../palette';
+import Road, { HalftoneGround } from './Road';
 
 /* ------------------------------ skid ribbons ------------------------------ */
 
@@ -102,11 +103,11 @@ function SkidMarks({ bus, path }: { bus: LandingBus; path: DrivePath }) {
   );
 }
 
-/** Chartreuse paper ground under the drive road (matches the DOM chapter colour). */
-export const DRIVE_GROUND = '#C8FF1A';
+/** Sunshine ground under the drive road (matches the DOM chapter colour). */
+export const DRIVE_GROUND = PALETTE.drive;
 
 /**
- * The scroll-drive set: a winding road with kerbs on a chartreuse paper ground, plus the
+ * The scroll-drive set: a winding road with kerbs on a sunshine halftone ground, plus the
  * lap-long skid ribbons revealed up to the car. Only visible while the drive is on stage.
  */
 export default function DriveTrack({ bus, path }: { bus: LandingBus; path: DrivePath }) {
@@ -120,7 +121,7 @@ export default function DriveTrack({ bus, path }: { bus: LandingBus; path: Drive
       width: ROAD_WIDTH,
       kerbs: path.kerbs,
       runoff: 2.6,
-      runoffColor: '#2FA84F',
+      runoffColor: PALETTE.runoff,
       checkers: [path.sStart, path.sEnd],
     }),
     [path],
@@ -128,7 +129,7 @@ export default function DriveTrack({ bus, path }: { bus: LandingBus; path: Drive
   const b = path.bounds;
   return (
     <group ref={root} visible={false}>
-      <PaperGround color={DRIVE_GROUND} center={[b.cx, b.cz]} size={[b.hx * 2 + 900, b.hz * 2 + 900]} />
+      <HalftoneGround color={DRIVE_GROUND} center={[b.cx, b.cz]} size={[b.hx * 2 + 900, b.hz * 2 + 900]} />
       <Road spec={spec} />
       <SkidMarks bus={bus} path={path} />
     </group>
