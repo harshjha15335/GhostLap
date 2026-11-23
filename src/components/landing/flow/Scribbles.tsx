@@ -3,7 +3,7 @@ import { C } from './theme';
 
 /* Thin pencil-style race-engineer annotations: arrows, numbered markers, notes. */
 
-const INK = C.green;
+const INK = C.ink;
 
 /**
  * Hand-drawn arrow: a gently wobbling curve from (0,0) to (w,h) bending by

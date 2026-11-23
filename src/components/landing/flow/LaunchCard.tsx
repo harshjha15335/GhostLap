@@ -57,17 +57,16 @@ export default function LaunchCard({
           left: '-25%',
           width: '150%',
           height: height + depth + 2,
-          background: C.neon,
+          background: C.pink,
           borderRadius: `0 0 50% 50% / 0 0 ${Math.round(depth / 0.255)}px ${Math.round(depth / 0.255)}px`,
         }}
       >
-        <div className="fl-paper" style={{ opacity: 0.22 }} />
-        <div className="fl-grain" style={{ opacity: 0.1 }} />
+        <div className="pop-halftone" style={{ maskImage: 'linear-gradient(0deg, #000, transparent 70%)', WebkitMaskImage: 'linear-gradient(0deg, #000, transparent 70%)' }} />
       </div>
       <div className="relative flex justify-center px-4" style={{ paddingTop: mobile ? vp.h * 0.1 : vp.h * 0.12 }}>
         <div ref={card} className={`fl-will relative grid w-full max-w-[1200px] ${mobile ? 'grid-cols-1 gap-3' : 'grid-cols-[0.95fr_1fr] gap-6'}`}>
           {/* "photo" squircle: an armful of compounds + the ghost */}
-          <div className="fl-squircle relative overflow-hidden" style={{ height: mobile ? vp.w * 0.72 : cardH, background: `linear-gradient(150deg, ${C.lilac}, #8f76ff)`, boxShadow: `-8px 12px 0 #6c55d9` }}>
+          <div className="fl-squircle relative overflow-hidden" style={{ height: mobile ? vp.w * 0.72 : cardH, background: `linear-gradient(150deg, ${C.sky}, ${C.blue})`, boxShadow: `-8px 12px 0 ${C.ink}` }}>
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(255,255,255,0.4),transparent_55%)]" />
             <CarTop color="#9aa1aa" ghost className="absolute left-[8%] top-[6%] h-[48%] w-[20%] rotate-[24deg] opacity-80" />
             <div ref={pile} className="fl-will absolute inset-0">
@@ -83,28 +82,28 @@ export default function LaunchCard({
           {/* headline card */}
           <div
             className="fl-squircle relative flex flex-col items-center justify-center overflow-hidden px-6 py-10 text-center"
-            style={{ minHeight: mobile ? vp.w * 0.95 : cardH, background: C.green, boxShadow: `-8px 12px 0 ${C.greenDeep}` }}
+            style={{ minHeight: mobile ? vp.w * 0.95 : cardH, background: C.ink, boxShadow: `-8px 12px 0 ${C.uvDeep}` }}
           >
-            <h2 className="font-display font-normal uppercase leading-[0.88]" style={{ color: C.neon, fontSize: mobile ? vp.w * 0.14 : Math.min(130, vp.w * 0.085) }}>
+            <h2 className="font-display font-normal uppercase leading-[0.88]" style={{ color: C.sun, fontSize: mobile ? vp.w * 0.14 : Math.min(130, vp.w * 0.085) }}>
               Let&rsquo;s rewrite
               <br />
               the race!
             </h2>
-            <p className="mt-4 max-w-sm font-sans text-sm font-semibold sm:text-base" style={{ color: C.neon }}>
+            <p className="mt-4 max-w-sm font-sans text-sm font-semibold sm:text-base" style={{ color: C.cream }}>
               Every lap of the 2026 season, real OpenF1 timing, and a ghost car for the call that never came.
             </p>
             <Link
               to="/replay/silverstone?autoplay=1"
               className="fl-link mt-7 inline-flex items-center gap-3 rounded-full px-7 py-4 font-display text-xl uppercase tracking-wide sm:text-2xl"
-              style={{ background: C.neon, color: C.green, boxShadow: `0 4px 0 ${C.greenDeep}` }}
+              style={{ background: C.pink, color: C.ink, boxShadow: `0 4px 0 ${C.pinkDeep}` }}
             >
               Launch 3D Race Lab <span aria-hidden>→</span>
             </Link>
-            <div className="mt-6 flex flex-wrap justify-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em]" style={{ color: C.neon }}>
-              <Link to="/circuits" className="rounded-full border px-4 py-2 transition hover:bg-[#D4FF00] hover:text-[#0A3A12]" style={{ borderColor: C.neon }}>
+            <div className="mt-6 flex flex-wrap justify-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em]" style={{ color: C.sun }}>
+              <Link to="/circuits" className="rounded-full border px-4 py-2 transition hover:bg-[#FFD23F] hover:text-[#170F33]" style={{ borderColor: C.sun }}>
                 {stats.ready ? `Circuits · ${stats.racesTotal} rounds →` : 'Circuits →'}
               </Link>
-              <Link to="/season" className="rounded-full border px-4 py-2 transition hover:bg-[#D4FF00] hover:text-[#0A3A12]" style={{ borderColor: C.neon }}>
+              <Link to="/season" className="rounded-full border px-4 py-2 transition hover:bg-[#FFD23F] hover:text-[#170F33]" style={{ borderColor: C.sun }}>
                 Season →
               </Link>
             </div>

@@ -6,7 +6,7 @@ import type { DrivePath } from './scene/drivePath';
 
 export type HotspotId = 'aero' | 'halo' | 'wake' | 'tyres';
 
-/** Which 3D "set" is on stage: the paper studio (hero, specimen, S-curve) or the winding drive road. */
+/** Which 3D "set" is on stage: the colour studio (hero, specimen, S-curve) or the winding drive road. */
 export type SceneSet = 'studio' | 'circuit';
 
 /**
@@ -35,7 +35,7 @@ export interface LandingBus {
   heroFrame: { top: number; bottom: number };
   /** hero horizon written by the camera rig: document y (px) of its lowest point and its edge rise (px) */
   horizon: { y: number; sag: number };
-  /** full-viewport coloured paper wipe used to hide set changes */
+  /** full-viewport colour wipe used to hide set changes */
   veil: HTMLElement | null;
 }
 

@@ -289,8 +289,8 @@ export default function EveryLap({
   let fi = 0;
 
   const headline = (
-    <div className="w-max text-center" style={{ color: C.green }}>
-      <span className="fl-pill rotate-[-2deg] px-[0.8em] py-[0.55em] text-[14px]" style={{ background: C.green, color: C.neon }}>
+    <div className="w-max text-center" style={{ color: C.ink }}>
+      <span className="fl-pill rotate-[-2deg] px-[0.8em] py-[0.55em] text-[14px]" style={{ background: C.ink, color: C.sun }}>
         Why GhostLap
       </span>
       <h2 className="mt-4 font-display font-normal uppercase leading-[0.9]" style={{ fontSize: geo?.head.f ?? (mobile ? vp.w * 0.105 : Math.min(96, vp.w * 0.058)) }}>
@@ -308,18 +308,17 @@ export default function EveryLap({
       ref={bind}
       data-chapter="everylap"
       className="pointer-events-auto relative z-[2]"
-      style={{ height: height ?? (staticMode ? undefined : vp.h * 4), background: C.neon }}
+      style={{ height: height ?? (staticMode ? undefined : vp.h * 4), background: C.pink }}
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="fl-paper" style={{ opacity: 0.22 }} />
-        <div className="fl-grain" style={{ opacity: 0.1 }} />
+        <div className="pop-halftone" />
       </div>
       {staticMode ? (
         <div className="relative px-4 pb-16" style={{ paddingTop: vp.h * 0.18 }}>
           {headline}
           <div className="mt-12 flex flex-col gap-10">
             {ROWS.map((row) => (
-              <Link key={row.n} to={row.to} className="fl-word flex flex-wrap items-center gap-4 font-display leading-[0.85]" style={{ color: C.green, fontSize: F * 0.42 }}>
+              <Link key={row.n} to={row.to} className="fl-word flex flex-wrap items-center gap-4 font-display leading-[0.85]" style={{ color: C.ink, fontSize: F * 0.42 }}>
                 <Marker n={row.n} size={40} />
                 <span>TO</span>
                 <span className="fl-verb">{row.verb}</span>
@@ -345,7 +344,7 @@ export default function EveryLap({
                   to={row.to}
                   aria-label={`To ${row.verb.toLowerCase()} — open ${row.label}`}
                   className="fl-word absolute flex items-center whitespace-nowrap font-display leading-[0.86]"
-                  style={{ left: pos?.x ?? 0, top: pos?.y ?? vp.h, fontSize: F, color: C.green, gap: F * 0.06, visibility: pos ? 'visible' : 'hidden' }}
+                  style={{ left: pos?.x ?? 0, top: pos?.y ?? vp.h, fontSize: F, color: C.ink, gap: F * 0.06, visibility: pos ? 'visible' : 'hidden' }}
                 >
                   <Marker n={row.n} size={F * 0.2} className="absolute" style={{ left: -F * 0.32, top: F * 0.02 }} />
                   <span>TO</span>
@@ -354,7 +353,7 @@ export default function EveryLap({
                     <Note lines={row.note} size={Math.max(16, F * 0.075)} style={{ left: -F * 0.28, top: F * 0.98 }} />
                   </span>
                   <span className="fl-verb">{row.verb}</span>
-                  <span className="fl-tag pointer-events-none absolute -top-[0.04em] right-0 translate-y-[-100%] rounded-md px-2 py-1 font-mono text-[12px] uppercase tracking-[0.18em]" style={{ background: C.green, color: C.neon }}>
+                  <span className="fl-tag pointer-events-none absolute -top-[0.04em] right-0 translate-y-[-100%] rounded-md px-2 py-1 font-mono text-[12px] uppercase tracking-[0.18em]" style={{ background: C.ink, color: C.sun }}>
                     open {row.label} →
                   </span>
                   {row.floaters.map((fl, k) => {

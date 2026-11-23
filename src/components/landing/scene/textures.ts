@@ -39,7 +39,7 @@ export function wakeTexture() {
 }
 
 /** Repeating trackside lettering strip. Redraws once the display font has loaded. */
-export function trackTextTexture(text: string, color = '#D4FF00') {
+export function trackTextTexture(text: string, color = '#FFD23F') {
   const [c, g] = canvas(2048, 160);
   const t = new THREE.CanvasTexture(c);
   t.wrapS = THREE.RepeatWrapping;
@@ -65,7 +65,7 @@ export function trackTextTexture(text: string, color = '#D4FF00') {
   return t;
 }
 
-/* ------------------------------ paper + road ------------------------------ */
+/* ----------------------------- halftone + road ----------------------------- */
 
 /** Periodic value noise on a `grid`-cell lattice (tiles seamlessly over 0..1). */
 function periodicNoise(grid: number, seed: number) {
@@ -92,79 +92,48 @@ function periodicNoise(grid: number, seed: number) {
   };
 }
 
-let paperCache: THREE.CanvasTexture | null = null;
-let paperUsers = 0;
+let dotsCache: THREE.CanvasTexture | null = null;
+let dotsUsers = 0;
 
 /**
- * Crumpled-paper relief: faceted folds lit from the upper left, written as a light greyscale (~0.75..1) meant to be multiplied over a flat colour.
- * Tiles seamlessly; shared (ref-counted) between the backdrop and the ground planes.
+ * Halftone dot screen (the "Pit-Lane Pop" surface motif): a light greyscale tile, white
+ * paper with soft round dots on a 45-degree grid, meant to be multiplied over a flat
+ * colour. Mipmapped so the dots melt into an even tint at grazing angles instead of
+ * shimmering. Tiles seamlessly; shared (ref-counted) between the ground planes.
  */
-export function acquirePaperTexture(): THREE.CanvasTexture {
-  paperUsers++;
-  if (paperCache) return paperCache;
-  const size = 512;
-  // Crumpled paper = flat facets between straight creases. Each fold is a tiling
-  // triangle wave across the sheet (integer wave vector), so the slope is piecewise
-  // constant and every crease is a sharp straight line; a gentle warp bends them a bit.
-  let seed = 23;
-  const r = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  const folds: { kx: number; ky: number; ph: number; a: number }[] = [];
-  while (folds.length < 22) {
-    const kx = Math.round((r() - 0.5) * 9);
-    const ky = Math.round((r() - 0.5) * 9);
-    const k = Math.hypot(kx, ky);
-    if (k < 1) continue;
-    folds.push({ kx, ky, ph: r(), a: 0.9 / Math.pow(k, 1.2) });
-  }
-  const warp = periodicNoise(3, 7);
-  const warp2 = periodicNoise(3, 11);
+export function acquireHalftoneTexture(): THREE.CanvasTexture {
+  dotsUsers++;
+  if (dotsCache) return dotsCache;
+  const size = 256;
+  const cell = 16;
   const [c, g] = canvas(size, size);
-  const img = g.createImageData(size, size);
-  const lx = -0.55;
-  const ly = -0.5;
-  const lz = 0.67;
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const u0 = x / size;
-      const v0 = y / size;
-      const u = u0 + (warp(u0, v0) - 0.5) * 0.16;
-      const v = v0 + (warp2(u0, v0) - 0.5) * 0.16;
-      // analytic slope of the summed folds
-      let dx = 0;
-      let dy = 0;
-      for (const f of folds) {
-        const t = f.kx * u + f.ky * v + f.ph;
-        const s = t - Math.floor(t) < 0.5 ? -1 : 1;
-        dx += f.a * f.kx * s;
-        dy += f.a * f.ky * s;
-      }
-      dx *= 0.09;
-      dy *= 0.09;
-      const nl = Math.hypot(dx, dy, 1);
-      const lam = (-dx * lx - dy * ly + lz) / nl;
-      const vv = Math.min(1, Math.max(0, 0.94 + (lam - lz) * 0.32 + (r() - 0.5) * 0.03));
-      const i = (y * size + x) * 4;
-      const b = Math.round(vv * 255);
-      img.data[i] = b;
-      img.data[i + 1] = b;
-      img.data[i + 2] = b;
-      img.data[i + 3] = 255;
+  g.fillStyle = '#fff';
+  g.fillRect(0, 0, size, size);
+  // value ~0.87 in linear space -> a dot ~6% darker than the sheet once multiplied
+  g.fillStyle = 'rgb(222,222,222)';
+  for (let y = 0; y <= size; y += cell / 2) {
+    const odd = (y / (cell / 2)) % 2 === 1;
+    for (let x = odd ? cell / 2 : 0; x <= size; x += cell) {
+      g.beginPath();
+      g.arc(x, y, cell * 0.2, 0, Math.PI * 2);
+      g.fill();
     }
   }
-  g.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = THREE.NoColorSpace;
-  t.anisotropy = 4;
-  paperCache = t;
+  t.anisotropy = 8;
+  t.generateMipmaps = true;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  dotsCache = t;
   return t;
 }
 
-export function releasePaperTexture() {
-  paperUsers = Math.max(0, paperUsers - 1);
-  if (!paperUsers && paperCache) {
-    paperCache.dispose();
-    paperCache = null;
+export function releaseHalftoneTexture() {
+  dotsUsers = Math.max(0, dotsUsers - 1);
+  if (!dotsUsers && dotsCache) {
+    dotsCache.dispose();
+    dotsCache = null;
   }
 }
 

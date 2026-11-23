@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { CircuitGeometry } from '@/types';
 
-export const SECTOR_COLORS = ['#FF1E1E', '#00F5D4', '#D4FF00'] as const;
+export const SECTOR_COLORS = ['#FF1E1E', '#00F5D4', '#FFD23F'] as const;
 
 /**
  * Top-down 2D SVG outline of a circuit (x → right, z → down, matching a

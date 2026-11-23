@@ -13,8 +13,8 @@ import World from './World';
 
 /**
  * The single WebGL context for the whole landing page. Fixed behind the DOM;
- * every chapter is a camera move through this one persistent world (a paper studio
- * set for hero / specimen, a winding road for the drive, a lilac S-curve for the flow).
+ * every chapter is a camera move through this one persistent world (a colour studio
+ * set for hero / specimen, a winding road for the drive, an ultraviolet S-curve for the flow).
  */
 export default function LandingScene({
   bus,

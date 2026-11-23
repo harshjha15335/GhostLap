@@ -118,7 +118,7 @@ export function useLandingStats(season: SeasonData | null): LandingStats {
       biggestUpgrade: big
         ? {
             team: teamsById.get(big.teamId)?.name ?? big.teamId,
-            color: teamsById.get(big.teamId)?.color ?? '#D4FF00',
+            color: teamsById.get(big.teamId)?.color ?? '#FFD23F',
             round: big.round,
             delta: big.paceDelta as number,
           }

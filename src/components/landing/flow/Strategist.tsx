@@ -105,8 +105,8 @@ function ExploreBadge({ size }: { size: number }) {
         <defs>
           <path id="fl-explore-ring" d="M100,100 m-84,0 a84,84 0 1,1 168,0 a84,84 0 1,1 -168,0" />
         </defs>
-        <circle cx="100" cy="100" r="93" fill="none" stroke={C.green} strokeWidth="2.4" strokeDasharray="0.1 6.5" strokeLinecap="round" />
-        <text fontFamily="Anton, Impact, sans-serif" fontSize="12" letterSpacing="3" fill={C.green}>
+        <circle cx="100" cy="100" r="93" fill="none" stroke={C.ink} strokeWidth="2.4" strokeDasharray="0.1 6.5" strokeLinecap="round" />
+        <text fontFamily="Anton, Impact, sans-serif" fontSize="12" letterSpacing="3" fill={C.ink}>
           <textPath href="#fl-explore-ring" textLength={522} lengthAdjust="spacing">
             {ring}
             {ring}
@@ -114,12 +114,12 @@ function ExploreBadge({ size }: { size: number }) {
         </text>
       </svg>
       <div className="absolute inset-0 flex -rotate-[8deg] flex-col items-center justify-center">
-        <span className="font-display leading-none" style={{ color: C.green, fontSize: size * 0.2 }}>
+        <span className="font-display leading-none" style={{ color: C.blue, fontSize: size * 0.2 }}>
           EXPLORE
         </span>
         <span
           className="mt-[4%] flex items-center justify-center rounded-full transition-transform group-hover:scale-125"
-          style={{ width: size * 0.17, height: size * 0.17, background: C.neon, color: C.green, fontSize: size * 0.1 }}
+          style={{ width: size * 0.17, height: size * 0.17, background: C.pink, color: C.ink, fontSize: size * 0.1 }}
         >
           ↗
         </span>
@@ -131,7 +131,7 @@ function ExploreBadge({ size }: { size: number }) {
 /** centre line of the tape band (px, in the band's own box) */
 const bandY = (x: number, w: number, h: number) => h * (0.68 - 0.36 * (x / w)) + h * 0.07 * Math.sin(((2 * Math.PI) / w) * x * 1.1 + 0.5);
 
-/** Chartreuse "tape" band riding the orange section's wavy top edge. */
+/** Hot-magenta band riding the ultramarine section's wavy top edge. */
 function TapeBand({ w, h, t, textRef }: { w: number; h: number; t: number; textRef: (el: SVGTextPathElement | null) => void }) {
   const line = useMemo(() => {
     const pts: string[] = [];
@@ -143,9 +143,9 @@ function TapeBand({ w, h, t, textRef }: { w: number; h: number; t: number; textR
       <defs>
         <path id="fl-band-line" d={line} />
       </defs>
-      <path d={line} fill="none" stroke="rgba(0,0,0,0.22)" strokeWidth={t} transform="translate(-6 9)" />
-      <path d={line} fill="none" stroke={C.neon} strokeWidth={t} />
-      <text fontFamily="Anton, Impact, sans-serif" fontSize={t * 0.62} letterSpacing={t * 0.04} fill={C.green} dominantBaseline="central">
+      <path d={line} fill="none" stroke="rgba(23,15,51,0.3)" strokeWidth={t} transform="translate(-6 9)" />
+      <path d={line} fill="none" stroke={C.pink} strokeWidth={t} />
+      <text fontFamily="Anton, Impact, sans-serif" fontSize={t * 0.62} letterSpacing={t * 0.04} fill={C.ink} dominantBaseline="central">
         <textPath ref={textRef} href="#fl-band-line" startOffset="0">
           {BAND_TEXT.repeat(8)}
         </textPath>
@@ -204,7 +204,7 @@ export default function Strategist({
   });
 
   const discSize = L.disc.d;
-  // the orange body reaches up behind the tape band, clipped to the band's wave
+  // the ultramarine body reaches up behind the tape band, clipped to the band's wave
   const waveClip = useMemo(() => {
     const off = vp.w * 0.25;
     const pts: string[] = [];
@@ -215,8 +215,8 @@ export default function Strategist({
   }, [vp.w, L.band, L.bandT]);
 
   return (
-    <section ref={bind} data-chapter="strategist" className="pointer-events-auto relative z-[3]" style={{ height: L.height, color: C.yellow }}>
-      {/* orange body with a bulging lower edge that overlaps the next section */}
+    <section ref={bind} data-chapter="strategist" className="pointer-events-auto relative z-[3]" style={{ height: L.height, color: C.sun }}>
+      {/* ultramarine body with a bulging lower edge that overlaps the next section */}
       <div
         className="absolute overflow-hidden"
         style={{
@@ -224,31 +224,30 @@ export default function Strategist({
           left: '-25%',
           width: '150%',
           height: L.height + L.band + L.depth,
-          background: C.orange,
+          background: C.blue,
           borderRadius: `0 0 50% 50% / 0 0 ${Math.round(L.depth / 0.255)}px ${Math.round(L.depth / 0.255)}px`,
           clipPath: waveClip,
         }}
       >
-        <div className="fl-paper" />
-        <div className="fl-grain" />
+        <div className="pop-halftone" />
       </div>
       <TapeBand w={vp.w} h={L.band} t={L.bandT} textRef={set('band')} />
 
       <div className="absolute inset-0">
         {/* pill */}
         <div className="absolute z-[1] -translate-x-1/2" style={{ left: L.pill.x, top: L.pill.y }}>
-          <span className="fl-pill -rotate-2 px-[0.8em] py-[0.55em]" style={{ background: C.yellow, color: C.orangeDeep, fontSize: L.pill.f }}>
+          <span className="fl-pill -rotate-2 px-[0.8em] py-[0.55em]" style={{ background: C.sun, color: C.blueDeep, fontSize: L.pill.f }}>
             Meet the one who makes the call
           </span>
         </div>
         {/* THE */}
         <div ref={set('the')} className="fl-will absolute font-display leading-[0.8]" style={{ left: L.the.x, top: L.the.y, fontSize: L.the.f, transform: 'translateX(-50%)' }}>
-          <ArchWord text="THE" color={C.yellow} amount={0} />
+          <ArchWord text="THE" color={C.sun} amount={0} />
         </div>
         {/* STRATEGIST */}
         <h2 ref={set('word')} className="fl-will absolute font-display font-normal leading-[0.8]" style={{ left: L.word.x, top: L.word.y, fontSize: L.word.f, transform: 'translateX(-50%)' }}>
           <span className="sr-only">The strategist</span>
-          <ArchWord text="STRATEGIST" color={C.yellow} amount={0.24} squeeze={L.mobile ? 0.62 : 0.74} />
+          <ArchWord text="STRATEGIST" color={C.sun} amount={0.24} squeeze={L.mobile ? 0.62 : 0.74} />
         </h2>
         {/* central compound disc */}
         <div ref={set('disc')} className="fl-will absolute" style={{ left: L.disc.x, top: L.disc.y, width: discSize, height: discSize, transform: 'translate(-50%,-50%)' }}>
@@ -270,18 +269,18 @@ export default function Strategist({
         <ul className={`absolute flex ${L.pills.row ? 'flex-row flex-wrap gap-2 pr-4' : 'flex-col gap-3'}`} style={{ left: L.pills.x, top: L.pills.y }}>
           {PILLS.map((p, i) => (
             <li key={p}>
-              <span className="fl-pill px-[0.75em] py-[0.6em]" style={{ background: C.yellow, color: C.orangeDeep, fontSize: L.pills.f, transform: `rotate(${i % 2 ? 1 : -1}deg)` }}>
+              <span className="fl-pill px-[0.75em] py-[0.6em]" style={{ background: C.sun, color: C.blueDeep, fontSize: L.pills.f, transform: `rotate(${i % 2 ? 1 : -1}deg)` }}>
                 {p}
               </span>
             </li>
           ))}
         </ul>
-        <p className="absolute font-sans font-medium leading-[1.35]" style={{ left: L.para.x, top: L.para.y, width: L.para.w, fontSize: L.para.f, color: C.yellow }}>
+        <p className="absolute font-sans font-medium leading-[1.35]" style={{ left: L.para.x, top: L.para.y, width: L.para.w, fontSize: L.para.f, color: C.cream }}>
           Always reading the gaps, the tyre age and the pit window. Calls the undercut, the overcut and the safety-car gamble. Calm on the radio. No panic.
         </p>
         {/* compound picker (the reference's "roll it!" column) */}
         <div ref={set('pick')} className="fl-will absolute" style={{ left: L.pick.x, top: L.pick.y }}>
-          <div className={`fl-hand mb-1 ${L.pick.row ? '' : '-ml-14 -rotate-12'} text-[22px] font-bold leading-none`} style={{ color: C.yellow }}>
+          <div className={`fl-hand mb-1 ${L.pick.row ? '' : '-ml-14 -rotate-12'} text-[22px] font-bold leading-none`} style={{ color: C.sun }}>
             pick a compound!
           </div>
           <div className={`flex ${L.pick.row ? 'flex-row gap-1.5' : 'flex-col gap-1'}`}>
@@ -293,13 +292,13 @@ export default function Strategist({
                 aria-pressed={compound === c}
                 aria-label={`Show ${c.toLowerCase()} compound`}
                 className="rounded-full transition-transform hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-                style={{ outlineColor: C.green, transform: compound === c ? 'scale(1.08)' : undefined }}
+                style={{ outlineColor: C.sun, transform: compound === c ? 'scale(1.08)' : undefined }}
               >
                 <CompoundDisc compound={c} size={L.pick.d} />
               </button>
             ))}
           </div>
-          <div className="mt-1 max-w-[150px] font-mono text-[10px] uppercase tracking-[0.16em]" style={{ color: C.green }}>
+          <div className="mt-1 max-w-[150px] font-mono text-[10px] uppercase tracking-[0.16em]" style={{ color: C.sun }}>
             {COMPOUND_STYLE[compound].tagline}
           </div>
         </div>

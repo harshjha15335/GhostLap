@@ -27,7 +27,7 @@ function PoolBar({ pool, limit, used }: { pool: PartPoolId; limit: number; used:
         {Array.from({ length: segs }, (_, i) => {
           let cls = 'border border-dashed border-ink/40 bg-transparent';
           if (used != null) {
-            if (i < used) cls = i >= limit ? 'border border-ink bg-crimson' : i === limit - 1 ? 'border border-ink bg-amber' : 'border border-ink bg-paper-green';
+            if (i < used) cls = i >= limit ? 'border border-ink bg-crimson' : i === limit - 1 ? 'border border-ink bg-amber' : 'border border-ink bg-pop-blue';
             else cls = 'border border-ink/30 bg-white';
           }
           return <span key={i} className={`h-2.5 flex-1 rounded-[1px] ${cls}`} />;
@@ -57,13 +57,13 @@ export default function PartsAllocationPanel({
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <div className="inline-block -rotate-1 rounded-[4px] bg-ink px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-neon">FIA parts allocation</div>
+        <div className="inline-block -rotate-1 rounded-[4px] bg-ink px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-pop-sun">FIA parts allocation</div>
         <div className="mt-1 font-mono text-[11px] text-ink/75">
           Cumulative units after R{race?.round} {race?.circuitName} vs seasonal limit
         </div>
       </div>
       {!hasAny && (
-        <div className="rounded-md border-2 border-ink bg-paper-yellow px-3 py-2 font-mono text-[10px] leading-relaxed text-ink shadow-sticker-sm">
+        <div className="rounded-md border-2 border-ink bg-pop-sun px-3 py-2 font-mono text-[10px] leading-relaxed text-ink shadow-sticker-sm">
           No FIA usage data yet. OpenF1 publishes no power-unit element usage; counters light up once the FIA per-event PU lists are
           added. Limits shown are per driver.
         </div>
@@ -99,7 +99,7 @@ export default function PartsAllocationPanel({
         );
       })}
       <div className="flex flex-wrap gap-3 font-mono text-[9px] font-semibold uppercase tracking-widest text-ink/70">
-        <span className="flex items-center gap-1"><span className="h-2 w-3 border border-ink bg-paper-green" />Used</span>
+        <span className="flex items-center gap-1"><span className="h-2 w-3 border border-ink bg-pop-blue" />Used</span>
         <span className="flex items-center gap-1"><span className="h-2 w-3 border border-ink bg-amber" />Final legal unit</span>
         <span className="flex items-center gap-1"><span className="h-2 w-3 border border-ink bg-crimson" />Over limit</span>
         <span className="flex items-center gap-1"><span className="h-2 w-3 border border-dashed border-ink/50" />No data</span>

@@ -63,7 +63,7 @@ export function DriverBlueprint({ entity, sheet, teamName }: { entity: Entity; s
   return (
     <Frame entity={entity} kicker={`Driver spec · #${entity.number} · ${teamName}`} dimension={`${ordinal(sheet.position)} · ${sheet.points} PTS`}>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        <StatPlate label="Points" value={sheet.points} accent="#0A6B2A" />
+        <StatPlate label="Points" value={sheet.points} accent="#2D3BFF" />
         <StatPlate label="Championship" value={ordinal(sheet.position)} />
         <StatPlate label="Wins" value={sheet.wins} />
         <StatPlate label="Podiums" value={sheet.podiums} />
@@ -95,7 +95,7 @@ export function TeamBlueprint({ entity, sheet }: { entity: Entity; sheet: TeamSh
   return (
     <Frame entity={entity} kicker="Constructor spec" dimension={`${ordinal(sheet.position)} · ${sheet.points} PTS`}>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        <StatPlate label="Constructor pts" value={sheet.points} accent="#0A6B2A" />
+        <StatPlate label="Constructor pts" value={sheet.points} accent="#2D3BFF" />
         <StatPlate label="Championship" value={ordinal(sheet.position)} />
         <StatPlate label="Wins" value={sheet.wins} />
         <StatPlate label="Podiums" value={sheet.podiums} />
