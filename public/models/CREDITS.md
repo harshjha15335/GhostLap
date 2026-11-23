@@ -13,6 +13,11 @@
 - **License**: Creative Commons Attribution (CC-BY 4.0) (http://creativecommons.org/licenses/by/4.0/)
 - **Usage**: Reference proportions, aerodynamic sub-assemblies, and regulation contours for GhostLap 2026's procedural 3D model.
 
+## 3D Driver Model
+- **Model**: "Race Car Driver - Low Poly"
+- **License**: Creative Commons Attribution (CC-BY 4.0)
+- **Usage**: Standing F1 driver figures on the Season Showroom tier podiums with dynamic team livery tinting.
+
 ## 3D Circuit Style Reference
 - **Project**: F1TrackViewer / Boxlane
 - **Author**: Makakashan (https://github.com/makakashan)

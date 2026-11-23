@@ -1,6 +1,7 @@
-import { forwardRef, useEffect, useMemo, useRef } from 'react';
+import { forwardRef, useEffect, useMemo, useRef, Component, type ErrorInfo, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { useFrame, type ThreeElements } from '@react-three/fiber';
+import { useGLTF } from '@react-three/drei';
 import { resolveLivery, type Livery } from './liveries';
 
 /**
@@ -16,6 +17,7 @@ import { resolveLivery, type Livery } from './liveries';
  *   number               car number on chest and back
  *   code                 optional initials painted on the helmet sides
  *   pose                 'stand' | 'celebrate' (both arms up, P1) | 'wave'
+ *   useModel             optional flag to toggle between GLB driver model and procedural figure (defaults to true)
  */
 export type DriverPose = 'stand' | 'celebrate' | 'wave';
 
@@ -26,6 +28,7 @@ export type DriverFigureProps = ThreeElements['group'] & {
   number?: number;
   code?: string;
   pose?: DriverPose;
+  useModel?: boolean;
 };
 
 /* ------------------------------ shared geometry ------------------------------ */
@@ -185,10 +188,145 @@ const lum = (hex: string) => {
   return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
 };
 
+class ModelErrorBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.warn('Driver GLB model load failed, falling back to procedural:', error, errorInfo);
+  }
+  render() {
+    return this.state.hasError ? this.props.fallback : this.props.children;
+  }
+}
+
+function DriverGlbModel({
+  liv,
+  second,
+  number,
+  numFg,
+  pose,
+}: {
+  liv: Livery;
+  second: string;
+  number?: number;
+  numFg: string;
+  pose?: DriverPose;
+}) {
+  const { scene } = useGLTF('/models/driver.glb');
+
+  const model = useMemo(() => {
+    const clone = scene.clone(true);
+    clone.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        const mat = mesh.material as THREE.MeshStandardMaterial | undefined;
+        if (!mat) return;
+
+        const matName = mat.name;
+        if (matName === 'RT_DriverSuit') {
+          const m = mat.clone();
+          m.color.set(liv.primary);
+          m.roughness = 0.68;
+          m.metalness = 0.08;
+          mesh.material = m;
+        } else if (matName === 'RT_Helemt') {
+          const m = mat.clone();
+          m.color.set(second);
+          m.roughness = 0.28;
+          m.metalness = 0.32;
+          mesh.material = m;
+        } else if (matName === 'RT_HELMET_Glass') {
+          const m = mat.clone();
+          m.color.set('#0b0e14');
+          m.roughness = 0.06;
+          m.metalness = 0.94;
+          mesh.material = m;
+        } else if (matName === 'RT_Gloves') {
+          const m = mat.clone();
+          m.color.set(liv.accent || second);
+          m.roughness = 0.6;
+          mesh.material = m;
+        } else if (matName === 'RT_HANS') {
+          const m = mat.clone();
+          m.color.set('#1c1e22');
+          m.roughness = 0.5;
+          mesh.material = m;
+        }
+      }
+    });
+    return clone;
+  }, [scene, liv.primary, liv.accent, second]);
+
+  const phase = useMemo(() => Math.random() * Math.PI * 2, []);
+  const rootRef = useRef<THREE.Group>(null);
+
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime + phase;
+    if (rootRef.current) {
+      if (pose === 'celebrate') {
+        const pump = Math.sin(t * 3.4) * 0.035;
+        rootRef.current.position.y = 2.22435 + Math.max(0, pump);
+      } else if (pose === 'wave') {
+        const shift = Math.sin(t * 2.0) * 0.008;
+        rootRef.current.position.y = 2.22435 + shift;
+      } else {
+        const breathe = Math.sin(t * 1.5) * 0.005;
+        rootRef.current.position.y = 2.22435 + breathe;
+      }
+    }
+  });
+
+  const numMap = useMemo(
+    () => (number != null ? numberTexture(number, numFg, numFg === '#ffffff' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.5)') : null),
+    [number, numFg]
+  );
+
+  const numMat = useMemo(
+    () =>
+      numMap
+        ? new THREE.MeshStandardMaterial({
+            map: numMap,
+            transparent: true,
+            roughness: 0.7,
+            polygonOffset: true,
+            polygonOffsetFactor: -2,
+          })
+        : null,
+    [numMap]
+  );
+
+  useEffect(() => () => {
+    numMap?.dispose();
+    numMat?.dispose();
+  }, [numMap, numMat]);
+
+  return (
+    <group scale={0.40958}>
+      <group ref={rootRef} position={[0, 2.22435, -0.2537]}>
+        <primitive object={model} />
+        {numMat && (
+          <>
+            <mesh geometry={G.plate} material={numMat} position={[0, 0.72, 0.38]} scale={0.38} />
+            <mesh geometry={G.plate} material={numMat} position={[0, 0.75, -0.06]} rotation={[0, Math.PI, 0]} scale={0.48} />
+          </>
+        )}
+      </group>
+    </group>
+  );
+}
+
+if (typeof window !== 'undefined') {
+  useGLTF.preload('/models/driver.glb');
+}
+
 /* ------------------------------ component ------------------------------ */
 
 export const DriverFigure = forwardRef<THREE.Group, DriverFigureProps>(function DriverFigure(
-  { teamColor = '#D4FF00', accent = '#11151b', livery, number, code, pose = 'stand', ...group },
+  { teamColor = '#D4FF00', accent = '#11151b', livery, number, code, pose = 'stand', useModel = true, ...group },
   ref,
 ) {
   const liv = resolveLivery(livery, teamColor, accent);
@@ -299,34 +437,44 @@ export const DriverFigure = forwardRef<THREE.Group, DriverFigureProps>(function 
     </group>
   );
 
+  const proceduralDriver = (
+    <group ref={body}>
+      {leg(1)}
+      {leg(-1)}
+      <mesh geometry={G.torso} material={mats.suit} castShadow />
+      <mesh geometry={G.belt} material={mats.panel} position={[0, 0.95, 0]} />
+      {[-1, 1].map((s) => (
+        <mesh key={s} geometry={G.stripeSide} material={mats.panel} position={[s * 0.165, 1.16, 0]} />
+      ))}
+      {/* shoulder harness yoke in accent */}
+      <mesh geometry={G.belt} material={mats.acc} position={[0, 1.36, 0]} scale={[1.17, 0.5, 1.15]} />
+      {mats.num && (
+        <>
+          <mesh geometry={G.plate} material={mats.num} position={[0, 1.22, 0.12]} scale={0.15} />
+          <mesh geometry={G.plate} material={mats.num} position={[0, 1.24, -0.12]} rotation={[0, Math.PI, 0]} scale={0.2} />
+        </>
+      )}
+      {arm(1)}
+      {arm(-1)}
+      <mesh geometry={G.collar} material={mats.boots} position={[0, 1.5, 0]} />
+      <group ref={head} position={[0, 1.66, 0.01]}>
+        <mesh geometry={G.helmet} material={mats.helmet} castShadow />
+        <mesh geometry={G.spoiler} material={mats.helmet} />
+        <mesh geometry={G.visor} material={mats.visor} />
+        <mesh geometry={G.chin} material={mats.helmet} position={[0, -0.06, 0.03]} />
+      </group>
+    </group>
+  );
+
   return (
     <group ref={ref} {...group}>
-      <group ref={body}>
-        {leg(1)}
-        {leg(-1)}
-        <mesh geometry={G.torso} material={mats.suit} castShadow />
-        <mesh geometry={G.belt} material={mats.panel} position={[0, 0.95, 0]} />
-        {[-1, 1].map((s) => (
-          <mesh key={s} geometry={G.stripeSide} material={mats.panel} position={[s * 0.165, 1.16, 0]} />
-        ))}
-        {/* shoulder harness yoke in accent */}
-        <mesh geometry={G.belt} material={mats.acc} position={[0, 1.36, 0]} scale={[1.17, 0.5, 1.15]} />
-        {mats.num && (
-          <>
-            <mesh geometry={G.plate} material={mats.num} position={[0, 1.22, 0.12]} scale={0.15} />
-            <mesh geometry={G.plate} material={mats.num} position={[0, 1.24, -0.12]} rotation={[0, Math.PI, 0]} scale={0.2} />
-          </>
-        )}
-        {arm(1)}
-        {arm(-1)}
-        <mesh geometry={G.collar} material={mats.boots} position={[0, 1.5, 0]} />
-        <group ref={head} position={[0, 1.66, 0.01]}>
-          <mesh geometry={G.helmet} material={mats.helmet} castShadow />
-          <mesh geometry={G.spoiler} material={mats.helmet} />
-          <mesh geometry={G.visor} material={mats.visor} />
-          <mesh geometry={G.chin} material={mats.helmet} position={[0, -0.06, 0.03]} />
-        </group>
-      </group>
+      {useModel ? (
+        <ModelErrorBoundary fallback={proceduralDriver}>
+          <DriverGlbModel liv={liv} second={second} number={number} numFg={numFg} pose={pose} />
+        </ModelErrorBoundary>
+      ) : (
+        proceduralDriver
+      )}
     </group>
   );
 });
