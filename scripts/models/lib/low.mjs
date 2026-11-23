@@ -54,7 +54,7 @@ function dropSmallIslands(doc, prim, mat) {
 }
 
 /** meshoptimizer's topology-ignoring simplifier, for pieces made of many tiny islands */
-function sloppy(prim, target) {
+export function sloppy(prim, target) {
   const pos = prim.getAttribute('POSITION').getArray();
   const idx = prim.getIndices().getArray();
   const [out] = MeshoptSimplifier.simplifySloppy(new Uint32Array(idx), pos, 3, null, target * 3, 0.05);

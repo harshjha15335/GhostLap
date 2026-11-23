@@ -18,6 +18,7 @@ import { loadW17, matName } from './lib/load.mjs';
 import { splitParts } from './lib/split.mjs';
 import { buildLow } from './lib/low.mjs';
 import { addAtlasUV } from './lib/atlasuv.mjs';
+import { sloppy } from './lib/low.mjs';
 
 const HERE = path.dirname(new URL(import.meta.url).pathname);
 const SRC = path.join(HERE, 'original', 'w17.glb');
@@ -66,11 +67,11 @@ const LODS = {
   mid: {
     drop: [...INTERIOR, 'gp21_cinture', 'mercedes_sw', 'sw_carbon', 'chrome', 'rear_light_2', 'mercedes_colordriver', 'discs'],
     keepDefault: 0.08,
-    error: 0.012,
+    error: 0.02,
     keep: {
-      mercedes_paint: 0.16,
+      mercedes_paint: 0.14,
       mercedes_paint2: 0.08,
-      mercedes_decals: 0.5,
+      mercedes_decals: 0.35,
       mercedes_number_63: 1,
       mercedes_carbon3: 0.03,
       mercedes_carbon1: 0.05,
@@ -83,6 +84,7 @@ const LODS = {
     texDefault: 512,
     tex: { mercedes_carbon1: 64, mercedes_carbon3: 64, mercedes_carbon2: 128, generics: 256, mercedes_wheel_hub: 256, mercedes_detail: 256 },
     normals: [],
+    sloppy: ['mercedes_wheel_hub', 'generics'],
     quality: 78,
   },
 };
@@ -145,8 +147,11 @@ async function buildSplitLOD(name) {
     for (const p of mesh.listPrimitives()) {
       const keep = recipe.keep[matName(p.getMaterial())] ?? recipe.keepDefault;
       if (keep >= 1) continue;
+      const n0 = p.getIndices().getCount() / 3;
       simplifyPrimitive(p, { simplifier: MeshoptSimplifier, ratio: keep, error: recipe.error, lockBorder: false });
       compactPrimitive(p);
+      // pieces made of many small islands stall the topology-preserving simplifier
+      if (recipe.sloppy?.includes(matName(p.getMaterial())) && p.getIndices().getCount() / 3 > n0 * keep * 1.5) sloppy(p, Math.round(n0 * keep));
     }
   // team livery UVs (TEXCOORD_1) on the painted bodywork
   for (const mesh of root.listMeshes())
