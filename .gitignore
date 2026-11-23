@@ -24,3 +24,6 @@ dist/
 .claude/worktrees/
 .shots/
 scripts/__pycache__/
+
+scripts/circuits/source/
+scripts/circuits/.cache/

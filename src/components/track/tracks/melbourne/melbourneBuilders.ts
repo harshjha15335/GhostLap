@@ -3,6 +3,9 @@ import { Mesher, type V3 } from '../../mesher';
 import { rng, smoothstep, valueNoise, wrapIndex, type TrackModel } from '../../trackModel';
 import { at, PALETTE, type Layout, type Terrain } from '../../geometry';
 import type { AlbertParkEnvData, Point2D } from './types';
+import { buildWaterGeometry, createDaytimeWaterMaterial, smoothClosedPoly } from '../shared/water';
+import { accumulateOsmBuildings, finalizeBuildings, pushAoWall } from '../shared/buildings';
+import { buildTrackAdsGeometry } from '../shared/ads';
 
 const C = (hex: string) => new THREE.Color(hex);
 
@@ -241,227 +244,12 @@ function polygonsToGeometry(polys: Point2D[][], y: number, color: THREE.Color, h
   return g;
 }
 
-/** Chaikin corner-cutting smoothing for closed 2D polygons (eliminates jagged OSM lake edges). */
-function smoothClosedPoly(poly: Point2D[], iterations = 2): Point2D[] {
-  let pts = poly;
-  for (let it = 0; it < iterations; it++) {
-    const next: Point2D[] = [];
-    const n = pts.length;
-    for (let i = 0; i < n; i++) {
-      const [x0, z0] = pts[i];
-      const [x1, z1] = pts[(i + 1) % n];
-      next.push([x0 * 0.75 + x1 * 0.25, z0 * 0.75 + z1 * 0.25]);
-      next.push([x0 * 0.25 + x1 * 0.75, z0 * 0.25 + z1 * 0.75]);
-    }
-    pts = next;
-  }
-  return pts;
-}
-
-/** Distance from point (px, pz) to closest edge of a list of closed polygons. */
-function distToPolys(px: number, pz: number, polys: Point2D[][]): number {
-  let bestSq = Infinity;
-  for (const poly of polys) {
-    const n = poly.length;
-    for (let i = 0; i < n; i++) {
-      const [ax, az] = poly[i];
-      const [bx, bz] = poly[(i + 1) % n];
-      const dx = bx - ax;
-      const dz = bz - az;
-      const lenSq = dx * dx + dz * dz;
-      let t = lenSq > 1e-8 ? ((px - ax) * dx + (pz - az) * dz) / lenSq : 0;
-      t = Math.max(0, Math.min(1, t));
-      const ex = ax + dx * t - px;
-      const ez = az + dz * t - pz;
-      const dSq = ex * ex + ez * ez;
-      if (dSq < bestSq) bestSq = dSq;
-    }
-  }
-  return Math.sqrt(bestSq);
-}
-
-/**
- * Build Albert Park Lake + Port Phillip Bay water geometry with:
- * - Chaikin-smoothed shoreline & islands (zero jagged OSM kinks)
- * - Interior tessellation grid inside the lake so shore-distance depth tint interpolates smoothly
- * - Baked shore-distance stored in vertex color.r (0 = shore, 1 = deep middle), color.g = bay flag
- */
 export function buildMelbourneWater(m: TrackModel, env: AlbertParkEnvData, quality: 'high' | 'low' = 'high'): THREE.BufferGeometry {
-  const waterY = m.bounds.meanY - 0.16;
-  const smoothLakes = env.lake.map((p) => smoothClosedPoly(p, quality === 'high' ? 2 : 1));
-  const smoothIslands = env.islands.map((p) => smoothClosedPoly(p, 1));
-  const allShores = [...smoothLakes, ...smoothIslands];
-
-  const pos: number[] = [];
-  const nor: number[] = [];
-  const col: number[] = [];
-  const uvs: number[] = [];
-
-  const pushTri = (a: [number, number], b: [number, number], c: [number, number], y: number, isBay: boolean) => {
-    for (const [vx, vz] of [a, b, c]) {
-      pos.push(vx, y, vz);
-      nor.push(0, 1, 0);
-      const dShore = isBay ? 1.0 : Math.min(1.0, distToPolys(vx, vz, allShores) / 9.5);
-      col.push(dShore, isBay ? 1.0 : 0.0, 0.0);
-      uvs.push(vx * 0.06, vz * 0.06);
-    }
-  };
-
-  // Tessellate smoothed lake via ShapeGeometry and subdivide large triangles so interior depth gradient is smooth
-  const maxEdge = quality === 'high' ? 6.5 : 11.0;
-  const emitSubdivided = (a: [number, number], b: [number, number], c: [number, number], y: number, isBay: boolean, depth = 0) => {
-    const dab = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    const dbc = Math.hypot(c[0] - b[0], c[1] - b[1]);
-    const dca = Math.hypot(a[0] - c[0], a[1] - c[1]);
-    const longest = Math.max(dab, dbc, dca);
-    if (depth >= 4 || longest <= maxEdge) {
-      pushTri(a, b, c, y, isBay);
-      return;
-    }
-    const mab: [number, number] = [(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5];
-    const mbc: [number, number] = [(b[0] + c[0]) * 0.5, (b[1] + c[1]) * 0.5];
-    const mca: [number, number] = [(c[0] + a[0]) * 0.5, (c[1] + a[1]) * 0.5];
-    emitSubdivided(a, mab, mca, y, isBay, depth + 1);
-    emitSubdivided(mab, b, mbc, y, isBay, depth + 1);
-    emitSubdivided(mca, mbc, c, y, isBay, depth + 1);
-    emitSubdivided(mab, mbc, mca, y, isBay, depth + 1);
-  };
-
-  for (let pIdx = 0; pIdx < smoothLakes.length; pIdx++) {
-    const poly = smoothLakes[pIdx];
-    if (poly.length < 3) continue;
-    const shape = new THREE.Shape(poly.map(([x, z]) => new THREE.Vector2(x, -z)));
-    if (pIdx === 0) {
-      for (const h of smoothIslands) {
-        if (h.length < 3) continue;
-        shape.holes.push(new THREE.Path(h.map(([x, z]) => new THREE.Vector2(x, -z))));
-      }
-    }
-    const sg = new THREE.ShapeGeometry(shape, 1);
-    const nonIdx = sg.index ? sg.toNonIndexed() : sg;
-    const pAttr = nonIdx.getAttribute('position');
-    for (let i = 0; i < pAttr.count; i += 3) {
-      const a: [number, number] = [pAttr.getX(i), -pAttr.getY(i)];
-      const b: [number, number] = [pAttr.getX(i + 1), -pAttr.getY(i + 1)];
-      const c: [number, number] = [pAttr.getX(i + 2), -pAttr.getY(i + 2)];
-      emitSubdivided(a, b, c, waterY, false);
-    }
-    sg.dispose();
-    if (nonIdx !== sg) nonIdx.dispose();
-  }
-
-  // Port Phillip Bay coastal water hint to the south-west
-  if (env.bay.length >= 3) {
-    const shape = new THREE.Shape(env.bay.map(([x, z]) => new THREE.Vector2(x, -z)));
-    const sg = new THREE.ShapeGeometry(shape, 1);
-    const nonIdx = sg.index ? sg.toNonIndexed() : sg;
-    const pAttr = nonIdx.getAttribute('position');
-    for (let i = 0; i < pAttr.count; i += 3) {
-      pushTri(
-        [pAttr.getX(i), -pAttr.getY(i)],
-        [pAttr.getX(i + 1), -pAttr.getY(i + 1)],
-        [pAttr.getX(i + 2), -pAttr.getY(i + 2)],
-        waterY - 0.05,
-        true,
-      );
-    }
-    sg.dispose();
-    if (nonIdx !== sg) nonIdx.dispose();
-  }
-
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  g.computeBoundingSphere();
-  return g;
+  return buildWaterGeometry(env.lake, env.islands, env.bay, m.bounds.meanY - 0.16, quality, 9.5);
 }
 
-/**
- * Custom lightweight GLSL water shader for Albert Park Lake & Port Phillip Bay:
- * - Two scrolling crossed procedural wave normal layers (no heavy planar reflection pass)
- * - Depth tint from baked vertex shore-distance (turquoise shallows -> deep Melbourne blue)
- * - View-dependent Fresnel sky reflection matching daytime SkyDome
- * - Crisp midday sun specular glints + subtle shoreline foam/edge highlight
- */
 export function createMelbourneWaterMaterial(): THREE.ShaderMaterial {
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      uTime: { value: 0 },
-      uSunDir: { value: new THREE.Vector3(140, 170, 90).normalize() },
-      uSkyColor: { value: new THREE.Color('#d2ebff') },
-      uShallowColor: { value: new THREE.Color('#42b2c9') },
-      uDeepColor: { value: new THREE.Color('#145a8a') },
-      uBayColor: { value: new THREE.Color('#134c78') },
-      uFoamColor: { value: new THREE.Color('#e6f6fa') },
-    },
-    vertexShader: /* glsl */ `
-      attribute vec3 color;
-      varying vec3 vWorldPos;
-      varying float vShore;
-      varying float vBay;
-      void main() {
-        vShore = color.r;
-        vBay = color.g;
-        vec4 wp = modelMatrix * vec4(position, 1.0);
-        vWorldPos = wp.xyz;
-        gl_Position = projectionMatrix * viewMatrix * wp;
-      }
-    `,
-    fragmentShader: /* glsl */ `
-      uniform float uTime;
-      uniform vec3 uSunDir;
-      uniform vec3 uSkyColor;
-      uniform vec3 uShallowColor;
-      uniform vec3 uDeepColor;
-      uniform vec3 uBayColor;
-      uniform vec3 uFoamColor;
-      varying vec3 vWorldPos;
-      varying float vShore;
-      varying float vBay;
-
-      // Cheap dual-layer crossed wind-ripple normal perturbation
-      vec3 waveNormal(vec2 p, float t) {
-        float w1 = sin(p.x * 0.55 + p.y * 0.28 + t * 1.15) * 0.5 + cos(p.y * 0.72 - p.x * 0.35 + t * 0.92) * 0.5;
-        float w2 = sin(p.x * 1.35 - p.y * 0.95 - t * 1.45) * 0.5 + cos(p.y * 1.55 + p.x * 0.85 + t * 1.10) * 0.5;
-        float dx = (cos(p.x * 0.55 + p.y * 0.28 + t * 1.15) * 0.28 + cos(p.x * 1.35 - p.y * 0.95 - t * 1.45) * 0.16) * 0.085;
-        float dz = (sin(p.y * 0.72 - p.x * 0.35 + t * 0.92) * -0.28 + sin(p.y * 1.55 + p.x * 0.85 + t * 1.10) * -0.16) * 0.085;
-        return normalize(vec3(dx + (w1 - w2) * 0.015, 1.0, dz + (w1 + w2) * 0.015));
-      }
-
-      void main() {
-        vec3 N = waveNormal(vWorldPos.xz, uTime);
-        vec3 V = normalize(cameraPosition - vWorldPos);
-        vec3 L = normalize(uSunDir);
-
-        // Depth tint: lighter turquoise near shore -> richer blue in middle
-        float depthT = smoothstep(0.0, 0.85, vShore);
-        vec3 baseCol = mix(uShallowColor, uDeepColor, depthT);
-        baseCol = mix(baseCol, uBayColor, vBay);
-
-        // Fresnel sky reflection (stronger at grazing angles)
-        float ndotv = max(dot(N, V), 0.0);
-        float fresnel = 0.06 + 0.62 * pow(1.0 - ndotv, 3.2);
-        vec3 col = mix(baseCol, uSkyColor, fresnel);
-
-        // Midday sun specular glints
-        vec3 H = normalize(L + V);
-        float spec = pow(max(dot(N, H), 0.0), 140.0) * 0.75 + pow(max(dot(N, H), 0.0), 24.0) * 0.14;
-        col += vec3(1.0, 0.97, 0.88) * spec;
-
-        // Subtle shoreline foam / shallow edge shimmer (lake only)
-        float ripple = 0.5 + 0.5 * sin(vWorldPos.x * 0.9 + vWorldPos.z * 0.7 + uTime * 1.6);
-        float foam = (1.0 - smoothstep(0.0, 0.075 + ripple * 0.02, vShore)) * (1.0 - vBay);
-        col = mix(col, uFoamColor, foam * 0.55);
-
-        gl_FragColor = vec4(col, 1.0);
-      }
-    `,
-    polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1,
-  });
+  return createDaytimeWaterMaterial();
 }
 
 /**
@@ -647,175 +435,14 @@ export function buildMelbourneInstances(m: TrackModel, terrain: Terrain, env: Al
   return { gums, palms };
 }
 
-/**
- * Helper: emit a single wall quad with baked vertical Ambient Occlusion (darker base -> bright top)
- * and real-metre UVs mapped into one of the 4 columns of facades.webp.
- */
-function pushAoWall(
-  pos: number[],
-  nor: number[],
-  col: number[],
-  uv: number[],
-  a: V3,
-  b: V3,
-  c: V3,
-  d: V3,
-  u0: number,
-  u1: number,
-  v0: number,
-  v1: number,
-  tint: THREE.Color,
-  aoBase = 0.72,
-  aoTop = 1.0,
-) {
-  const ux = b[0] - a[0];
-  const uy = b[1] - a[1];
-  const uz = b[2] - a[2];
-  const vx = c[0] - a[0];
-  const vy = c[1] - a[1];
-  const vz = c[2] - a[2];
-  let nx = uy * vz - uz * vy;
-  let ny = uz * vx - ux * vz;
-  let nz = ux * vy - uy * vx;
-  const L = Math.hypot(nx, ny, nz) || 1;
-  nx /= L;
-  ny /= L;
-  nz /= L;
-
-  const verts: [V3, number, number, number][] = [
-    [a, u0, v0, aoBase],
-    [b, u1, v0, aoBase],
-    [c, u0, v1, aoTop],
-    [c, u0, v1, aoTop],
-    [b, u1, v0, aoBase],
-    [d, u1, v1, aoTop],
-  ];
-  for (const [p, uu, vv, ao] of verts) {
-    pos.push(p[0], p[1], p[2]);
-    nor.push(nx, ny, nz);
-    col.push(tint.r * ao, tint.g * ao, tint.b * ao);
-    uv.push(uu, vv);
-  }
-}
-
-/**
- * Build realistic Melbourne architectural buildings & custom landmarks in ONLY 2 draw calls:
- *  1) `facades`: textured walls with world-scale floor UVs (~3.4m/floor) + baked vertex AO
- *  2) `roofs`: flat roofs with parapets + HVAC boxes, pitched gable roofs on houses,
- *     plus custom low-poly Melbourne landmarks (Lakeside Stadium, MSAC, CBD skyline crowns/spires).
- */
 export function buildMelbourneBuildings(
   m: TrackModel,
   terrain: Terrain,
   env: AlbertParkEnvData,
   quality: 'high' | 'low',
 ): { facades: THREE.BufferGeometry; roofs: THREE.BufferGeometry } {
-  const R = rng(20260308);
-  const scaleM = env.meta.transform.scale || m.upm; // render units per real metre
-  const fPos: number[] = [];
-  const fNor: number[] = [];
-  const fCol: number[] = [];
-  const fUv: number[] = [];
-  const roofs = new Mesher();
-
-  const tint = new THREE.Color();
-
-  for (const [cx, cz, rawW, rawD, rawH, yaw, kind] of env.buildings) {
-    const w = Math.max(0.7, rawW);
-    const d = Math.max(0.7, rawD);
-    const h = Math.max(0.6, rawH);
-    const inRect = cx >= terrain.rect.x0 && cx <= terrain.rect.x1 && cz >= terrain.rect.z0 && cz <= terrain.rect.z1;
-    const baseY = inRect ? terrain.heightAt(cx, cz) - 0.14 : m.bounds.meanY - 0.25;
-
-    // Pick facade atlas column (0=CBD glass, 1=St Kilda office, 2=apartments/render, 3=heritage brick)
-    let colIdx: number;
-    if (kind === 2) {
-      colIdx = R() < 0.62 ? 0 : 1;
-    } else if (kind === 0) {
-      colIdx = 1;
-    } else {
-      colIdx = R() < 0.55 ? 2 : 3;
-    }
-    const u0 = colIdx * 0.25 + 0.004;
-    const u1 = (colIdx + 1) * 0.25 - 0.004;
-
-    // Real-metre V scaling: 1 full texture height = 8 floors * 3.4m = 27.2m
-    const heightM = h / Math.max(0.05, scaleM);
-    const v1 = Math.max(0.18, heightM / 27.2);
-
-    const shade = 0.88 + R() * 0.18;
-    tint.setRGB(shade, shade, shade);
-    if (kind === 2 && R() < 0.35) tint.lerp(C('#c7dff5'), 0.25);
-
-    const cos = Math.cos(yaw);
-    const sin = Math.sin(yaw);
-    const hw = w * 0.5;
-    const hd = d * 0.5;
-    const pt = (lx: number, y: number, lz: number): V3 => [
-      cx + lx * cos - lz * sin,
-      baseY + y,
-      cz + lx * sin + lz * cos,
-    ];
-
-    const b0 = pt(-hw, 0, -hd);
-    const b1 = pt(hw, 0, -hd);
-    const b2 = pt(hw, 0, hd);
-    const b3 = pt(-hw, 0, hd);
-    const t0 = pt(-hw, h, -hd);
-    const t1 = pt(hw, h, -hd);
-    const t2 = pt(hw, h, hd);
-    const t3 = pt(-hw, h, hd);
-
-    // 4 textured walls with baked vertex AO
-    pushAoWall(fPos, fNor, fCol, fUv, b0, b1, t0, t1, u0, u1, 0, v1, tint);
-    pushAoWall(fPos, fNor, fCol, fUv, b1, b2, t1, t2, u0, u1, 0, v1, tint);
-    pushAoWall(fPos, fNor, fCol, fUv, b2, b3, t2, t3, u0, u1, 0, v1, tint);
-    pushAoWall(fPos, fNor, fCol, fUv, b3, b0, t3, t0, u0, u1, 0, v1, tint);
-
-    // Roof geometry: pitched gable for low residential houses, parapet + HVAC for offices/towers
-    const isPitched = quality === 'high' && kind === 1 && h <= 1.25 && Math.min(w, d) < 4.5;
-    if (isPitched) {
-      const ridgeH = Math.min(w, d) * 0.28;
-      const rc = R() < 0.55 ? MELB_PALETTE.roofTerracotta : MELB_PALETTE.roofIron;
-      if (w >= d) {
-        const rL = pt(-hw, h + ridgeH, 0);
-        const rR = pt(hw, h + ridgeH, 0);
-        roofs.quad(t0, t1, rL, rR, rc);
-        roofs.quad(t2, t3, rR, rL, rc);
-        roofs.quad(t3, t0, rL, rL, rc);
-        roofs.quad(t1, t2, rR, rR, rc);
-      } else {
-        const rF = pt(0, h + ridgeH, -hd);
-        const rB = pt(0, h + ridgeH, hd);
-        roofs.quad(t3, t0, rB, rF, rc);
-        roofs.quad(t1, t2, rF, rB, rc);
-        roofs.quad(t0, t1, rF, rF, rc);
-        roofs.quad(t2, t3, rB, rB, rc);
-      }
-    } else {
-      const roofCol = kind === 2 ? MELB_PALETTE.roofFlat : MELB_PALETTE.roofParapet;
-      roofs.quad(t0, t1, t3, t2, roofCol, true);
-
-      // Parapet rim & rooftop HVAC plant box on medium/tall buildings in high quality
-      if (quality === 'high' && (kind === 2 || h > 1.3)) {
-        const fx = cos;
-        const fz = sin;
-        const ph = Math.min(0.28, h * 0.08);
-        roofs.box([cx, baseY + h + ph * 0.5, cz], fx, fz, [hw * 0.98, ph * 0.5, hd * 0.98], MELB_PALETTE.roofParapet, roofCol);
-        if (w > 1.8 && d > 1.8) {
-          const hvacH = Math.min(0.65, h * 0.14);
-          roofs.box(
-            [cx, baseY + h + ph + hvacH * 0.5, cz],
-            fx,
-            fz,
-            [hw * 0.36, hvacH * 0.5, hd * 0.32],
-            MELB_PALETTE.roofHvac,
-            MELB_PALETTE.roofFlat,
-          );
-        }
-      }
-    }
-  }
+  const acc = accumulateOsmBuildings(m, terrain, env, quality, 20260308);
+  const { fPos, fNor, fCol, fUv, roofs } = acc;
 
   // --- Custom Low-Poly Melbourne Landmarks ---
   const baseGround = m.bounds.meanY - 0.12;
@@ -915,14 +542,7 @@ export function buildMelbourneBuildings(
     }
   }
 
-  const facades = new THREE.BufferGeometry();
-  facades.setAttribute('position', new THREE.Float32BufferAttribute(fPos, 3));
-  facades.setAttribute('normal', new THREE.Float32BufferAttribute(fNor, 3));
-  facades.setAttribute('color', new THREE.Float32BufferAttribute(fCol, 3));
-  facades.setAttribute('uv', new THREE.Float32BufferAttribute(fUv, 2));
-  facades.computeBoundingSphere();
-
-  return { facades, roofs: roofs.geometry() };
+  return finalizeBuildings(acc);
 }
 
 function sampleIdx(m: TrackModel, u: number): number {
@@ -1193,140 +813,13 @@ export function buildMelbourneStructures(
   return { geometry: g.geometry(), lights };
 }
 
-/**
- * Build ALL 2026 trackside advertising boards, overhead bridge banners, start gantry banner,
- * pit-building roof fascia, grandstand front fascia, braking markers, and run-off decals
- * into ONE textured BufferGeometry mapped to ads.webp / ads_low.webp (1 draw call!).
- */
 export function buildMelbourneAdsGeometry(m: TrackModel, lay: Layout, env: AlbertParkEnvData): THREE.BufferGeometry {
-  const uvById = new Map<string, [number, number, number, number]>();
-  for (const a of env.atlas) uvById.set(a.id, a.uv);
-  const white = C('#ffffff');
-  const g = new Mesher(true);
-  const M = m.M;
-
-  for (const ad of env.ads) {
-    const uv = uvById.get(ad.brand);
-    if (!uv) continue;
-    const i = sampleIdx(m, ad.u);
-    const S = ad.side > 0 ? lay.R : lay.L;
-    const tx = m.tx[i];
-    const tz = m.tz[i];
-    const rx = m.rx[i];
-    const rz = m.rz[i];
-
-    if (ad.kind === 'decal') {
-      const off = ad.side * (S.edge[i] + Math.min(S.barrier[i] - S.edge[i], 3.2 * M) * 0.55);
-      const halfL = ad.len * 0.5;
-      const halfW = ad.h * 0.5;
-      const c = at(m, i, off, 0.024);
-      const P = (dl: number, dw: number): V3 => [c[0] + tx * dl + rx * dw, c[1], c[2] + tz * dl + rz * dw];
-      g.quad(P(-halfL, -halfW), P(halfL, -halfW), P(-halfL, halfW), P(halfL, halfW), white, true, [uv[0], uv[2], uv[1], uv[3]]);
-    } else {
-      const off = ad.side * (S.barrier[i] - 0.06 * M);
-      const halfL = ad.len * 0.5;
-      const h = ad.h * (ad.kind === 'brake' ? 1.0 : 1.05);
-      const y0 = ad.kind === 'brake' ? 0.55 * M : 0.1 * M;
-      const c = at(m, i, off, 0);
-      const P = (dl: number, y: number): V3 => [c[0] + tx * dl, c[1] + y, c[2] + tz * dl];
-      if (ad.side < 0) {
-        g.quad(P(-halfL, y0), P(halfL, y0), P(-halfL, y0 + h), P(halfL, y0 + h), white, false, [uv[0], uv[2], uv[1], uv[3]]);
-      } else {
-        g.quad(P(halfL, y0), P(-halfL, y0), P(halfL, y0 + h), P(-halfL, y0 + h), white, false, [uv[0], uv[2], uv[1], uv[3]]);
-      }
-    }
-  }
-
-  // Start gantry title sponsor banner (Qatar Airways 2026) — both faces
-  const qatarUv = uvById.get('qatar_airways');
-  if (qatarUv) {
-    const left = Math.min(lay.L.barrier[0], m.hwL[0] + 1.2 * M);
-    const right = m.hwR[0] + 0.6 * M;
-    const ph = 7.8 * M;
-    const fx = m.tx[0];
-    const fz = m.tz[0];
-    const rx = m.rx[0];
-    const rz = m.rz[0];
-    const mid = at(m, 0, (right - left) / 2, ph);
-    const hs = (left + right) * 0.48;
-    const hh = 0.88 * M;
-    const fOff = 0.36 * M;
-    const F = (sr: number, sy: number, sf: number): V3 => [
-      mid[0] + rx * hs * sr + fx * fOff * sf,
-      mid[1] + hh * sy,
-      mid[2] + rz * hs * sr + fz * fOff * sf,
-    ];
-    g.quad(F(-1, -1, -1), F(1, -1, -1), F(-1, 1, -1), F(1, 1, -1), white, false, [qatarUv[0], qatarUv[2], qatarUv[1], qatarUv[3]]);
-    g.quad(F(1, -1, 1), F(-1, -1, 1), F(1, 1, 1), F(-1, 1, 1), white, false, [qatarUv[0], qatarUv[2], qatarUv[1], qatarUv[3]]);
-  }
-
-  // Branded footbridge fascia panels (both faces)
-  for (const br of env.bridges) {
-    const uv = uvById.get(br.brand);
-    if (!uv) continue;
-    const i = sampleIdx(m, br.u);
-    const left = lay.L.barrier[i] + 0.8 * M;
-    const right = lay.R.barrier[i] + 0.8 * M;
-    const h = 6.8 * M;
-    const fx = m.tx[i];
-    const fz = m.tz[i];
-    const rx = m.rx[i];
-    const rz = m.rz[i];
-    const mid = at(m, i, (right - left) / 2, h);
-    const hs = (left + right) * 0.46;
-    const hh = 1.05 * M;
-    const fOff = 1.24 * M;
-    const F = (sr: number, sy: number, sf: number): V3 => [
-      mid[0] + rx * hs * sr + fx * fOff * sf,
-      mid[1] + hh * sy,
-      mid[2] + rz * hs * sr + fz * fOff * sf,
-    ];
-    g.quad(F(-1, -1, -1), F(1, -1, -1), F(-1, 1, -1), F(1, 1, -1), white, false, [uv[0], uv[2], uv[1], uv[3]]);
-    g.quad(F(1, -1, 1), F(-1, -1, 1), F(1, 1, 1), F(-1, 1, 1), white, false, [uv[0], uv[2], uv[1], uv[3]]);
-  }
-
-  // Pit building roof fascia (Qatar Airways 2026 title banner along pit straight)
-  if (qatarUv) {
-    const core = Math.round(lay.pitN * 0.64);
-    const pitBase = (i: number) => lay.pitCentre[i] + m.pit.width / 2 + 0.5 * M;
-    const panels = 5;
-    for (let k = 0; k < panels; k++) {
-      const frac = -0.82 + (k + 0.5) * (1.64 / panels);
-      const i = wrapIndex(Math.round(frac * core), m.n);
-      const off = pitBase(i) - 2.16 * M;
-      const halfL = 4.2 * M;
-      const y0 = 8.65 * M;
-      const y1 = 9.85 * M;
-      const c = at(m, i, off, 0);
-      const tx = m.tx[i];
-      const tz = m.tz[i];
-      const P = (dl: number, y: number): V3 => [c[0] + tx * dl, c[1] + y, c[2] + tz * dl];
-      g.quad(P(halfL, y0), P(-halfL, y0), P(halfL, y1), P(-halfL, y1), white, false, [qatarUv[0], qatarUv[2], qatarUv[1], qatarUv[3]]);
-    }
-  }
-
-  // Grandstand front fascia sponsor banners
-  const standBrands = ['qatar_airways', 'pirelli', 'aramco', 'heineken', 'tag_heuer', 'dhl', 'msc_cruises', 'amex', 'lenovo', 'f1_2026'];
-  env.grandstands.forEach((st, idx) => {
-    const uv = uvById.get(standBrands[idx % standBrands.length]);
-    if (!uv) return;
-    const midU = st.u0 <= st.u1 ? (st.u0 + st.u1) * 0.5 : ((st.u0 + st.u1 + 1) * 0.5) % 1;
-    const i = sampleIdx(m, midU);
-    const S = st.side > 0 ? lay.R : lay.L;
-    const off = st.side * (S.barrier[i] + 1.32 * M);
-    const halfL = 4.0 * M;
-    const y0 = 0.25 * M;
-    const y1 = 1.28 * M;
-    const c = at(m, i, off, 0);
-    const tx = m.tx[i];
-    const tz = m.tz[i];
-    const P = (dl: number, y: number): V3 => [c[0] + tx * dl, c[1] + y, c[2] + tz * dl];
-    if (st.side < 0) {
-      g.quad(P(-halfL, y0), P(halfL, y0), P(-halfL, y1), P(halfL, y1), white, false, [uv[0], uv[2], uv[1], uv[3]]);
-    } else {
-      g.quad(P(halfL, y0), P(-halfL, y0), P(halfL, y1), P(-halfL, y1), white, false, [uv[0], uv[2], uv[1], uv[3]]);
-    }
+  return buildTrackAdsGeometry(m, lay, env, {
+    titleBrand: 'qatar_airways',
+    gantryHeightM: 7.8,
+    bridgeHeightM: 6.8,
+    pitFasciaOffsetM: -2.16,
+    pitFasciaY0M: 8.65,
+    pitFasciaY1M: 9.85,
   });
-
-  return g.geometry();
 }
