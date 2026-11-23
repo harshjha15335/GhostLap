@@ -241,37 +241,227 @@ function polygonsToGeometry(polys: Point2D[][], y: number, color: THREE.Color, h
   return g;
 }
 
-/** Build Albert Park Lake + Port Phillip Bay hint water geometry (1 draw call). */
-export function buildMelbourneWater(m: TrackModel, env: AlbertParkEnvData): THREE.BufferGeometry {
-  const waterY = m.bounds.meanY - 0.16;
-  const lakeGeo = polygonsToGeometry(env.lake, waterY, MELB_PALETTE.lakeWater, env.islands);
-  if (env.bay.length >= 3) {
-    const bayGeo = polygonsToGeometry([env.bay], waterY - 0.05, MELB_PALETTE.bayWater);
-    const merged = mergeWithUv(lakeGeo, bayGeo);
-    lakeGeo.dispose();
-    bayGeo.dispose();
-    return merged;
+/** Chaikin corner-cutting smoothing for closed 2D polygons (eliminates jagged OSM lake edges). */
+function smoothClosedPoly(poly: Point2D[], iterations = 2): Point2D[] {
+  let pts = poly;
+  for (let it = 0; it < iterations; it++) {
+    const next: Point2D[] = [];
+    const n = pts.length;
+    for (let i = 0; i < n; i++) {
+      const [x0, z0] = pts[i];
+      const [x1, z1] = pts[(i + 1) % n];
+      next.push([x0 * 0.75 + x1 * 0.25, z0 * 0.75 + z1 * 0.25]);
+      next.push([x0 * 0.25 + x1 * 0.75, z0 * 0.25 + z1 * 0.75]);
+    }
+    pts = next;
   }
-  return lakeGeo;
+  return pts;
 }
 
-function mergeWithUv(a: THREE.BufferGeometry, b: THREE.BufferGeometry): THREE.BufferGeometry {
-  const out = new THREE.BufferGeometry();
-  for (const [name, size] of [
-    ['position', 3],
-    ['normal', 3],
-    ['color', 3],
-    ['uv', 2],
-  ] as const) {
-    const A = a.getAttribute(name) as THREE.BufferAttribute;
-    const B = b.getAttribute(name) as THREE.BufferAttribute;
-    const arr = new Float32Array(A.array.length + B.array.length);
-    arr.set(A.array as Float32Array, 0);
-    arr.set(B.array as Float32Array, A.array.length);
-    out.setAttribute(name, new THREE.BufferAttribute(arr, size));
+/** Distance from point (px, pz) to closest edge of a list of closed polygons. */
+function distToPolys(px: number, pz: number, polys: Point2D[][]): number {
+  let bestSq = Infinity;
+  for (const poly of polys) {
+    const n = poly.length;
+    for (let i = 0; i < n; i++) {
+      const [ax, az] = poly[i];
+      const [bx, bz] = poly[(i + 1) % n];
+      const dx = bx - ax;
+      const dz = bz - az;
+      const lenSq = dx * dx + dz * dz;
+      let t = lenSq > 1e-8 ? ((px - ax) * dx + (pz - az) * dz) / lenSq : 0;
+      t = Math.max(0, Math.min(1, t));
+      const ex = ax + dx * t - px;
+      const ez = az + dz * t - pz;
+      const dSq = ex * ex + ez * ez;
+      if (dSq < bestSq) bestSq = dSq;
+    }
   }
-  out.computeBoundingSphere();
-  return out;
+  return Math.sqrt(bestSq);
+}
+
+/**
+ * Build Albert Park Lake + Port Phillip Bay water geometry with:
+ * - Chaikin-smoothed shoreline & islands (zero jagged OSM kinks)
+ * - Interior tessellation grid inside the lake so shore-distance depth tint interpolates smoothly
+ * - Baked shore-distance stored in vertex color.r (0 = shore, 1 = deep middle), color.g = bay flag
+ */
+export function buildMelbourneWater(m: TrackModel, env: AlbertParkEnvData, quality: 'high' | 'low' = 'high'): THREE.BufferGeometry {
+  const waterY = m.bounds.meanY - 0.16;
+  const smoothLakes = env.lake.map((p) => smoothClosedPoly(p, quality === 'high' ? 2 : 1));
+  const smoothIslands = env.islands.map((p) => smoothClosedPoly(p, 1));
+  const allShores = [...smoothLakes, ...smoothIslands];
+
+  const pos: number[] = [];
+  const nor: number[] = [];
+  const col: number[] = [];
+  const uvs: number[] = [];
+
+  const pushTri = (a: [number, number], b: [number, number], c: [number, number], y: number, isBay: boolean) => {
+    for (const [vx, vz] of [a, b, c]) {
+      pos.push(vx, y, vz);
+      nor.push(0, 1, 0);
+      const dShore = isBay ? 1.0 : Math.min(1.0, distToPolys(vx, vz, allShores) / 9.5);
+      col.push(dShore, isBay ? 1.0 : 0.0, 0.0);
+      uvs.push(vx * 0.06, vz * 0.06);
+    }
+  };
+
+  // Tessellate smoothed lake via ShapeGeometry and subdivide large triangles so interior depth gradient is smooth
+  const maxEdge = quality === 'high' ? 6.5 : 11.0;
+  const emitSubdivided = (a: [number, number], b: [number, number], c: [number, number], y: number, isBay: boolean, depth = 0) => {
+    const dab = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const dbc = Math.hypot(c[0] - b[0], c[1] - b[1]);
+    const dca = Math.hypot(a[0] - c[0], a[1] - c[1]);
+    const longest = Math.max(dab, dbc, dca);
+    if (depth >= 4 || longest <= maxEdge) {
+      pushTri(a, b, c, y, isBay);
+      return;
+    }
+    const mab: [number, number] = [(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5];
+    const mbc: [number, number] = [(b[0] + c[0]) * 0.5, (b[1] + c[1]) * 0.5];
+    const mca: [number, number] = [(c[0] + a[0]) * 0.5, (c[1] + a[1]) * 0.5];
+    emitSubdivided(a, mab, mca, y, isBay, depth + 1);
+    emitSubdivided(mab, b, mbc, y, isBay, depth + 1);
+    emitSubdivided(mca, mbc, c, y, isBay, depth + 1);
+    emitSubdivided(mab, mbc, mca, y, isBay, depth + 1);
+  };
+
+  for (let pIdx = 0; pIdx < smoothLakes.length; pIdx++) {
+    const poly = smoothLakes[pIdx];
+    if (poly.length < 3) continue;
+    const shape = new THREE.Shape(poly.map(([x, z]) => new THREE.Vector2(x, -z)));
+    if (pIdx === 0) {
+      for (const h of smoothIslands) {
+        if (h.length < 3) continue;
+        shape.holes.push(new THREE.Path(h.map(([x, z]) => new THREE.Vector2(x, -z))));
+      }
+    }
+    const sg = new THREE.ShapeGeometry(shape, 1);
+    const nonIdx = sg.index ? sg.toNonIndexed() : sg;
+    const pAttr = nonIdx.getAttribute('position');
+    for (let i = 0; i < pAttr.count; i += 3) {
+      const a: [number, number] = [pAttr.getX(i), -pAttr.getY(i)];
+      const b: [number, number] = [pAttr.getX(i + 1), -pAttr.getY(i + 1)];
+      const c: [number, number] = [pAttr.getX(i + 2), -pAttr.getY(i + 2)];
+      emitSubdivided(a, b, c, waterY, false);
+    }
+    sg.dispose();
+    if (nonIdx !== sg) nonIdx.dispose();
+  }
+
+  // Port Phillip Bay coastal water hint to the south-west
+  if (env.bay.length >= 3) {
+    const shape = new THREE.Shape(env.bay.map(([x, z]) => new THREE.Vector2(x, -z)));
+    const sg = new THREE.ShapeGeometry(shape, 1);
+    const nonIdx = sg.index ? sg.toNonIndexed() : sg;
+    const pAttr = nonIdx.getAttribute('position');
+    for (let i = 0; i < pAttr.count; i += 3) {
+      pushTri(
+        [pAttr.getX(i), -pAttr.getY(i)],
+        [pAttr.getX(i + 1), -pAttr.getY(i + 1)],
+        [pAttr.getX(i + 2), -pAttr.getY(i + 2)],
+        waterY - 0.05,
+        true,
+      );
+    }
+    sg.dispose();
+    if (nonIdx !== sg) nonIdx.dispose();
+  }
+
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  g.computeBoundingSphere();
+  return g;
+}
+
+/**
+ * Custom lightweight GLSL water shader for Albert Park Lake & Port Phillip Bay:
+ * - Two scrolling crossed procedural wave normal layers (no heavy planar reflection pass)
+ * - Depth tint from baked vertex shore-distance (turquoise shallows -> deep Melbourne blue)
+ * - View-dependent Fresnel sky reflection matching daytime SkyDome
+ * - Crisp midday sun specular glints + subtle shoreline foam/edge highlight
+ */
+export function createMelbourneWaterMaterial(): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uSunDir: { value: new THREE.Vector3(140, 170, 90).normalize() },
+      uSkyColor: { value: new THREE.Color('#d2ebff') },
+      uShallowColor: { value: new THREE.Color('#42b2c9') },
+      uDeepColor: { value: new THREE.Color('#145a8a') },
+      uBayColor: { value: new THREE.Color('#134c78') },
+      uFoamColor: { value: new THREE.Color('#e6f6fa') },
+    },
+    vertexShader: /* glsl */ `
+      attribute vec3 color;
+      varying vec3 vWorldPos;
+      varying float vShore;
+      varying float vBay;
+      void main() {
+        vShore = color.r;
+        vBay = color.g;
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorldPos = wp.xyz;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uTime;
+      uniform vec3 uSunDir;
+      uniform vec3 uSkyColor;
+      uniform vec3 uShallowColor;
+      uniform vec3 uDeepColor;
+      uniform vec3 uBayColor;
+      uniform vec3 uFoamColor;
+      varying vec3 vWorldPos;
+      varying float vShore;
+      varying float vBay;
+
+      // Cheap dual-layer crossed wind-ripple normal perturbation
+      vec3 waveNormal(vec2 p, float t) {
+        float w1 = sin(p.x * 0.55 + p.y * 0.28 + t * 1.15) * 0.5 + cos(p.y * 0.72 - p.x * 0.35 + t * 0.92) * 0.5;
+        float w2 = sin(p.x * 1.35 - p.y * 0.95 - t * 1.45) * 0.5 + cos(p.y * 1.55 + p.x * 0.85 + t * 1.10) * 0.5;
+        float dx = (cos(p.x * 0.55 + p.y * 0.28 + t * 1.15) * 0.28 + cos(p.x * 1.35 - p.y * 0.95 - t * 1.45) * 0.16) * 0.085;
+        float dz = (sin(p.y * 0.72 - p.x * 0.35 + t * 0.92) * -0.28 + sin(p.y * 1.55 + p.x * 0.85 + t * 1.10) * -0.16) * 0.085;
+        return normalize(vec3(dx + (w1 - w2) * 0.015, 1.0, dz + (w1 + w2) * 0.015));
+      }
+
+      void main() {
+        vec3 N = waveNormal(vWorldPos.xz, uTime);
+        vec3 V = normalize(cameraPosition - vWorldPos);
+        vec3 L = normalize(uSunDir);
+
+        // Depth tint: lighter turquoise near shore -> richer blue in middle
+        float depthT = smoothstep(0.0, 0.85, vShore);
+        vec3 baseCol = mix(uShallowColor, uDeepColor, depthT);
+        baseCol = mix(baseCol, uBayColor, vBay);
+
+        // Fresnel sky reflection (stronger at grazing angles)
+        float ndotv = max(dot(N, V), 0.0);
+        float fresnel = 0.06 + 0.62 * pow(1.0 - ndotv, 3.2);
+        vec3 col = mix(baseCol, uSkyColor, fresnel);
+
+        // Midday sun specular glints
+        vec3 H = normalize(L + V);
+        float spec = pow(max(dot(N, H), 0.0), 140.0) * 0.75 + pow(max(dot(N, H), 0.0), 24.0) * 0.14;
+        col += vec3(1.0, 0.97, 0.88) * spec;
+
+        // Subtle shoreline foam / shallow edge shimmer (lake only)
+        float ripple = 0.5 + 0.5 * sin(vWorldPos.x * 0.9 + vWorldPos.z * 0.7 + uTime * 1.6);
+        float foam = (1.0 - smoothstep(0.0, 0.075 + ripple * 0.02, vShore)) * (1.0 - vBay);
+        col = mix(col, uFoamColor, foam * 0.55);
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
+  });
 }
 
 /**
@@ -282,7 +472,34 @@ export function buildParkOverlays(m: TrackModel, env: AlbertParkEnvData): THREE.
   const yBase = m.bounds.meanY - 0.105;
   const parts: THREE.BufferGeometry[] = [];
 
-  if (env.islands.length > 0) parts.push(polygonsToGeometry(env.islands, yBase + 0.02, MELB_PALETTE.islandGrass));
+  if (env.islands.length > 0) {
+    const smoothIsl = env.islands.map((p) => smoothClosedPoly(p, 1));
+    parts.push(polygonsToGeometry(smoothIsl, yBase + 0.02, MELB_PALETTE.islandGrass));
+  }
+  // Clean sandy/stone shoreline embankment strip around the smoothed Albert Park Lake edge
+  const shoreRim = new Mesher();
+  for (const lakePoly of env.lake) {
+    const sm = smoothClosedPoly(lakePoly, 2);
+    for (let i = 0; i < sm.length; i++) {
+      const [x0, z0] = sm[i];
+      const [x1, z1] = sm[(i + 1) % sm.length];
+      const dx = x1 - x0;
+      const dz = z1 - z0;
+      const len = Math.hypot(dx, dz);
+      if (len < 0.05) continue;
+      const nx = (-dz / len) * 0.42;
+      const nz = (dx / len) * 0.42;
+      shoreRim.quad(
+        [x0 - nx, yBase - 0.03, z0 - nz],
+        [x0 + nx, yBase - 0.03, z0 + nz],
+        [x1 - nx, yBase - 0.03, z1 - nz],
+        [x1 + nx, yBase - 0.03, z1 + nz],
+        MELB_PALETTE.parkPath,
+        true,
+      );
+    }
+  }
+  if (!shoreRim.empty) parts.push(shoreRim.geometry());
   if (env.ovals.length > 0) parts.push(polygonsToGeometry(env.ovals, yBase + 0.008, MELB_PALETTE.ovalTurf));
   if (env.golf.length > 0) parts.push(polygonsToGeometry(env.golf, yBase + 0.004, MELB_PALETTE.golfFairway));
 
@@ -950,6 +1167,27 @@ export function buildMelbourneStructures(
     const off = (k - 2) * 1.1 * M + (right - left) / 2;
     const p = at(m, 0, off, ph - 1.55 * M);
     lights.push([p[0] - fx * 0.36 * M, p[1], p[2] - fz * 0.36 * M]);
+  }
+
+  // 7. Albert Park Lake boatsheds & wooden jetties (Albert Park Yacht Club / Aquatic Club / Boatshed)
+  const dockWood = C('#9c7a54');
+  const shedWall = C('#e6e2d8');
+  const shedRoof = C('#4d6073');
+  const lakeY = m.bounds.meanY - 0.14;
+  const jetties: { x: number; z: number; yaw: number; hasShed: boolean }[] = [
+    { x: -32.0, z: -69.5, yaw: 0.35, hasShed: true },   // Aquatic Drive / Northern boatshed
+    { x: 4.5, z: -56.0, yaw: -1.75, hasShed: true },    // East shore rowing / yacht club
+    { x: -12.0, z: -12.5, yaw: 0.95, hasShed: true },   // Albert Park Yachting & Angling Club
+    { x: 31.5, z: 32.0, yaw: -2.15, hasShed: false },   // Lakeside Drive southern jetty
+  ];
+  for (const jt of jetties) {
+    const fx = Math.cos(jt.yaw);
+    const fz = Math.sin(jt.yaw);
+    // Timber jetty extending into the lake
+    g.box([jt.x + fx * 1.4, lakeY + 0.08, jt.z + fz * 1.4], fx, fz, [0.45, 0.08, 2.2], dockWood);
+    if (jt.hasShed) {
+      g.box([jt.x - fx * 1.3, lakeY + 0.55, jt.z - fz * 1.3], fx, fz, [1.8, 0.55, 1.4], shedWall, shedRoof);
+    }
   }
 
   return { geometry: g.geometry(), lights };

@@ -23,7 +23,7 @@ import {
   buildParkOverlays,
   gumTreeGeometry,
   palmTreeGeometry,
-  waterShimmerTexture,
+  createMelbourneWaterMaterial,
 } from './melbourneBuilders';
 import type { AlbertParkEnvData } from './types';
 
@@ -154,7 +154,7 @@ export default function MelbourneEnvironment({
     }
 
     const terrain = buildMelbourneTerrain(model, layout, env, quality);
-    const water = buildMelbourneWater(model, env);
+    const water = buildMelbourneWater(model, env, quality);
     const overlays = buildParkOverlays(model, env);
     const barriers = buildBarriers(model, layout, terrain);
     const structures = buildMelbourneStructures(model, layout, env, quality);
@@ -184,21 +184,11 @@ export default function MelbourneEnvironment({
   const mats = useMemo(() => {
     const grain = asphaltTexture();
     if (grain) grain.repeat.set(1, 1);
-    const shimmer = waterShimmerTexture();
     const std = (p: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial({ vertexColors: true, ...p });
     return {
       grain,
-      shimmer,
       terrain: std({ roughness: 0.96, metalness: 0.02 }),
-      water: new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        map: shimmer,
-        roughness: 0.18,
-        metalness: 0.12,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
-        polygonOffsetUnits: -1,
-      }),
+      water: createMelbourneWaterMaterial(),
       overlays: std({ roughness: 0.92, metalness: 0.02, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
       verges: std({ roughness: 0.94, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
       asphalt: std({ roughness: 0.78, metalness: 0.04, map: grain, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
@@ -237,10 +227,7 @@ export default function MelbourneEnvironment({
   );
 
   useFrame((_, delta) => {
-    if (mats.shimmer) {
-      mats.shimmer.offset.x = (mats.shimmer.offset.x + delta * 0.018) % 1;
-      mats.shimmer.offset.y = (mats.shimmer.offset.y + delta * 0.011) % 1;
-    }
+    mats.water.uniforms.uTime.value += delta;
   });
 
   const instanced = useMemo(() => {
@@ -314,7 +301,6 @@ export default function MelbourneEnvironment({
   useEffect(
     () => () => {
       mats.grain?.dispose();
-      mats.shimmer?.dispose();
       Object.values(mats).forEach((m) => {
         if (m && m instanceof THREE.Material) m.dispose();
       });
