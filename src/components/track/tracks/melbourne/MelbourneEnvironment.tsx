@@ -7,15 +7,15 @@ import {
   asphaltTexture,
   buildAsphalt,
   buildBarriers,
-  buildingGeometry,
   buildKerbs,
   buildLayout,
   buildLines,
   buildVerges,
 } from '../../geometry';
-import { loadMelbourneEnv, melbourneAdsUrl } from './loadMelbourneEnv';
+import { loadMelbourneEnv, melbourneAdsUrl, melbourneFacadesUrl } from './loadMelbourneEnv';
 import {
   buildMelbourneAdsGeometry,
+  buildMelbourneBuildings,
   buildMelbourneInstances,
   buildMelbourneStructures,
   buildMelbourneTerrain,
@@ -29,14 +29,6 @@ import type { AlbertParkEnvData } from './types';
 
 /**
  * Hero 3D environment for Albert Park (Melbourne — Formula 1 Qatar Airways Australian Grand Prix 2026).
- *
- * Keeps the racing asphalt, real TUMFTM widths, kerbs, pit lane offset, and car clearance
- * identical to the shared TrackModel, while replacing the generic procedural forest with:
- * - OSM-aligned Albert Park Lake (+ islands) with subtle animated daylight water shimmer
- * - Open Melbourne parkland lawns, sports ovals, golf fairways, roads, and lakeside paths
- * - Instanced Australian eucalyptus/gum trees and lakeside palms (no pine forest)
- * - OSM buildings (Lakeside Stadium, MSAC, park pavilions, St Kilda Rd & Melbourne CBD skyline)
- * - 2026 pit complex, real named grandstands, footbridges, giant screens, and 1-draw-call 2026 sponsor atlas
  */
 export default function MelbourneEnvironment({
   circuit,
@@ -51,6 +43,7 @@ export default function MelbourneEnvironment({
 }: CircuitEnvironmentProps) {
   const [env, setEnv] = useState<AlbertParkEnvData | null>(null);
   const [adsTex, setAdsTex] = useState<THREE.Texture | null>(null);
+  const [facadesTex, setFacadesTex] = useState<THREE.Texture | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -59,7 +52,7 @@ export default function MelbourneEnvironment({
         if (alive) setEnv(data);
       })
       .catch(() => {
-        // Keep null if unavailable; track ribbon still renders cleanly
+        // Non-fatal fallback
       });
     return () => {
       alive = false;
@@ -69,7 +62,9 @@ export default function MelbourneEnvironment({
   useEffect(() => {
     let alive = true;
     const loader = new THREE.TextureLoader();
-    let loaded: THREE.Texture | null = null;
+    let loadedAds: THREE.Texture | null = null;
+    let loadedFac: THREE.Texture | null = null;
+
     loader.load(
       melbourneAdsUrl(quality),
       (tex) => {
@@ -83,17 +78,39 @@ export default function MelbourneEnvironment({
           tex.dispose();
           return;
         }
-        loaded = tex;
+        loadedAds = tex;
         setAdsTex(tex);
       },
       undefined,
-      () => {
-        // Non-fatal if atlas fails to load
-      },
+      () => {},
     );
+
+    loader.load(
+      melbourneFacadesUrl(quality),
+      (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.wrapS = THREE.ClampToEdgeWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.generateMipmaps = true;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.anisotropy = quality === 'high' ? 8 : 4;
+        tex.needsUpdate = true;
+        if (!alive) {
+          tex.dispose();
+          return;
+        }
+        loadedFac = tex;
+        setFacadesTex(tex);
+      },
+      undefined,
+      () => {},
+    );
+
     return () => {
       alive = false;
-      loaded?.dispose();
+      loadedAds?.dispose();
+      loadedFac?.dispose();
     };
   }, [quality]);
 
@@ -128,6 +145,8 @@ export default function MelbourneEnvironment({
         overlays: null,
         barriers: null,
         structures: null,
+        buildingFacades: null,
+        buildingRoofs: null,
         ads: null,
         instances: null,
         lights: [] as [number, number, number][],
@@ -139,6 +158,7 @@ export default function MelbourneEnvironment({
     const overlays = buildParkOverlays(model, env);
     const barriers = buildBarriers(model, layout, terrain);
     const structures = buildMelbourneStructures(model, layout, env, quality);
+    const buildings = buildMelbourneBuildings(model, terrain, env, quality);
     const ads = buildMelbourneAdsGeometry(model, layout, env);
     const instances = buildMelbourneInstances(model, terrain, env);
 
@@ -153,6 +173,8 @@ export default function MelbourneEnvironment({
       overlays,
       barriers,
       structures: structures.geometry,
+      buildingFacades: buildings.facades,
+      buildingRoofs: buildings.roofs,
       ads,
       instances,
       lights: structures.lights,
@@ -184,7 +206,7 @@ export default function MelbourneEnvironment({
       lines: std({ roughness: 0.42, metalness: 0.02, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }),
       walls: std({ roughness: 0.72, metalness: 0.12, side: THREE.DoubleSide }),
       trees: std({ roughness: 0.9, flatShading: true }),
-      buildings: std({ roughness: 0.68, metalness: 0.16 }),
+      roofs: std({ roughness: 0.76, metalness: 0.1 }),
       lights: new THREE.MeshBasicMaterial({ color: '#ff1e1e', toneMapped: false }),
     };
   }, []);
@@ -203,7 +225,17 @@ export default function MelbourneEnvironment({
     [adsTex],
   );
 
-  // Gentle animated water shimmer on Albert Park Lake
+  const facadesMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        map: facadesTex,
+        roughness: 0.46,
+        metalness: 0.22,
+      }),
+    [facadesTex],
+  );
+
   useFrame((_, delta) => {
     if (mats.shimmer) {
       mats.shimmer.offset.x = (mats.shimmer.offset.x + delta * 0.018) % 1;
@@ -244,7 +276,6 @@ export default function MelbourneEnvironment({
     return {
       gums: make(gumTreeGeometry(), mats.trees, built.instances.gums),
       palms: make(palmTreeGeometry(), mats.trees, built.instances.palms),
-      buildings: make(buildingGeometry(), mats.buildings, built.instances.buildings),
       lights,
     };
   }, [built, mats, shadows]);
@@ -260,6 +291,8 @@ export default function MelbourneEnvironment({
       built.overlays?.dispose();
       built.barriers?.dispose();
       built.structures?.dispose();
+      built.buildingFacades?.dispose();
+      built.buildingRoofs?.dispose();
       built.ads?.dispose();
     },
     [built],
@@ -270,11 +303,9 @@ export default function MelbourneEnvironment({
       if (!instanced) return;
       instanced.gums.geometry.dispose();
       instanced.palms.geometry.dispose();
-      instanced.buildings.geometry.dispose();
       instanced.lights.geometry.dispose();
       instanced.gums.dispose();
       instanced.palms.dispose();
-      instanced.buildings.dispose();
       instanced.lights.dispose();
     },
     [instanced],
@@ -292,10 +323,10 @@ export default function MelbourneEnvironment({
   );
 
   useEffect(() => () => adsMat.dispose(), [adsMat]);
+  useEffect(() => () => facadesMat.dispose(), [facadesMat]);
 
   return (
     <group>
-      {/* Bright Australian afternoon daylight fill */}
       <hemisphereLight args={['#eef6ff', '#4a6b38', quality === 'high' ? 0.65 : 0.45]} />
       {built.terrain && <mesh geometry={built.terrain} material={mats.terrain} receiveShadow={shadows} />}
       {built.water && <mesh geometry={built.water} material={mats.water} receiveShadow={shadows} />}
@@ -306,10 +337,11 @@ export default function MelbourneEnvironment({
       <mesh geometry={built.lines} material={mats.lines} receiveShadow={shadows} />
       {built.barriers && <mesh geometry={built.barriers} material={mats.walls} castShadow={shadows} receiveShadow={shadows} />}
       {built.structures && <mesh geometry={built.structures} material={mats.walls} castShadow={shadows} receiveShadow={shadows} />}
+      {built.buildingFacades && <mesh geometry={built.buildingFacades} material={facadesMat} castShadow={shadows} receiveShadow={shadows} />}
+      {built.buildingRoofs && <mesh geometry={built.buildingRoofs} material={mats.roofs} castShadow={shadows} receiveShadow={shadows} />}
       {built.ads && adsTex && <mesh geometry={built.ads} material={adsMat} />}
       {instanced && <primitive object={instanced.gums} />}
       {instanced && <primitive object={instanced.palms} />}
-      {instanced && <primitive object={instanced.buildings} />}
       {instanced && <primitive object={instanced.lights} />}
     </group>
   );

@@ -22,20 +22,25 @@ const MELB_PALETTE = {
   gumTrunk: C('#bfb29b'),
   palmFrond: C('#4f8f3b'),
   palmTrunk: C('#8c7458'),
-  venueBuilding: C('#dfe5ec'),
-  suburbBuilding: C('#cfc6b8'),
-  towerGlassA: C('#8db2d1'),
-  towerGlassB: C('#a8c2d8'),
-  towerGlassC: C('#7c99b5'),
   pitFacade: C('#e9edf2'),
   pitGlass: C('#27435e'),
   pitGarage: C('#1d222b'),
   qatarBurgundy: C('#5c0632'),
   screenFrame: C('#1a1f28'),
   screenGlow: C('#29b6f6'),
+  standSeatA: C('#24476e'),
+  standSeatB: C('#2e5987'),
+  standConcrete: C('#cdd4dc'),
+  roofFlat: C('#aeb6bf'),
+  roofParapet: C('#cfd6de'),
+  roofHvac: C('#8d97a3'),
+  roofTerracotta: C('#a85d46'),
+  roofIron: C('#5c6670'),
+  goldCrown: C('#d4af37'),
+  stadiumBowl: C('#d8dfe7'),
+  stadiumRoof: C('#f1f5f9'),
+  msacArch: C('#e2e8f0'),
 };
-
-const CROWD_MELB = ['#e8ecf0', '#d93b3b', '#2b78c7', '#f0bf35', '#349956', '#7e52b5', '#ff7b1f', '#00b4a2'].map(C);
 
 /** Point-in-polygon check (2D XZ) for lake/island tests. */
 function pointInPoly(x: number, z: number, poly: Point2D[]): boolean {
@@ -91,7 +96,6 @@ export function buildMelbourneTerrain(m: TrackModel, lay: Layout, env: AlbertPar
       if (d > far + 1.5 * M && isInLake(x, z, env)) {
         H[k] = lakeBed;
       } else {
-        // Albert Park is nearly flat coastal parkland (2.4m total elevation range)
         const gentle = (valueNoise(x / 35, z / 35, 2026) - 0.5) * 0.35;
         const t = smoothstep(far, far + 14 * M, d);
         H[k] = baseH * (1 - t) + (b.meanY - drop + gentle) * t;
@@ -117,7 +121,6 @@ export function buildMelbourneTerrain(m: TrackModel, lay: Layout, env: AlbertPar
 
     const n1 = valueNoise(x / 18, z / 18, 991);
     col.copy(MELB_PALETTE.parkLawn).lerp(MELB_PALETTE.parkLawnLight, smoothstep(0.3, 0.75, n1));
-    // Subtle urban paving tone on outer edges (St Kilda Rd east, Fitzroy St south, Albert Park village west)
     if (dist[k] > 28 && !m.infield(x, z)) {
       const urbanBlend = smoothstep(28, 65, dist[k]) * 0.45;
       col.lerp(C('#9aa09a'), urbanBlend);
@@ -141,7 +144,6 @@ export function buildMelbourneTerrain(m: TrackModel, lay: Layout, env: AlbertPar
   top.setIndex(idx);
   top.computeVertexNormals();
 
-  // Diorama plinth skirt
   const skirt = new Mesher();
   const side = (k0: number, k1: number) => {
     const xA = x0 + (k0 % nx) * cell;
@@ -284,7 +286,6 @@ export function buildParkOverlays(m: TrackModel, env: AlbertParkEnvData): THREE.
   if (env.ovals.length > 0) parts.push(polygonsToGeometry(env.ovals, yBase + 0.008, MELB_PALETTE.ovalTurf));
   if (env.golf.length > 0) parts.push(polygonsToGeometry(env.golf, yBase + 0.004, MELB_PALETTE.golfFairway));
 
-  // Roads & lakeside walking paths as flat ribbons
   const ribbon = new Mesher();
   const addPolyline = (pts: Point2D[], halfW: number, y: number, color: THREE.Color) => {
     for (let i = 0; i < pts.length - 1; i++) {
@@ -294,7 +295,6 @@ export function buildParkOverlays(m: TrackModel, env: AlbertParkEnvData): THREE.
       const dz = z1 - z0;
       const len = Math.hypot(dx, dz);
       if (len < 0.05) continue;
-      // Skip segments that sit right on top of the active racing asphalt
       const mx = (x0 + x1) * 0.5;
       const mz = (z0 + z1) * 0.5;
       if (m.nearest(mx, mz).d < m.meanHalf * 1.45) continue;
@@ -400,7 +400,7 @@ export function palmTreeGeometry(): THREE.BufferGeometry {
   return out;
 }
 
-/** Build instanced matrices & colours for OSM parkland gum trees, palms, and OSM buildings/skyline. */
+/** Build instanced matrices & colours for OSM parkland gum trees and lakeside palms. */
 export function buildMelbourneInstances(m: TrackModel, terrain: Terrain, env: AlbertParkEnvData) {
   const R = rng(20260308);
   const P = m.upm * 1.35;
@@ -408,7 +408,6 @@ export function buildMelbourneInstances(m: TrackModel, terrain: Terrain, env: Al
 
   const gums = { matrices: [] as THREE.Matrix4[], colors: [] as THREE.Color[] };
   const palms = { matrices: [] as THREE.Matrix4[], colors: [] as THREE.Color[] };
-  const buildings = { matrices: [] as THREE.Matrix4[], colors: [] as THREE.Color[] };
 
   for (const [x, z, scale, kind] of env.trees) {
     const y = terrain.heightAt(x, z) - 0.04;
@@ -428,29 +427,285 @@ export function buildMelbourneInstances(m: TrackModel, terrain: Terrain, env: Al
     }
   }
 
-  for (const [cx, cz, w, d, h, yaw, kind] of env.buildings) {
-    const inRect = cx >= terrain.rect.x0 && cx <= terrain.rect.x1 && cz >= terrain.rect.z0 && cz <= terrain.rect.z1;
-    const baseY = inRect ? terrain.heightAt(cx, cz) - 0.15 : m.bounds.meanY - 0.25;
-    o.position.set(cx, baseY, cz);
-    o.rotation.set(0, -yaw, 0);
-    o.scale.set(Math.max(0.6, w), Math.max(0.5, h), Math.max(0.6, d));
-    o.updateMatrix();
-    buildings.matrices.push(o.matrix.clone());
+  return { gums, palms };
+}
 
+/**
+ * Helper: emit a single wall quad with baked vertical Ambient Occlusion (darker base -> bright top)
+ * and real-metre UVs mapped into one of the 4 columns of facades.webp.
+ */
+function pushAoWall(
+  pos: number[],
+  nor: number[],
+  col: number[],
+  uv: number[],
+  a: V3,
+  b: V3,
+  c: V3,
+  d: V3,
+  u0: number,
+  u1: number,
+  v0: number,
+  v1: number,
+  tint: THREE.Color,
+  aoBase = 0.72,
+  aoTop = 1.0,
+) {
+  const ux = b[0] - a[0];
+  const uy = b[1] - a[1];
+  const uz = b[2] - a[2];
+  const vx = c[0] - a[0];
+  const vy = c[1] - a[1];
+  const vz = c[2] - a[2];
+  let nx = uy * vz - uz * vy;
+  let ny = uz * vx - ux * vz;
+  let nz = ux * vy - uy * vx;
+  const L = Math.hypot(nx, ny, nz) || 1;
+  nx /= L;
+  ny /= L;
+  nz /= L;
+
+  const verts: [V3, number, number, number][] = [
+    [a, u0, v0, aoBase],
+    [b, u1, v0, aoBase],
+    [c, u0, v1, aoTop],
+    [c, u0, v1, aoTop],
+    [b, u1, v0, aoBase],
+    [d, u1, v1, aoTop],
+  ];
+  for (const [p, uu, vv, ao] of verts) {
+    pos.push(p[0], p[1], p[2]);
+    nor.push(nx, ny, nz);
+    col.push(tint.r * ao, tint.g * ao, tint.b * ao);
+    uv.push(uu, vv);
+  }
+}
+
+/**
+ * Build realistic Melbourne architectural buildings & custom landmarks in ONLY 2 draw calls:
+ *  1) `facades`: textured walls with world-scale floor UVs (~3.4m/floor) + baked vertex AO
+ *  2) `roofs`: flat roofs with parapets + HVAC boxes, pitched gable roofs on houses,
+ *     plus custom low-poly Melbourne landmarks (Lakeside Stadium, MSAC, CBD skyline crowns/spires).
+ */
+export function buildMelbourneBuildings(
+  m: TrackModel,
+  terrain: Terrain,
+  env: AlbertParkEnvData,
+  quality: 'high' | 'low',
+): { facades: THREE.BufferGeometry; roofs: THREE.BufferGeometry } {
+  const R = rng(20260308);
+  const scaleM = env.meta.transform.scale || m.upm; // render units per real metre
+  const fPos: number[] = [];
+  const fNor: number[] = [];
+  const fCol: number[] = [];
+  const fUv: number[] = [];
+  const roofs = new Mesher();
+
+  const tint = new THREE.Color();
+
+  for (const [cx, cz, rawW, rawD, rawH, yaw, kind] of env.buildings) {
+    const w = Math.max(0.7, rawW);
+    const d = Math.max(0.7, rawD);
+    const h = Math.max(0.6, rawH);
+    const inRect = cx >= terrain.rect.x0 && cx <= terrain.rect.x1 && cz >= terrain.rect.z0 && cz <= terrain.rect.z1;
+    const baseY = inRect ? terrain.heightAt(cx, cz) - 0.14 : m.bounds.meanY - 0.25;
+
+    // Pick facade atlas column (0=CBD glass, 1=St Kilda office, 2=apartments/render, 3=heritage brick)
+    let colIdx: number;
     if (kind === 2) {
-      const pick = R();
-      const c = (pick < 0.33 ? MELB_PALETTE.towerGlassA : pick < 0.66 ? MELB_PALETTE.towerGlassB : MELB_PALETTE.towerGlassC)
-        .clone()
-        .multiplyScalar(0.88 + R() * 0.2);
-      buildings.colors.push(c);
+      colIdx = R() < 0.62 ? 0 : 1;
     } else if (kind === 0) {
-      buildings.colors.push(MELB_PALETTE.venueBuilding.clone().multiplyScalar(0.92 + R() * 0.1));
+      colIdx = 1;
     } else {
-      buildings.colors.push(MELB_PALETTE.suburbBuilding.clone().multiplyScalar(0.86 + R() * 0.18));
+      colIdx = R() < 0.55 ? 2 : 3;
+    }
+    const u0 = colIdx * 0.25 + 0.004;
+    const u1 = (colIdx + 1) * 0.25 - 0.004;
+
+    // Real-metre V scaling: 1 full texture height = 8 floors * 3.4m = 27.2m
+    const heightM = h / Math.max(0.05, scaleM);
+    const v1 = Math.max(0.18, heightM / 27.2);
+
+    const shade = 0.88 + R() * 0.18;
+    tint.setRGB(shade, shade, shade);
+    if (kind === 2 && R() < 0.35) tint.lerp(C('#c7dff5'), 0.25);
+
+    const cos = Math.cos(yaw);
+    const sin = Math.sin(yaw);
+    const hw = w * 0.5;
+    const hd = d * 0.5;
+    const pt = (lx: number, y: number, lz: number): V3 => [
+      cx + lx * cos - lz * sin,
+      baseY + y,
+      cz + lx * sin + lz * cos,
+    ];
+
+    const b0 = pt(-hw, 0, -hd);
+    const b1 = pt(hw, 0, -hd);
+    const b2 = pt(hw, 0, hd);
+    const b3 = pt(-hw, 0, hd);
+    const t0 = pt(-hw, h, -hd);
+    const t1 = pt(hw, h, -hd);
+    const t2 = pt(hw, h, hd);
+    const t3 = pt(-hw, h, hd);
+
+    // 4 textured walls with baked vertex AO
+    pushAoWall(fPos, fNor, fCol, fUv, b0, b1, t0, t1, u0, u1, 0, v1, tint);
+    pushAoWall(fPos, fNor, fCol, fUv, b1, b2, t1, t2, u0, u1, 0, v1, tint);
+    pushAoWall(fPos, fNor, fCol, fUv, b2, b3, t2, t3, u0, u1, 0, v1, tint);
+    pushAoWall(fPos, fNor, fCol, fUv, b3, b0, t3, t0, u0, u1, 0, v1, tint);
+
+    // Roof geometry: pitched gable for low residential houses, parapet + HVAC for offices/towers
+    const isPitched = quality === 'high' && kind === 1 && h <= 1.25 && Math.min(w, d) < 4.5;
+    if (isPitched) {
+      const ridgeH = Math.min(w, d) * 0.28;
+      const rc = R() < 0.55 ? MELB_PALETTE.roofTerracotta : MELB_PALETTE.roofIron;
+      if (w >= d) {
+        const rL = pt(-hw, h + ridgeH, 0);
+        const rR = pt(hw, h + ridgeH, 0);
+        roofs.quad(t0, t1, rL, rR, rc);
+        roofs.quad(t2, t3, rR, rL, rc);
+        roofs.quad(t3, t0, rL, rL, rc);
+        roofs.quad(t1, t2, rR, rR, rc);
+      } else {
+        const rF = pt(0, h + ridgeH, -hd);
+        const rB = pt(0, h + ridgeH, hd);
+        roofs.quad(t3, t0, rB, rF, rc);
+        roofs.quad(t1, t2, rF, rB, rc);
+        roofs.quad(t0, t1, rF, rF, rc);
+        roofs.quad(t2, t3, rB, rB, rc);
+      }
+    } else {
+      const roofCol = kind === 2 ? MELB_PALETTE.roofFlat : MELB_PALETTE.roofParapet;
+      roofs.quad(t0, t1, t3, t2, roofCol, true);
+
+      // Parapet rim & rooftop HVAC plant box on medium/tall buildings in high quality
+      if (quality === 'high' && (kind === 2 || h > 1.3)) {
+        const fx = cos;
+        const fz = sin;
+        const ph = Math.min(0.28, h * 0.08);
+        roofs.box([cx, baseY + h + ph * 0.5, cz], fx, fz, [hw * 0.98, ph * 0.5, hd * 0.98], MELB_PALETTE.roofParapet, roofCol);
+        if (w > 1.8 && d > 1.8) {
+          const hvacH = Math.min(0.65, h * 0.14);
+          roofs.box(
+            [cx, baseY + h + ph + hvacH * 0.5, cz],
+            fx,
+            fz,
+            [hw * 0.36, hvacH * 0.5, hd * 0.32],
+            MELB_PALETTE.roofHvac,
+            MELB_PALETTE.roofFlat,
+          );
+        }
+      }
     }
   }
 
-  return { gums, palms, buildings };
+  // --- Custom Low-Poly Melbourne Landmarks ---
+  const baseGround = m.bounds.meanY - 0.12;
+
+  // 1) Lakeside Stadium (real OSM oval position inside T3-T5: approx [-53.5, -71.5])
+  {
+    const sx = -53.5;
+    const sz = -71.5;
+    const sy = terrain.heightAt(sx, sz) - 0.06;
+    const rx = 6.8;
+    const rz = 9.4;
+    const segs = quality === 'high' ? 20 : 12;
+    const yaw = -0.58;
+    const cs = Math.cos(yaw);
+    const sn = Math.sin(yaw);
+    const bowlPt = (ang: number, radScale: number, y: number): V3 => {
+      const lx = Math.cos(ang) * rx * radScale;
+      const lz = Math.sin(ang) * rz * radScale;
+      return [sx + lx * cs - lz * sn, sy + y, sz + lx * sn + lz * cs];
+    };
+    for (let k = 0; k < segs; k++) {
+      const a0 = (k / segs) * Math.PI * 2;
+      const a1 = ((k + 1) / segs) * Math.PI * 2;
+      const isMainStand = k >= Math.floor(segs * 0.35) && k <= Math.floor(segs * 0.72);
+      const hOuter = isMainStand ? 2.4 : 1.15;
+      // Sloped stadium bowl
+      roofs.quad(bowlPt(a0, 0.72, 0.15), bowlPt(a1, 0.72, 0.15), bowlPt(a0, 1.0, hOuter), bowlPt(a1, 1.0, hOuter), MELB_PALETTE.standSeatB);
+      // Outer shell wall
+      roofs.quad(bowlPt(a0, 1.0, 0), bowlPt(a1, 1.0, 0), bowlPt(a0, 1.0, hOuter), bowlPt(a1, 1.0, hOuter), MELB_PALETTE.stadiumBowl);
+      // Swooping cantilevered roof canopy over main grandstand
+      if (isMainStand) {
+        roofs.quad(
+          bowlPt(a0, 0.68, hOuter + 0.85),
+          bowlPt(a1, 0.68, hOuter + 0.85),
+          bowlPt(a0, 1.08, hOuter + 0.45),
+          bowlPt(a1, 1.08, hOuter + 0.45),
+          MELB_PALETTE.stadiumRoof,
+        );
+      }
+    }
+  }
+
+  // 2) MSAC (Melbourne Sports & Aquatic Centre) NW of T5: iconic multi-bay vaulted roof
+  {
+    const mx = -62.5;
+    const mz = -97.5;
+    const my = terrain.heightAt(mx, mz) - 0.08;
+    const yaw = -0.68;
+    const fx = Math.cos(yaw);
+    const fz = Math.sin(yaw);
+    // Main aquatic hall base
+    roofs.box([mx, my + 0.95, mz], fx, fz, [6.5, 0.95, 9.5], MELB_PALETTE.stadiumBowl, MELB_PALETTE.msacArch);
+    // 3 vaulted barrel roof bays
+    for (const off of [-5.8, 0, 5.8]) {
+      const bx = mx + fx * off;
+      const bz = mz + fz * off;
+      roofs.box([bx, my + 2.15, bz], fx, fz, [6.2, 0.38, 2.3], MELB_PALETTE.msacArch, MELB_PALETTE.stadiumRoof);
+      roofs.box([bx, my + 2.55, bz], fx, fz, [4.6, 0.22, 2.1], MELB_PALETTE.stadiumRoof);
+    }
+  }
+
+  // 3) Recognisable Melbourne CBD Skyline Silhouettes to the north (-Z)
+  const skylineHeroes: { x: number; z: number; w: number; d: number; h: number; goldBand: boolean; spire: number }[] = [
+    // Eureka Tower silhouette (Southbank, north of Albert Park)
+    { x: -16, z: -255, w: 6.2, d: 6.2, h: 35.5, goldBand: true, spire: 5.5 },
+    // Australia 108 silhouette (tallest Melbourne tower with gold starburst band)
+    { x: -4, z: -262, w: 6.8, d: 6.8, h: 39.0, goldBand: true, spire: 0 },
+    // Rialto Towers stepped silhouette
+    { x: -34, z: -278, w: 7.4, d: 5.4, h: 30.0, goldBand: false, spire: 2.5 },
+    // 101 Collins / 120 Collins spire silhouettes
+    { x: 18, z: -285, w: 6.0, d: 6.0, h: 29.0, goldBand: false, spire: 4.5 },
+  ];
+
+  const cbdTint = C('#c7dff5');
+  for (const tw of skylineHeroes) {
+    const hw = tw.w * 0.5;
+    const hd = tw.d * 0.5;
+    const vRep = tw.h / 3.1;
+    const b0: V3 = [tw.x - hw, baseGround, tw.z - hd];
+    const b1: V3 = [tw.x + hw, baseGround, tw.z - hd];
+    const b2: V3 = [tw.x + hw, baseGround, tw.z + hd];
+    const b3: V3 = [tw.x - hw, baseGround, tw.z + hd];
+    const t0: V3 = [tw.x - hw, baseGround + tw.h, tw.z - hd];
+    const t1: V3 = [tw.x + hw, baseGround + tw.h, tw.z - hd];
+    const t2: V3 = [tw.x + hw, baseGround + tw.h, tw.z + hd];
+    const t3: V3 = [tw.x - hw, baseGround + tw.h, tw.z + hd];
+    pushAoWall(fPos, fNor, fCol, fUv, b0, b1, t0, t1, 0.004, 0.246, 0, vRep, cbdTint, 0.78, 1.0);
+    pushAoWall(fPos, fNor, fCol, fUv, b1, b2, t1, t2, 0.004, 0.246, 0, vRep, cbdTint, 0.78, 1.0);
+    pushAoWall(fPos, fNor, fCol, fUv, b2, b3, t2, t3, 0.004, 0.246, 0, vRep, cbdTint, 0.78, 1.0);
+    pushAoWall(fPos, fNor, fCol, fUv, b3, b0, t3, t0, 0.004, 0.246, 0, vRep, cbdTint, 0.78, 1.0);
+    roofs.quad(t0, t1, t3, t2, MELB_PALETTE.roofFlat, true);
+    if (tw.goldBand) {
+      roofs.box([tw.x, baseGround + tw.h * 0.84, tw.z], 0, 1, [hw * 1.06, 1.1, hd * 1.06], MELB_PALETTE.goldCrown);
+    }
+    if (tw.spire > 0) {
+      roofs.box([tw.x, baseGround + tw.h + tw.spire * 0.5, tw.z], 0, 1, [0.35, tw.spire * 0.5, 0.35], MELB_PALETTE.roofParapet);
+    }
+  }
+
+  const facades = new THREE.BufferGeometry();
+  facades.setAttribute('position', new THREE.Float32BufferAttribute(fPos, 3));
+  facades.setAttribute('normal', new THREE.Float32BufferAttribute(fNor, 3));
+  facades.setAttribute('color', new THREE.Float32BufferAttribute(fCol, 3));
+  facades.setAttribute('uv', new THREE.Float32BufferAttribute(fUv, 2));
+  facades.computeBoundingSphere();
+
+  return { facades, roofs: roofs.geometry() };
 }
 
 function sampleIdx(m: TrackModel, u: number): number {
@@ -492,11 +747,11 @@ function extrudeAlong(
 }
 
 /**
- * Build Melbourne-specific structures (1 merged BufferGeometry draw call):
- * - Pit building (11 team garage bays for 2026 grid, Paddock Club upper deck, Race Control tower)
+ * Build Melbourne-specific trackside structures (1 merged BufferGeometry draw call):
+ * - Pit building (11 recessed team garage bays, Paddock Club glazed deck, cantilevered roof, Race Control tower)
  * - Pit wall + perches + Qatar Airways Start/Finish gantry + 5 FIA start light positions
- * - Real 2026 Albert Park grandstands (Piastri/Fangio, Moss, Jones, Brabham, Hill, Stewart, Button/Clark, Waite, Lauda, Prost/Senna)
- * - 3 pedestrian footbridges & giant trackside screens
+ * - Real 2026 Albert Park grandstands (clean architectural tiered seating, roof canopies & columns, NO crowd)
+ * - 3 pedestrian footbridges & giant trackside LED screens
  */
 export function buildMelbourneStructures(
   m: TrackModel,
@@ -506,7 +761,6 @@ export function buildMelbourneStructures(
 ): { geometry: THREE.BufferGeometry; lights: V3[] } {
   const { n, M } = m;
   const g = new Mesher();
-  const R = rng(2026);
   const pitN = lay.pitN;
   const w = m.pit.width;
 
@@ -528,7 +782,7 @@ export function buildMelbourneStructures(
     (k) => (k === 1 ? PALETTE.steel : PALETTE.wall),
   );
 
-  // 2. Albert Park Pit Building (2026: 11 F1 team garage bays + Paddock Club glazed deck + hospitality overhang)
+  // 2. Albert Park Pit & Paddock Building (multi-level, 11 team garages, Paddock Club glazing, cantilevered canopy)
   const core = Math.round(pitN * 0.64);
   const b0 = wrapIndex(-core, n);
   const pitBase = (i: number) => lay.pitCentre[i] + w / 2 + 0.5 * M;
@@ -542,26 +796,38 @@ export function buildMelbourneStructures(
     pitBase,
     [
       [0, -0.4],
-      [0, 4.4 * M],
-      [0, 5.2 * M],
-      [-1.4 * M, 5.4 * M],
-      [-1.4 * M, 9.8 * M],
-      [14.5 * M, 9.8 * M],
-      [14.5 * M, -0.4],
+      [0, 4.2 * M],
+      [0, 5.1 * M],
+      [-1.5 * M, 5.3 * M],
+      [-1.5 * M, 8.3 * M],
+      [-2.1 * M, 8.6 * M],
+      [-2.1 * M, 9.9 * M],
+      [15.0 * M, 9.9 * M],
+      [15.0 * M, -0.4],
     ],
     (k, i) => {
       if (k === 0) return Math.floor(i / bayLen) % 2 === 0 ? MELB_PALETTE.pitGarage : MELB_PALETTE.pitFacade;
       if (k === 1) return MELB_PALETTE.qatarBurgundy;
       if (k === 3) return MELB_PALETTE.pitGlass;
-      if (k === 4) return PALETTE.roof;
+      if (k === 5) return MELB_PALETTE.pitFacade;
+      if (k === 6) return PALETTE.roof;
       return MELB_PALETTE.pitFacade;
     },
   );
 
-  // Race Control & Podium Tower beside start/finish
-  const rcPos = at(m, 0, pitBase(0) + 2.8 * M, 11.5 * M);
-  g.box(rcPos, m.tx[0], m.tz[0], [3.2 * M, 3.0 * M, 5.5 * M], MELB_PALETTE.pitFacade, PALETTE.roof);
-  g.box([rcPos[0], rcPos[1] + 0.4 * M, rcPos[2]], m.tx[0], m.tz[0], [3.35 * M, 1.1 * M, 5.2 * M], MELB_PALETTE.pitGlass);
+  // Rooftop Paddock Club terrace pavilions along pit building
+  if (quality === 'high') {
+    for (const frac of [-0.55, 0.35]) {
+      const idx = wrapIndex(Math.round(frac * core), n);
+      const p = at(m, idx, pitBase(idx) + 6.5 * M, 10.9 * M);
+      g.box(p, m.tx[idx], m.tz[idx], [4.5 * M, 1.0 * M, 8.0 * M], MELB_PALETTE.pitFacade, PALETTE.roof);
+    }
+  }
+
+  // Race Control & Podium Tower beside start/finish (cantilevered glazed control room)
+  const rcPos = at(m, 0, pitBase(0) + 2.8 * M, 11.8 * M);
+  g.box(rcPos, m.tx[0], m.tz[0], [3.2 * M, 2.8 * M, 5.4 * M], MELB_PALETTE.pitFacade, PALETTE.roof);
+  g.box([rcPos[0] - m.rx[0] * 0.9 * M, rcPos[1] + 0.5 * M, rcPos[2] - m.rz[0] * 0.9 * M], m.tx[0], m.tz[0], [3.6 * M, 1.2 * M, 5.2 * M], MELB_PALETTE.pitGlass);
 
   // Pit lane outer walls
   const laneOut = (i: number) => lay.pitCentre[i] + w / 2 + 0.3 * M;
@@ -575,7 +841,7 @@ export function buildMelbourneStructures(
   extrudeAlong(g, m, core, pitN, 1, laneOut, wallProf, wallCol);
   extrudeAlong(g, m, wrapIndex(-pitN, n), wrapIndex(-core, n), 1, laneOut, wallProf, wallCol);
 
-  // 3. Real 2026 Albert Park Grandstands
+  // 3. Real 2026 Albert Park Grandstands — clean architectural seating (NO crowd)
   const standsToBuild = quality === 'high' ? env.grandstands : env.grandstands.slice(0, 6);
   for (const st of standsToBuild) {
     const i0 = sampleIdx(m, st.u0);
@@ -595,10 +861,10 @@ export function buildMelbourneStructures(
     }
     prof.push([seats, -0.4]);
 
-    const crowdSeg = Math.max(1, Math.round((4.5 * m.upm) / m.ds));
-    extrudeAlong(g, m, i0, i1, st.side, (i) => S.barrier[i] + 1.4 * M, prof, (k, i) => {
-      if (k <= 0 || k === prof.length - 2 || k % 2 === 1) return PALETTE.standFrame;
-      return CROWD_MELB[(Math.floor(i / crowdSeg) * 5 + k * 3 + Math.floor(R() * 2)) % CROWD_MELB.length];
+    extrudeAlong(g, m, i0, i1, st.side, (i) => S.barrier[i] + 1.4 * M, prof, (k) => {
+      if (k <= 0 || k === prof.length - 2) return MELB_PALETTE.standConcrete;
+      if (k % 2 === 1) return MELB_PALETTE.standConcrete;
+      return (k >> 1) % 2 === 0 ? MELB_PALETTE.standSeatA : MELB_PALETTE.standSeatB;
     });
 
     if (st.roofed) {
@@ -610,12 +876,22 @@ export function buildMelbourneStructures(
         st.side,
         (i) => S.barrier[i] + 1.4 * M,
         [
-          [1.6 * M, height + 3.6 * M],
-          [seats + 0.6 * M, height + 2.6 * M],
+          [1.4 * M, height + 3.6 * M],
+          [seats + 0.8 * M, height + 2.6 * M],
         ],
-        () => PALETTE.roof,
+        () => MELB_PALETTE.stadiumRoof,
         false,
       );
+      // Rear structural roof columns
+      const colStep = Math.max(3, Math.round((22 * m.upm) / m.ds));
+      let kCount = 0;
+      for (let i = i0; ; i = (i + 1) % n) {
+        if (kCount % colStep === 0) {
+          const p = at(m, i, st.side * (S.barrier[i] + 1.4 * M + seats * 0.96), 0);
+          g.box([p[0], p[1] + (height + 2.6 * M) * 0.5, p[2]], m.tx[i], m.tz[i], [0.22 * M, (height + 2.6 * M) * 0.5, 0.22 * M], PALETTE.standFrame);
+        }
+        if (i === i1 || ++kCount > n) break;
+      }
     }
   }
 
@@ -632,7 +908,13 @@ export function buildMelbourneStructures(
       const p = at(m, i, side * (S.barrier[i] + 3.5 * M), 0);
       g.box([p[0], p[1] + 2.8 * M, p[2]], m.tx[i], m.tz[i], [0.25 * M, 2.8 * M, 0.25 * M], PALETTE.steel);
       g.box([p[0], p[1] + 6.2 * M, p[2]], m.tx[i], m.tz[i], [0.32 * M, 2.2 * M, 4.2 * M], MELB_PALETTE.screenFrame);
-      g.box([p[0] - m.rx[i] * side * 0.35 * M, p[1] + 6.2 * M, p[2] - m.rz[i] * side * 0.35 * M], m.tx[i], m.tz[i], [0.06 * M, 1.9 * M, 3.8 * M], MELB_PALETTE.screenGlow);
+      g.box(
+        [p[0] - m.rx[i] * side * 0.35 * M, p[1] + 6.2 * M, p[2] - m.rz[i] * side * 0.35 * M],
+        m.tx[i],
+        m.tz[i],
+        [0.06 * M, 1.9 * M, 3.8 * M],
+        MELB_PALETTE.screenGlow,
+      );
     }
   }
 
@@ -675,8 +957,8 @@ export function buildMelbourneStructures(
 
 /**
  * Build ALL 2026 trackside advertising boards, overhead bridge banners, start gantry banner,
- * braking distance markers, and painted run-off ground decals into ONE textured BufferGeometry
- * mapped to the single WebP texture atlas (1 draw call!).
+ * pit-building roof fascia, grandstand front fascia, braking markers, and run-off decals
+ * into ONE textured BufferGeometry mapped to ads.webp / ads_low.webp (1 draw call!).
  */
 export function buildMelbourneAdsGeometry(m: TrackModel, lay: Layout, env: AlbertParkEnvData): THREE.BufferGeometry {
   const uvById = new Map<string, [number, number, number, number]>();
@@ -685,7 +967,6 @@ export function buildMelbourneAdsGeometry(m: TrackModel, lay: Layout, env: Alber
   const g = new Mesher(true);
   const M = m.M;
 
-  // 1. Trackside barrier boards, braking markers, and painted run-off ground decals
   for (const ad of env.ads) {
     const uv = uvById.get(ad.brand);
     if (!uv) continue;
@@ -697,7 +978,6 @@ export function buildMelbourneAdsGeometry(m: TrackModel, lay: Layout, env: Alber
     const rz = m.rz[i];
 
     if (ad.kind === 'decal') {
-      // Flat painted logo decal on the run-off / apron
       const off = ad.side * (S.edge[i] + Math.min(S.barrier[i] - S.edge[i], 3.2 * M) * 0.55);
       const halfL = ad.len * 0.5;
       const halfW = ad.h * 0.5;
@@ -705,7 +985,6 @@ export function buildMelbourneAdsGeometry(m: TrackModel, lay: Layout, env: Alber
       const P = (dl: number, dw: number): V3 => [c[0] + tx * dl + rx * dw, c[1], c[2] + tz * dl + rz * dw];
       g.quad(P(-halfL, -halfW), P(halfL, -halfW), P(-halfL, halfW), P(halfL, halfW), white, true, [uv[0], uv[2], uv[1], uv[3]]);
     } else {
-      // Vertical trackside board facing the racing line
       const off = ad.side * (S.barrier[i] - 0.06 * M);
       const halfL = ad.len * 0.5;
       const h = ad.h * (ad.kind === 'brake' ? 1.0 : 1.05);
@@ -720,7 +999,7 @@ export function buildMelbourneAdsGeometry(m: TrackModel, lay: Layout, env: Alber
     }
   }
 
-  // 2. Start gantry title sponsor banner (Qatar Airways 2026) — both faces
+  // Start gantry title sponsor banner (Qatar Airways 2026) — both faces
   const qatarUv = uvById.get('qatar_airways');
   if (qatarUv) {
     const left = Math.min(lay.L.barrier[0], m.hwL[0] + 1.2 * M);
@@ -739,12 +1018,11 @@ export function buildMelbourneAdsGeometry(m: TrackModel, lay: Layout, env: Alber
       mid[1] + hh * sy,
       mid[2] + rz * hs * sr + fz * fOff * sf,
     ];
-    // Facing approaching cars (-f) and departing cars (+f)
     g.quad(F(-1, -1, -1), F(1, -1, -1), F(-1, 1, -1), F(1, 1, -1), white, false, [qatarUv[0], qatarUv[2], qatarUv[1], qatarUv[3]]);
     g.quad(F(1, -1, 1), F(-1, -1, 1), F(1, 1, 1), F(-1, 1, 1), white, false, [qatarUv[0], qatarUv[2], qatarUv[1], qatarUv[3]]);
   }
 
-  // 3. Branded footbridge fascia panels (both faces)
+  // Branded footbridge fascia panels (both faces)
   for (const br of env.bridges) {
     const uv = uvById.get(br.brand);
     if (!uv) continue;
@@ -769,7 +1047,7 @@ export function buildMelbourneAdsGeometry(m: TrackModel, lay: Layout, env: Alber
     g.quad(F(1, -1, 1), F(-1, -1, 1), F(1, 1, 1), F(-1, 1, 1), white, false, [uv[0], uv[2], uv[1], uv[3]]);
   }
 
-  // 4. Pit building roof fascia (Qatar Airways 2026 title banner along pit straight)
+  // Pit building roof fascia (Qatar Airways 2026 title banner along pit straight)
   if (qatarUv) {
     const core = Math.round(lay.pitN * 0.64);
     const pitBase = (i: number) => lay.pitCentre[i] + m.pit.width / 2 + 0.5 * M;
@@ -777,10 +1055,10 @@ export function buildMelbourneAdsGeometry(m: TrackModel, lay: Layout, env: Alber
     for (let k = 0; k < panels; k++) {
       const frac = -0.82 + (k + 0.5) * (1.64 / panels);
       const i = wrapIndex(Math.round(frac * core), m.n);
-      const off = pitBase(i) - 1.46 * M;
+      const off = pitBase(i) - 2.16 * M;
       const halfL = 4.2 * M;
-      const y0 = 8.4 * M;
-      const y1 = 9.75 * M;
+      const y0 = 8.65 * M;
+      const y1 = 9.85 * M;
       const c = at(m, i, off, 0);
       const tx = m.tx[i];
       const tz = m.tz[i];
@@ -789,7 +1067,7 @@ export function buildMelbourneAdsGeometry(m: TrackModel, lay: Layout, env: Alber
     }
   }
 
-  // 5. Grandstand front fascia sponsor banners (using same 1-draw-call atlas)
+  // Grandstand front fascia sponsor banners
   const standBrands = ['qatar_airways', 'pirelli', 'aramco', 'heineken', 'tag_heuer', 'dhl', 'msc_cruises', 'amex', 'lenovo', 'f1_2026'];
   env.grandstands.forEach((st, idx) => {
     const uv = uvById.get(standBrands[idx % standBrands.length]);

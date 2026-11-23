@@ -4,9 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { loadBundle } from '@/engine/testUtils';
 import { createCircuitCurve } from '@/engine/circuitCurve';
 import { buildTrackModel } from '../../trackModel';
-import { buildAsphalt, buildBarriers, buildKerbs, buildLayout, buildLines, buildVerges, buildingGeometry } from '../../geometry';
+import { buildAsphalt, buildBarriers, buildKerbs, buildLayout, buildLines, buildVerges } from '../../geometry';
 import {
   buildMelbourneAdsGeometry,
+  buildMelbourneBuildings,
   buildMelbourneInstances,
   buildMelbourneStructures,
   buildMelbourneTerrain,
@@ -29,8 +30,14 @@ function triCount(g: { getAttribute(name: string): { count: number }; index: { c
 describe('Melbourne (Albert Park 2026) environment', () => {
   it('stays well within hard asset download budgets (<=3 MB high, <=600 KB low)', () => {
     const dir = path.resolve(process.cwd(), 'public/models/circuits/melbourne');
-    const highBytes = fs.statSync(path.join(dir, 'albert_park_env.json')).size + fs.statSync(path.join(dir, 'ads.webp')).size;
-    const lowBytes = fs.statSync(path.join(dir, 'albert_park_env_low.json')).size + fs.statSync(path.join(dir, 'ads_low.webp')).size;
+    const highBytes =
+      fs.statSync(path.join(dir, 'albert_park_env.json')).size +
+      fs.statSync(path.join(dir, 'ads.webp')).size +
+      fs.statSync(path.join(dir, 'facades.webp')).size;
+    const lowBytes =
+      fs.statSync(path.join(dir, 'albert_park_env_low.json')).size +
+      fs.statSync(path.join(dir, 'ads_low.webp')).size +
+      fs.statSync(path.join(dir, 'facades_low.webp')).size;
     expect(highBytes).toBeLessThanOrEqual(3 * 1024 * 1024);
     expect(lowBytes).toBeLessThanOrEqual(600 * 1024);
   });
@@ -56,19 +63,31 @@ describe('Melbourne (Albert Park 2026) environment', () => {
     const lines = buildLines(m, lay, c.sectorSplits);
     const barriers = buildBarriers(m, lay, terrain);
     const structures = buildMelbourneStructures(m, lay, env, quality);
+    const buildings = buildMelbourneBuildings(m, terrain, env, quality);
     const ads = buildMelbourneAdsGeometry(m, lay, env);
     const inst = buildMelbourneInstances(m, terrain, env);
 
-    // Terrain never pokes through racing asphalt
     for (let i = 0; i < m.n; i += 9) {
       expect(terrain.heightAt(m.px[i], m.pz[i])).toBeLessThan(m.py[i] + 0.02);
     }
 
     const gumGeo = gumTreeGeometry();
     const palmGeo = palmTreeGeometry();
-    const bldGeo = buildingGeometry();
 
-    const staticGeos = [terrain.geometry, water, overlays, asphalt, verges, kerbs, lines, barriers, structures.geometry, ads];
+    const staticGeos = [
+      terrain.geometry,
+      water,
+      overlays,
+      asphalt,
+      verges,
+      kerbs,
+      lines,
+      barriers,
+      structures.geometry,
+      buildings.facades,
+      buildings.roofs,
+      ads,
+    ];
     let totalTris = 0;
     for (const g of staticGeos) {
       expect(g.getAttribute('position').count).toBeGreaterThan(0);
@@ -77,16 +96,16 @@ describe('Melbourne (Albert Park 2026) environment', () => {
     }
     totalTris += triCount(gumGeo) * inst.gums.matrices.length;
     totalTris += triCount(palmGeo) * inst.palms.matrices.length;
-    totalTris += triCount(bldGeo) * inst.buildings.matrices.length;
     totalTris += 12 * structures.lights.length;
 
     gumGeo.dispose();
     palmGeo.dispose();
-    bldGeo.dispose();
 
-    // 10 static meshes + 4 instanced meshes = 14 draw calls
-    const drawCalls = staticGeos.length + 4;
-    console.log(`Melbourne [${quality}]: tris=${Math.round(totalTris)}, drawCalls=${drawCalls}, buildings=${inst.buildings.matrices.length}, trees=${inst.gums.matrices.length + inst.palms.matrices.length}`);
+    // 12 static meshes + 3 instanced meshes (gums, palms, lights) = 15 draw calls
+    const drawCalls = staticGeos.length + 3;
+    console.log(
+      `Melbourne [${quality}]: tris=${Math.round(totalTris)}, drawCalls=${drawCalls}, buildings=${env.buildings.length}, trees=${inst.gums.matrices.length + inst.palms.matrices.length}`,
+    );
 
     if (quality === 'low') {
       expect(drawCalls).toBeLessThanOrEqual(150);

@@ -13,6 +13,11 @@ export function melbourneAdsUrl(quality: Quality): string {
   return `${basePrefix()}models/circuits/melbourne/${file}`;
 }
 
+export function melbourneFacadesUrl(quality: Quality): string {
+  const file = quality === 'low' ? 'facades_low.webp' : 'facades.webp';
+  return `${basePrefix()}models/circuits/melbourne/${file}`;
+}
+
 export function loadMelbourneEnv(quality: Quality): Promise<AlbertParkEnvData> {
   const hit = cache.get(quality);
   if (hit) return hit;
