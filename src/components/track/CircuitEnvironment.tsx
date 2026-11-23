@@ -20,6 +20,7 @@ import {
 } from './geometry';
 
 const MelbourneEnvironment = lazy(() => import('./tracks/melbourne/MelbourneEnvironment'));
+const ShanghaiEnvironment = lazy(() => import('./tracks/shanghai/ShanghaiEnvironment'));
 
 /**
  * Shared 3D circuit environment: a diorama block of terrain that follows the
@@ -59,6 +60,14 @@ export function CircuitEnvironment(props: CircuitEnvironmentProps) {
     return (
       <Suspense fallback={null}>
         <MelbourneEnvironment {...props} />
+        {import.meta.env.DEV && <RenderStatsProbe />}
+      </Suspense>
+    );
+  }
+  if (props.circuit.slug === 'shanghai') {
+    return (
+      <Suspense fallback={null}>
+        <ShanghaiEnvironment {...props} />
         {import.meta.env.DEV && <RenderStatsProbe />}
       </Suspense>
     );
