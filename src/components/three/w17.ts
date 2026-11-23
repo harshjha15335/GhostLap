@@ -72,6 +72,12 @@ function prepare(lod: W17Lod, g: GLTF) {
     }
     const mat = m.material as THREE.MeshStandardMaterial;
     if (mat.map) mat.map.anisotropy = lod === 'high' ? 8 : 4;
+    // the model's paint is authored metallic 0.8 for an HDRI viewer; our studio scenes have no
+    // environment map, where that reads near-black — soften it (same look, lit by our lights)
+    if (mat.name === 'mercedes_paint' || mat.name === 'mercedes_paint2') {
+      mat.metalness = 0.45;
+      mat.roughness = 0.3;
+    }
   });
 }
 

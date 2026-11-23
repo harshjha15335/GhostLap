@@ -5,7 +5,10 @@
 - **Author**: Dave Love / Tyler_Dave (https://sketchfab.com/Tyler_Dave)
 - **Source**: https://sketchfab.com/3d-models/2026-mercedes-w17-b806f1e70aa343219e7158169549b97b
 - **License**: Creative Commons Attribution (CC-BY 4.0) (http://creativecommons.org/licenses/by/4.0/)
-- **Usage**: Reference design, Mercedes W17 aerodynamics, halo flow deflector vane, and livery styling.
+- **Usage**: The car model shown on every page. Decimated into three LODs (`w17-high/mid/low.glb`,
+  built by `scripts/models/build-w17.mjs`), split into sub-assemblies for the exploded view, and
+  re-skinned with each team's livery (other teams' liveries are GhostLap modifications, not the
+  author's work). Modified from the original.
 
 - **Model**: "F1 2026 concept (polygon model)"
 - **Author**: Qvist_designs (https://sketchfab.com/Qvist_designs)

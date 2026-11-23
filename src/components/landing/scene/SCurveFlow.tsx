@@ -6,6 +6,7 @@ import { S_CENTER_Z } from '../layout';
 import type { FlowCar } from '../stats';
 import { PALETTE } from '../palette';
 import { miniCarGeometry, ribbonGeometry, samplePoints } from './geometry';
+import { useW17InstanceGeometry } from '@/components/three/w17';
 import Road, { HalftoneGround, autoKerbs, buildFrames } from './Road';
 import { trackTextTexture, wakeTexture } from './textures';
 
@@ -74,7 +75,8 @@ export default function SCurveFlow({ bus, grid }: { bus: LandingBus; grid: FlowC
       wakeTex,
     };
   }, []);
-  const carGeo = useMemo(() => miniCarGeometry(), []);
+  const w17Geo = useW17InstanceGeometry(); // W17 low LOD (shared with the hero placeholder); mini car until it lands
+  const carGeo = useMemo(() => w17Geo ?? miniCarGeometry(), [w17Geo]);
   const wakeGeo = useMemo(() => {
     const g = new THREE.PlaneGeometry(1, 1);
     g.translate(0, 0.5, 0);
@@ -123,7 +125,8 @@ export default function SCurveFlow({ bus, grid }: { bus: LandingBus; grid: FlowC
     if (!m) return;
     colors.forEach((c, i) => m.setColorAt(i, c));
     if (m.instanceColor) m.instanceColor.needsUpdate = true;
-  }, [colors]);
+    placed.current = false; // a new car geometry rebuilds the InstancedMesh: place it again
+  }, [colors, carGeo]);
 
   const place = (dt: number, time: number, animate: boolean) => {
     const cm = cars.current;

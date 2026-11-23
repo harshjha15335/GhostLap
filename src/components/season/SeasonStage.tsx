@@ -20,11 +20,11 @@ export type StageId = 'showroom' | 'exploded';
 const EXPLODED_X = 70;
 
 /** Studio colours: a bright lilac cyclorama for the podium, blueprint blue for the drafting table. */
-export const STAGE_BG: Record<StageId, string> = { showroom: '#B7A3FF', exploded: '#2C5CFF' };
-const PODIUM_FLOOR = '#A28CF5';
-const TIER_COLORS: Record<number, string> = { 1: '#D4FF00', 2: '#F6F1E3', 3: '#FF7A00' };
-const INK = '#0F1A12';
-const HIGHLIGHT = '#FFD400';
+export const STAGE_BG: Record<StageId, string> = { showroom: '#2D3BFF', exploded: '#7A2CFF' };
+const PODIUM_FLOOR = '#1A22C4';
+const TIER_COLORS: Record<number, string> = { 1: '#FFD23F', 2: '#FFF7EE', 3: '#FF2E88' };
+const INK = '#170F33';
+const HIGHLIGHT = '#FFD23F';
 
 export interface SeasonStageProps {
   stage: StageId;
@@ -51,7 +51,7 @@ function useNumberTexture(text: string, color = INK) {
     const g = c.getContext('2d')!;
     g.fillStyle = INK;
     g.fillRect(0, 0, 256, 128);
-    g.fillStyle = '#F6F1E3';
+    g.fillStyle = '#FFF7EE';
     g.fillRect(8, 8, 240, 112);
     g.fillStyle = color;
     g.font = '96px Anton, Impact, sans-serif';
@@ -148,7 +148,7 @@ function Tier({ place, x, h, entity, selected, onSelect }: { place: number; x: n
       {/* flat-colour plinth (lime / cream / orange) */}
       <mesh position={[0, h / 2, 0]}>
         <boxGeometry args={[TIER_W, h, TIER_D]} />
-        <meshStandardMaterial color={TIER_COLORS[place] ?? '#F6F1E3'} metalness={0.05} roughness={0.62} />
+        <meshStandardMaterial color={TIER_COLORS[place] ?? '#FFF7EE'} metalness={0.05} roughness={0.62} />
       </mesh>
       {/* cream top slab (glows cyan under the spotlight selection) */}
       <mesh position={[0, h + 0.06, 0]}>
@@ -181,7 +181,7 @@ function Tier({ place, x, h, entity, selected, onSelect }: { place: number; x: n
           onPointerOut={() => (document.body.style.cursor = '')}
         >
           <group ref={car} position={[0, 0, -0.75]} scale={0.74}>
-            <F1Car detail="mid" teamId={entity.teamId} color={entity.color} accent={entity.color} number={entity.number} tyreGlow={0.4} tyreColor="#D4FF00" />
+            <F1Car detail="mid" teamId={entity.teamId} color={entity.color} accent={entity.color} number={entity.number} tyreGlow={0.4} tyreColor="#FFD23F" />
           </group>
           {drivers.map((d, i) => (
             <DriverFigure
@@ -258,7 +258,7 @@ function HeroTurntable({ entity }: { entity: Entity | null }) {
     <group position={[0, 0, 5.6]} scale={0.82}>
       <mesh position={[0, 0.04, 0]}>
         <cylinderGeometry args={[3.1, 3.25, 0.08, 64]} />
-        <meshStandardMaterial color="#F6F1E3" metalness={0.05} roughness={0.5} />
+        <meshStandardMaterial color="#FFF7EE" metalness={0.05} roughness={0.5} />
       </mesh>
       <mesh position={[0, 0.03, 0]}>
         <cylinderGeometry args={[3.3, 3.32, 0.06, 64]} />
@@ -319,7 +319,7 @@ function Showroom({ podium, selected, onSelect, mobile }: Pick<SeasonStageProps,
       {[-12, -6, 0, 6, 12].map((x) => (
         <mesh key={x} position={[x, 5, -9]}>
           <planeGeometry args={[0.08, 10]} />
-          <meshBasicMaterial color="#E4DBFF" toneMapped={false} />
+          <meshBasicMaterial color="#FFF7EE" toneMapped={false} />
         </mesh>
       ))}
       {TIERS.map((t, i) => (
@@ -388,7 +388,7 @@ function Leaders({ explode, highlight, hovered, mobile }: { explode: number; hig
             <Html position={[t.at.x - t.anchor.x, t.at.y - t.anchor.y, t.at.z - t.anchor.z]} center zIndexRange={[20, 0]} style={{ pointerEvents: 'none', opacity: tagOpacity }}>
               <div
                 className={`whitespace-nowrap rounded-[4px] border-[1.5px] border-ink px-1.5 py-0.5 font-mono leading-tight text-ink shadow-sticker-sm ${
-                  highlight.has(t.id) || hovered === t.id ? 'bg-paper-yellow' : 'bg-cream'
+                  highlight.has(t.id) || hovered === t.id ? 'bg-pop-sun' : 'bg-cream'
                 }`}
               >
                 <div className="text-[9px] font-bold tracking-wider">
@@ -423,10 +423,10 @@ function Exploded({
   return (
     <group position={[EXPLODED_X, 0, 0]}>
       {/* blueprint drafting table: white grid on blueprint blue */}
-      <gridHelper args={[24, 48, '#C9D7FF', '#5F86FF']} position={[0, -1.05, 0]} />
+      <gridHelper args={[24, 48, '#B79BFF', '#3A10B0']} position={[0, -1.05, 0]} />
       <mesh position={[0, -1.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[6.5, 64]} />
-        <meshBasicMaterial color="#2451E8" />
+        <meshBasicMaterial color="#5214D1" />
       </mesh>
       <mesh position={[0, -1.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[6.4, 6.5, 128]} />
@@ -509,7 +509,7 @@ export default function SeasonStage(props: SeasonStageProps) {
         <fog attach="fog" args={[STAGE_BG.showroom, 22, 48]} />
         <Backdrop />
         <ambientLight intensity={0.7} />
-        <hemisphereLight args={['#ffffff', '#8f7ad9', 0.85]} />
+        <hemisphereLight args={['#ffffff', '#3A2BD0', 0.85]} />
         <directionalLight position={[-6, 8, 10]} intensity={1.5} color="#fffaf0" />
         <directionalLight position={[8, 4, -6]} intensity={0.6} color="#ffe9c7" />
         <CameraRig stage={props.stage} />
