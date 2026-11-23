@@ -1,6 +1,7 @@
-import { forwardRef, useEffect, useLayoutEffect, useMemo, useReducer, useRef, type ReactNode } from 'react';
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useReducer, useRef, Component, type ErrorInfo, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { useFrame, type ThreeElements } from '@react-three/fiber';
+import { useGLTF } from '@react-three/drei';
 import { getCarGeometry, REAR_AXLE_Z, REAR_TRACK_X, type MatKey, type PartMeshes } from './carGeometry';
 import { cancelTeamLiveryRequest, getLiveryTexture, isSmallScreen, requestTeamLiveryTexture, resolveLivery, type Livery } from './liveries';
 
@@ -9,9 +10,9 @@ export { LIVERIES, LIVERY_ATLAS, paintLiveryCanvas } from './liveries';
 
 /**
  * Procedural 2026-spec F1 car (no licensed model). Smooth lofted chassis, undercut
- * "waterslide" sidepods, multi-element wings, halo, push/pull-rod suspension and covered
- * wheels — geometry is built once per detail level and shared by every instance
- * (see carGeometry.ts); only materials are per instance.
+ * "waterslide" sidepods, multi-element wings, halo, push/pull-rod suspension, covered
+ * wheels and authentic Pirelli sidewalls — geometry is built once per detail level and shared
+ * by every instance (see carGeometry.ts); only materials are per instance.
  * Structured as 8 separable sub-assemblies so /season can render an exploded view.
  *
  * Conventions (shared by landing, replay and season):
@@ -107,20 +108,95 @@ export type F1CarProps = ThreeElements['group'] & {
   explode?: number;
   highlight?: CarPartId[];
   onPartHover?: (id: CarPartId | null) => void;
+  useModel?: boolean;
 };
 
+/** Official Pirelli F1 compound colours matching 2D TyreBadge.tsx */
 export const COMPOUND_COLORS: Record<string, string> = {
-  SOFT: '#FF1E1E',
-  MEDIUM: '#FFD400',
-  HARD: '#F2F2F2',
-  INTERMEDIATE: '#3BD16F',
-  WET: '#2F7BFF',
+  SOFT: '#E8002D',
+  MEDIUM: '#FFD12E',
+  HARD: '#F0F0EC',
+  INTERMEDIATE: '#43B02A',
+  WET: '#0067AD',
 };
 
 const GHOST = new THREE.Color('#00F5D4');
 
 /** easeOutCubic, clamped to 0..1 — the curve used for the explode animation. */
 export const easeExplode = (t: number) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
+
+/* ---------------------------- Pirelli sidewall texture ---------------------------- */
+
+let cachedPirelliTexture: THREE.CanvasTexture | null = null;
+
+function getPirelliSidewallTexture(): THREE.CanvasTexture | null {
+  if (cachedPirelliTexture) return cachedPirelliTexture;
+  if (typeof document === 'undefined') return null;
+
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 512;
+  const g = c.getContext('2d');
+  if (!g) return null;
+
+  const cx = 256;
+  const cy = 256;
+  const R = 188;
+
+  g.clearRect(0, 0, 512, 512);
+
+  // Two thick white arcs: left (128° to 232°) and right (-52° to 52°)
+  g.strokeStyle = '#ffffff';
+  g.lineWidth = 16;
+  g.lineCap = 'round';
+
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+
+  // Right arc
+  g.beginPath();
+  g.arc(cx, cy, R, toRad(-52), toRad(52));
+  g.stroke();
+
+  // Left arc
+  g.beginPath();
+  g.arc(cx, cy, R, toRad(128), toRad(232));
+  g.stroke();
+
+  // Lettering: PIRELLI over top arc, P ZERO under bottom arc
+  g.fillStyle = '#ffffff';
+  g.font = 'bold italic 36px "Arial Black", Anton, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+
+  const drawArcText = (str: string, midAngleDeg: number, radius: number, inward = true) => {
+    const chars = str.split('');
+    const stepDeg = 7.0;
+    const totalDeg = chars.length * stepDeg;
+    const startDeg = midAngleDeg - totalDeg / 2;
+    chars.forEach((ch, idx) => {
+      const angDeg = startDeg + (idx + 0.5) * stepDeg;
+      const angRad = toRad(angDeg);
+      const x = cx + Math.cos(angRad) * radius;
+      const y = cy + Math.sin(angRad) * radius;
+      g.save();
+      g.translate(x, y);
+      g.rotate(angRad + (inward ? Math.PI / 2 : -Math.PI / 2));
+      g.fillText(ch, 0, 0);
+      g.restore();
+    });
+  };
+
+  // Top: PIRELLI
+  drawArcText('PIRELLI', -90, R + 2, true);
+
+  // Bottom: P ZERO
+  drawArcText('P ZERO', 90, R + 2, false);
+
+  cachedPirelliTexture = new THREE.CanvasTexture(c);
+  cachedPirelliTexture.colorSpace = THREE.SRGBColorSpace;
+  cachedPirelliTexture.anisotropy = 4;
+  return cachedPirelliTexture;
+}
 
 /* ---------------------------- shared decal bits ---------------------------- */
 
@@ -166,8 +242,8 @@ function useTeamLiveryTexture(teamId: string | undefined, small: boolean) {
 }
 
 /**
- * One explodable sub-assembly. Module-level (not defined inside F1Car) so React keeps the
- * same component identity across renders and only the position prop changes as `e` moves.
+ * One explodable sub-assembly. Module-level so React keeps the
+ * same component identity across renders.
  */
 function PartGroup({
   id,
@@ -195,10 +271,43 @@ function PartGroup({
   );
 }
 
+class ModelErrorBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.warn('W17 GLB model load failed, falling back to procedural:', error, errorInfo);
+  }
+  render() {
+    return this.state.hasError ? this.props.fallback : this.props.children;
+  }
+}
+
+function W17GlbModel() {
+  const { scene } = useGLTF('/models/w17.glb');
+  const clone = useMemo(() => {
+    const c = scene.clone(true);
+    c.traverse((node) => {
+      if ((node as THREE.Mesh).isMesh) {
+        node.castShadow = true;
+        node.receiveShadow = true;
+      }
+    });
+    return c;
+  }, [scene]);
+
+  return <primitive object={clone} />;
+}
+
+if (typeof window !== 'undefined') {
+  useGLTF.preload('/models/w17.glb');
+}
+
 export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
   {
-    color = '#D4FF00',
-    accent = '#D4FF00',
+    color = '#0B0B0B',
+    accent = '#00D7B6',
     teamId,
     livery,
     liveryTexture,
@@ -206,18 +315,19 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
     logoTexture,
     ghost = false,
     tyreGlow = 0.8,
-    tyreColor = '#FF1E1E',
+    tyreColor = '#00D7B6',
     detail = 'high',
     explode = 0,
     highlight,
     onPartHover,
+    useModel,
     ...group
   },
   ref,
 ) {
   const geo = getCarGeometry(detail);
   const hl = useMemo(() => new Set(highlight ?? []), [highlight]);
-  const tid = teamId ?? (typeof livery === 'string' ? livery : undefined);
+  const tid = teamId ?? (typeof livery === 'string' ? livery : (livery ? undefined : 'mercedes'));
   const liv = resolveLivery(livery ?? tid, color, accent);
   const teamTex = useTeamLiveryTexture(ghost || liveryTexture ? undefined : tid, detail === 'low' || isSmallScreen());
 
@@ -226,12 +336,23 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
   const mats = useMemo(() => {
     const body = ghost
       ? new THREE.MeshStandardMaterial({ color: GHOST, emissive: GHOST, emissiveIntensity: 0.9, transparent: true, opacity: 0.55, depthWrite: false })
-      : new THREE.MeshStandardMaterial({ map: getLiveryTexture(liv, detail === 'low'), metalness: 0.3, roughness: 0.35 });
-    const carbon = ghost ? body : new THREE.MeshStandardMaterial({ color: '#15181d', metalness: 0.25, roughness: 0.55 });
-    const tyre = ghost ? body : new THREE.MeshStandardMaterial({ color: '#111113', roughness: 0.85 });
-    const metal = ghost ? body : new THREE.MeshStandardMaterial({ color: '#9aa3ad', metalness: 0.85, roughness: 0.3 });
-    const ring = new THREE.MeshStandardMaterial({ toneMapped: false });
+      : new THREE.MeshStandardMaterial({ map: getLiveryTexture(liv, detail === 'low'), metalness: 0.35, roughness: 0.35 });
+    const carbon = ghost ? body : new THREE.MeshStandardMaterial({ color: '#14171c', metalness: 0.25, roughness: 0.55 });
+    const tyre = ghost ? body : new THREE.MeshStandardMaterial({ color: '#111113', roughness: 0.88 });
+    const metal = ghost ? body : new THREE.MeshStandardMaterial({ color: '#9aa3ad', metalness: 0.85, roughness: 0.28 });
+
+    // Compound ring / sidewall branding
+    const pirelliMap = detail === 'high' && !ghost ? getPirelliSidewallTexture() : null;
+    const ring = new THREE.MeshStandardMaterial({
+      map: pirelliMap,
+      transparent: detail === 'high' && !ghost,
+      alphaTest: detail === 'high' && !ghost ? 0.05 : 0,
+      roughness: 0.5,
+      metalness: 0.1,
+      toneMapped: false,
+    });
     ring.userData.tyreRing = true;
+
     const ersCore = new THREE.MeshStandardMaterial({ color: '#0a1a1a', emissive: GHOST, emissiveIntensity: ghost ? 0.9 : 0.6, toneMapped: false });
     const ersWarn = new THREE.MeshStandardMaterial({ color: '#1a0f05', emissive: new THREE.Color('#FF7A00'), emissiveIntensity: 0.7, toneMapped: false });
     const pulse = new THREE.MeshStandardMaterial({ color: GHOST, emissive: GHOST, emissiveIntensity: 1.2, transparent: true, opacity: 0.9, toneMapped: false });
@@ -239,7 +360,7 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liv.primary, liv.secondary, liv.accent, liv.pattern, ghost, detail]);
 
-  // swap the body map in place (same shader program: no recompile, no extra draw calls)
+  // swap the body map in place
   useLayoutEffect(() => {
     if (ghost) return;
     const map = liveryTexture ?? teamTex ?? getLiveryTexture(liv, detail === 'low');
@@ -249,7 +370,6 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
     }
   });
 
-  // (textures are shared / caller-owned and are not disposed here)
   useEffect(
     () => () => {
       new Set(Object.values(mats)).forEach((mat) => mat.dispose());
@@ -286,14 +406,16 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
   const shadow = detail === 'high';
   const meshes = (id: CarPartId, list: PartMeshes) =>
     list.map(({ mat, geo: g }, i) => {
-      // tyres, rings and glowing ERS parts keep their own look when highlighted
       const keep = mat === 'ring' || mat === 'tyre';
       const material = hl.has(id) && !keep ? mats.pulse : mats[mat];
       return <mesh key={i} geometry={g} material={material} castShadow={shadow && mat !== 'ring'} receiveShadow={shadow && mat === 'body'} />;
     });
 
-  return (
-    <group ref={ref} {...group}>
+  const isMercedesHero =
+    (useModel ?? (detail === 'high' && !ghost && explode === 0 && (!teamId || teamId === 'mercedes')));
+
+  const proceduralCar = (
+    <>
       {/* 3 — Underfloor & Venturi tunnels */}
       <PartGroup e={e} onHover={onPartHover} id="floor">
         {meshes('floor', geo.floor)}
@@ -350,6 +472,18 @@ export const F1Car = forwardRef<THREE.Group, F1CarProps>(function F1Car(
       <PartGroup e={e} onHover={onPartHover} id="rearWing">
         {meshes('rearWing', geo.rearWing)}
       </PartGroup>
+    </>
+  );
+
+  return (
+    <group ref={ref} {...group}>
+      {isMercedesHero ? (
+        <ModelErrorBoundary fallback={proceduralCar}>
+          <W17GlbModel />
+        </ModelErrorBoundary>
+      ) : (
+        proceduralCar
+      )}
     </group>
   );
 });
