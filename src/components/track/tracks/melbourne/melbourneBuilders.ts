@@ -769,5 +769,48 @@ export function buildMelbourneAdsGeometry(m: TrackModel, lay: Layout, env: Alber
     g.quad(F(1, -1, 1), F(-1, -1, 1), F(1, 1, 1), F(-1, 1, 1), white, false, [uv[0], uv[2], uv[1], uv[3]]);
   }
 
+  // 4. Pit building roof fascia (Qatar Airways 2026 title banner along pit straight)
+  if (qatarUv) {
+    const core = Math.round(lay.pitN * 0.64);
+    const pitBase = (i: number) => lay.pitCentre[i] + m.pit.width / 2 + 0.5 * M;
+    const panels = 5;
+    for (let k = 0; k < panels; k++) {
+      const frac = -0.82 + (k + 0.5) * (1.64 / panels);
+      const i = wrapIndex(Math.round(frac * core), m.n);
+      const off = pitBase(i) - 1.46 * M;
+      const halfL = 4.2 * M;
+      const y0 = 8.4 * M;
+      const y1 = 9.75 * M;
+      const c = at(m, i, off, 0);
+      const tx = m.tx[i];
+      const tz = m.tz[i];
+      const P = (dl: number, y: number): V3 => [c[0] + tx * dl, c[1] + y, c[2] + tz * dl];
+      g.quad(P(halfL, y0), P(-halfL, y0), P(halfL, y1), P(-halfL, y1), white, false, [qatarUv[0], qatarUv[2], qatarUv[1], qatarUv[3]]);
+    }
+  }
+
+  // 5. Grandstand front fascia sponsor banners (using same 1-draw-call atlas)
+  const standBrands = ['qatar_airways', 'pirelli', 'aramco', 'heineken', 'tag_heuer', 'dhl', 'msc_cruises', 'amex', 'lenovo', 'f1_2026'];
+  env.grandstands.forEach((st, idx) => {
+    const uv = uvById.get(standBrands[idx % standBrands.length]);
+    if (!uv) return;
+    const midU = st.u0 <= st.u1 ? (st.u0 + st.u1) * 0.5 : ((st.u0 + st.u1 + 1) * 0.5) % 1;
+    const i = sampleIdx(m, midU);
+    const S = st.side > 0 ? lay.R : lay.L;
+    const off = st.side * (S.barrier[i] + 1.32 * M);
+    const halfL = 4.0 * M;
+    const y0 = 0.25 * M;
+    const y1 = 1.28 * M;
+    const c = at(m, i, off, 0);
+    const tx = m.tx[i];
+    const tz = m.tz[i];
+    const P = (dl: number, y: number): V3 => [c[0] + tx * dl, c[1] + y, c[2] + tz * dl];
+    if (st.side < 0) {
+      g.quad(P(-halfL, y0), P(halfL, y0), P(-halfL, y1), P(halfL, y1), white, false, [uv[0], uv[2], uv[1], uv[3]]);
+    } else {
+      g.quad(P(halfL, y0), P(-halfL, y0), P(halfL, y1), P(-halfL, y1), white, false, [uv[0], uv[2], uv[1], uv[3]]);
+    }
+  });
+
   return g.geometry();
 }

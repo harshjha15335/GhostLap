@@ -48,3 +48,6 @@ All 2026 branding is packed into ONE texture atlas (`public/models/circuits/melb
 ## 4. 3D Visual References Audited (Not Bundled)
 - `"melbourne circuit"` by `amogusstrikesback2` (CC-BY 4.0, 372k faces): audited for pit building & grandstand proportions; not shipped in `public/`.
 - `"Albert Park Circuit Melbourne 2018 layout"` by `Dave Love` (CC-BY 4.0, 1.04M faces, pre-2021 layout with outdated T9–10 chicane & Rolex boards): audited for overall lakeside massing only; layout and signage intentionally NOT copied.
+
+## 5. Verified 2026 Partner Logo Files (`ads.webp` / `ads_low.webp`)
+13 of 14 partner slots use official SVG renders fetched from Wikimedia Commons via `scripts/circuits/build_albert_park_logos.py`; `Crypto.com` remains a clean text board because no verified official SVG was found on Wikimedia Commons. See `public/models/CREDITS.md` for the full per-brand URL and licence table.

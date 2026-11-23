@@ -16,7 +16,7 @@
 ## Albert Park (Melbourne) 2026 Circuit Environment
 - **Map & Surroundings Data**: OpenStreetMap contributors (https://www.openstreetmap.org/copyright)
 - **License**: Open Database License (ODbL 1.0) — "© OpenStreetMap contributors"
-- **Usage**: Albert Park Lake & island outlines, sports ovals, Albert Park Golf Course, park roads/paths, Lakeside Stadium/MSAC/park buildings, St Kilda Road & Melbourne CBD skyline footprints/heights, and parkland tree locations extracted via `scripts/circuits/build_albert_park.py`.
+- **Usage**: Albert Park Lake & island outlines, sports ovals, Albert Park Golf Course, park roads/paths, Lakeside Stadium/MSAC/park buildings, St Kilda Road & Melbourne CBD skyline footprints/heights, boatsheds/jetties, and parkland tree locations extracted via `scripts/circuits/build_albert_park.py`.
 
 - **3D Visual Reference**: "melbourne circuit"
 - **Author**: amogusstrikesback2 (https://sketchfab.com/amogusstrikesback2)
@@ -30,8 +30,25 @@
 - **License**: Creative Commons Attribution (CC-BY 4.0) (http://creativecommons.org/licenses/by/4.0/)
 - **Usage**: Visual reference for lakeside proportions only (pre-2021 layout and legacy signage not copied; original mesh not shipped).
 
-- **2026 Trackside Signage Atlas**: `public/models/circuits/melbourne/ads.webp` & `ads_low.webp`
-- **Source / License**: Generated procedurally in `scripts/circuits/build_albert_park.py` using plain bold sans-serif typography (DejaVu Sans Bold / Liberation Sans Bold) and official 2026 partner brand colour palettes documented in `docs/albert-park/REFERENCE.md`. No third-party trademarked bitmap logos are bundled.
+### 2026 Trackside Partner Logo Atlas (`public/models/circuits/melbourne/ads.webp` & `ads_low.webp`)
+Rasterised via `scripts/circuits/build_albert_park_logos.py` from official SVG files on Wikimedia Commons (trademarks belong to their respective owners; used for historical/editorial motorsport depiction of the 2026 Australian Grand Prix):
+
+| Brand | Source (Wikimedia Commons) | Licence / Note |
+| --- | --- | --- |
+| **Qatar Airways** | https://commons.wikimedia.org/wiki/File:Qatar_Airways_logo.svg | Public domain (below threshold of originality) / trademark |
+| **Formula 1** | https://commons.wikimedia.org/wiki/File:F1.svg | Public domain (below threshold of originality) / trademark |
+| **Pirelli** | https://commons.wikimedia.org/wiki/File:Pirelli_-_logo_full_(Italy,_1997).svg | Public domain (below threshold of originality) / trademark |
+| **Saudi Aramco** | https://commons.wikimedia.org/wiki/File:Saudi_aramco_logo.svg | Public domain (below threshold of originality) / trademark |
+| **DHL** | https://commons.wikimedia.org/wiki/File:DHL_Logo.svg | Public domain (below threshold of originality) / trademark |
+| **Heineken** | https://commons.wikimedia.org/wiki/File:Heineken_logo.svg | Public domain (below threshold of originality) / trademark |
+| **Lenovo** | https://commons.wikimedia.org/wiki/File:Lenovo_logo_2015.svg | Public domain (below threshold of originality) / trademark |
+| **LVMH** | https://commons.wikimedia.org/wiki/File:LVMH_logo.svg | Public domain (below threshold of originality) / trademark |
+| **TAG Heuer** | https://commons.wikimedia.org/wiki/File:TAG_Heuer_Logo.svg | Public domain (below threshold of originality) / trademark |
+| **MSC Cruises** | https://commons.wikimedia.org/wiki/File:MSC_Cruises_de_logo.svg | Public domain (below threshold of originality) / trademark |
+| **Amazon Web Services (AWS)** | https://commons.wikimedia.org/wiki/File:Amazon_Web_Services_Logo.svg | Apache License 2.0 / trademark |
+| **Salesforce** | https://commons.wikimedia.org/wiki/File:Salesforce.com_logo.svg | Public domain (below threshold of originality) / trademark |
+| **American Express** | https://commons.wikimedia.org/wiki/File:American_Express_logo_(2018).svg | Public domain (below threshold of originality) / trademark |
+| **Crypto.com** | Text fallback (no verified official SVG on Wikimedia Commons) | Rendered in plain bold sans-serif typography |
 
 ## 3D Circuit Style Reference
 - **Project**: F1TrackViewer / Boxlane

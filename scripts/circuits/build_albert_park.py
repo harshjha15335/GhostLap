@@ -617,7 +617,8 @@ def main():
     bay_poly = apply_transform(bay_utm, tf)
 
     # 9. Build 2026 sponsor atlas WebP (high & low)
-    atlas_meta = build_2026_ads_atlas(OUT_DIR)
+    from build_albert_park_logos import build_logo_atlas
+    atlas_meta = build_logo_atlas(OUT_DIR)
 
     # 10. Data-driven 2026 Albert Park grandstands, bridges, and trackside advertising placements
     grandstands = [

@@ -74,6 +74,9 @@ export default function MelbourneEnvironment({
       melbourneAdsUrl(quality),
       (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
+        tex.generateMipmaps = true;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
         tex.anisotropy = quality === 'high' ? 8 : 4;
         tex.needsUpdate = true;
         if (!alive) {
