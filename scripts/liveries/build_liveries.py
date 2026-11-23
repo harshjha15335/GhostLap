@@ -5,6 +5,7 @@ Input : 2048x2048 "main" livery sheets (one per team, shared UV layout), e.g.
         <src>/ferrari-0.png
 Output: public/liveries/<teamId>.webp     (1024x512, quality 80)
         public/liveries/<teamId>-sm.webp  (512x256)
+        public/liveries/<teamId>-2x.webp  (2048x1024, with --hires; W17 high-LOD close-ups)
 
 The atlas layout matches LIVERY_ATLAS in src/components/three/liveries.ts (rects there
 are given in a 1024x512 canvas, origin top-left). Each atlas region is filled from one
@@ -15,6 +16,7 @@ Requires ImageMagick (`convert`). Stdlib only.
 Usage:
   python3 scripts/liveries/build_liveries.py <src-dir> [--out public/liveries] [--preview <dir>]
   python3 scripts/liveries/build_liveries.py <src-dir> --guides <dir>   # draw crop rects on sheets
+  python3 scripts/liveries/build_liveries.py <src-dir> --hires          # + <teamId>-2x.webp (2048x1024)
 """
 from __future__ import annotations
 
@@ -109,10 +111,10 @@ def crop_str(c):
     return f"{w}x{h}+{x}+{y}"
 
 
-def compose(src: str, out_png: str) -> None:
-    cmd = ["convert", "-size", "1024x512", f"xc:{CARBON}"]
+def compose(src: str, out_png: str, scale: int = 1) -> None:
+    cmd = ["convert", "-size", f"{1024 * scale}x{512 * scale}", f"xc:{CARBON}"]
     for region, parts in SPEC.items():
-        rx, ry, rw, rh = REGIONS[region]
+        rx, ry, rw, rh = (v * scale for v in REGIONS[region])
         for crop, ops, (fx, fy, fw, fh) in parts:
             dx = round(rx + fx * rw) - (BLEED if fx == 0 else 0)
             dy = round(ry + fy * rh) - (BLEED if fy == 0 else 0)
@@ -148,6 +150,8 @@ def main() -> int:
     ap.add_argument("--preview", help="also write <teamId>.png previews here")
     ap.add_argument("--guides", help="write sheets with crop rects drawn, then exit")
     ap.add_argument("--teams", nargs="*", default=TEAMS)
+    ap.add_argument("--hires", action="store_true",
+                    help="also write <teamId>-2x.webp (2048x1024) for the W17 high LOD close-ups")
     a = ap.parse_args()
 
     if a.guides:
@@ -169,6 +173,13 @@ def main() -> int:
         subprocess.run(["convert", png, "-quality", "80", "-define", "webp:method=6", os.path.join(a.out, f"{t}.webp")], check=True)
         subprocess.run(["convert", png, "-resize", "512x256!", "-quality", "80", "-define", "webp:method=6",
                         os.path.join(a.out, f"{t}-sm.webp")], check=True)
+        if a.hires:
+            png2 = os.path.join(tmp_dir, f"{t}-2x.png")
+            compose(src, png2, scale=2)
+            subprocess.run(["convert", png2, "-quality", "80", "-define", "webp:method=6",
+                            os.path.join(a.out, f"{t}-2x.webp")], check=True)
+            if not a.preview:
+                os.remove(png2)
         if not a.preview:
             os.remove(png)
         print("wrote", t)
