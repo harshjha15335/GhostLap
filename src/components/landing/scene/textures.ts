@@ -105,17 +105,17 @@ export function acquireHalftoneTexture(): THREE.CanvasTexture {
   dotsUsers++;
   if (dotsCache) return dotsCache;
   const size = 256;
-  const cell = 32;
+  const cell = 16;
   const [c, g] = canvas(size, size);
   g.fillStyle = '#fff';
   g.fillRect(0, 0, size, size);
-  // value 0.8 in linear space -> a dot ~10% darker than the sheet once multiplied
-  g.fillStyle = 'rgb(204,204,204)';
+  // value ~0.87 in linear space -> a dot ~6% darker than the sheet once multiplied
+  g.fillStyle = 'rgb(222,222,222)';
   for (let y = 0; y <= size; y += cell / 2) {
     const odd = (y / (cell / 2)) % 2 === 1;
     for (let x = odd ? cell / 2 : 0; x <= size; x += cell) {
       g.beginPath();
-      g.arc(x, y, cell * 0.17, 0, Math.PI * 2);
+      g.arc(x, y, cell * 0.2, 0, Math.PI * 2);
       g.fill();
     }
   }

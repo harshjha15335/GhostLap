@@ -29,8 +29,11 @@ export default function PitWallNav() {
         : 'border-transparent text-ink/75 hover:-translate-y-px hover:border-ink/20 hover:bg-ink/[0.06] hover:text-ink'
     }`;
 
+  // bg-cream/95, not solid: a fully opaque fixed bar over a fixed WebGL canvas trips a
+  // compositor occlusion bug in some Chrome builds (the canvas loses a header-tall strip
+  // at the bottom of the screen)
   return (
-    <header className="theme-paper pop-dots fixed inset-x-0 top-0 z-50 h-12 border-b-2 border-ink bg-cream">
+    <header className="theme-paper pop-dots fixed inset-x-0 top-0 z-50 h-12 border-b-2 border-ink bg-cream/95">
       <div className="mx-auto flex h-full max-w-[1600px] items-center gap-4 px-4">
         <NavLink to="/" className="flex items-center gap-2 rounded-md" aria-label="GhostLap home">
           <Logo className="text-[19px]" tilt={-3} />

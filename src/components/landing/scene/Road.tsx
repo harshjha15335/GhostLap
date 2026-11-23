@@ -413,7 +413,7 @@ export default function Road({ spec }: { spec: RoadSpec }) {
 }
 
 /** Large flat ground in one colour with a halftone dot screen (unlit, exact brand colour). */
-export function HalftoneGround({ color, center, size, tile = 120 }: { color: string; center: [number, number]; size: [number, number]; tile?: number }) {
+export function HalftoneGround({ color, center, size, tile = 40 }: { color: string; center: [number, number]; size: [number, number]; tile?: number }) {
   const tex = useMemo(() => acquireHalftoneTexture(), []);
   useEffect(() => () => releaseHalftoneTexture(), []);
   const mat = useMemo(() => {
