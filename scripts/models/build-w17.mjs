@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
 import { EXTTextureWebP, KHRMaterialsClearcoat, KHRMaterialsSpecular } from '@gltf-transform/extensions';
-import { dedup, meshopt, prune, simplifyPrimitive, weld, compactPrimitive } from '@gltf-transform/functions';
+import { dedup, join, meshopt, prune, simplifyPrimitive, weld, compactPrimitive } from '@gltf-transform/functions';
 import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
 import { loadW17, matName } from './lib/load.mjs';
 import { splitParts } from './lib/split.mjs';
@@ -60,12 +60,15 @@ const LODS = {
     },
     texDefault: 1024,
     tex: { mercedes_carbon1: 128, mercedes_carbon3: 128, sw_carbon: 128, gp21_cinture: 256, mercedes_sw: 256, rear_light_2: 256, generics: 512, mercedes_wheel_hub: 512 },
-    normals: ['tread_medium', 'sidewall', 'mercedes_wheel_hub', 'mercedes_carbon1', 'mercedes_carbon3'],
+    normals: ['tread_medium', 'sidewall', 'mercedes_wheel_hub', 'mercedes_carbon1'],
+    merge: { mercedes_carbon2: 'mercedes_carbon1', mercedes_carbon3: 'mercedes_carbon1', sw_carbon: 'mercedes_carbon1' },
     normalTex: 512,
     quality: 82,
   },
   mid: {
-    drop: [...INTERIOR, 'gp21_cinture', 'mercedes_sw', 'sw_carbon', 'chrome', 'rear_light_2', 'mercedes_colordriver', 'discs'],
+    drop: [...INTERIOR, 'gp21_cinture', 'mercedes_sw', 'sw_carbon', 'chrome', 'rear_light_2', 'mercedes_colordriver', 'discs', 'mercedes_mirror_left', 'mercedes_mirror_right'],
+    // fewer draw calls: the carbon materials sample one texel each anyway (constant UVs) → one carbon
+    merge: { mercedes_carbon2: 'mercedes_carbon1', mercedes_carbon3: 'mercedes_carbon1' },
     keepDefault: 0.08,
     error: 0.02,
     keep: {
@@ -156,7 +159,17 @@ async function buildSplitLOD(name) {
   // team livery UVs (TEXCOORD_1) on the painted bodywork
   for (const mesh of root.listMeshes())
     for (const p of mesh.listPrimitives()) if (PAINTED.includes(matName(p.getMaterial()))) addAtlasUV(doc, p);
+  if (recipe.merge) {
+    const byName = new Map(root.listMaterials().map((m) => [matName(m), m]));
+    for (const mesh of root.listMeshes())
+      for (const p of mesh.listPrimitives()) {
+        const to = recipe.merge[matName(p.getMaterial())];
+        if (to && byName.get(to)) p.setMaterial(byName.get(to));
+      }
+  }
   splitParts(doc);
+  // one primitive per (part, material)
+  await doc.transform(join({ keepNamed: true }));
   // lighter shading extensions for the mid LOD
   if (name !== 'high') {
     for (const mat of root.listMaterials()) {
