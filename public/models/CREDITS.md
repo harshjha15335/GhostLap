@@ -50,6 +50,20 @@ Rasterised via `scripts/circuits/build_albert_park_logos.py` from official SVG f
 | **American Express** | https://commons.wikimedia.org/wiki/File:American_Express_logo_(2018).svg | Public domain (below threshold of originality) / trademark |
 | **Crypto.com** | Text fallback (no verified official SVG on Wikimedia Commons) | Rendered in plain bold sans-serif typography |
 
+
+## Shanghai International Circuit (2026 Chinese GP) Environment
+- **Map & Surroundings Data**: OpenStreetMap contributors (https://www.openstreetmap.org/copyright)
+- **License**: Open Database License (ODbL 1.0) — "© OpenStreetMap contributors"
+- **Usage**: Paddock lake, ponds/canals, car parks/plazas, Jiading roads/expressways, buildings, and green-belt trees extracted via `scripts/circuits/build_shanghai.py`.
+
+- **3D Visual Reference**: "Shanghai International Circuit 2018 layout"
+- **Author**: Dave Love SketchFab (https://sketchfab.com/Tyler_Dave)
+- **Source**: https://sketchfab.com/3d-models/shanghai-international-circuit-2018-layout-4d3365f4de6442a5ae56e8807c518c4f
+- **License**: Creative Commons Attribution (CC-BY 4.0) (http://creativecommons.org/licenses/by/4.0/)
+- **Usage**: Visual reference for Main Grandstand A canopy, twin wing bridges, and paddock pavilion proportions (original 1.37M-face mesh not shipped).
+
+- **2026 Trackside Partner Logo Atlas**: `public/models/circuits/shanghai/ads.webp` & `ads_low.webp` — uses the same 13 verified Wikimedia Commons SVG logos + Crypto.com text fallback documented above.
+
 ## 3D Circuit Style Reference
 - **Project**: F1TrackViewer / Boxlane
 - **Author**: Makakashan (https://github.com/makakashan)
