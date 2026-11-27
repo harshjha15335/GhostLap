@@ -10,6 +10,7 @@ const Landing = lazy(() => import('@/components/landing/Landing'));
 const CircuitsPage = lazy(() => import('@/components/circuits/CircuitsPage'));
 const ReplayView = lazy(() => import('@/components/replay/ReplayView'));
 const SeasonPage = lazy(() => import('@/components/season/SeasonPage'));
+const DriversPage = lazy(() => import('@/components/drivers/DriversPage'));
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/replay" element={<Navigate to={`/replay/${DEFAULT_RACE_SLUG}?autoplay=1`} replace />} />
           <Route path="/replay/:raceSlug" element={<ReplayView />} />
           <Route path="/season" element={<SeasonPage />} />
+          <Route path="/drivers" element={<DriversPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

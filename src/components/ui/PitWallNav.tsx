@@ -13,6 +13,7 @@ const links = [
   { to: '/circuits', label: 'Circuits', match: (p: string) => p.startsWith('/circuits') },
   { to: '/replay', label: 'Race Lab', match: (p: string) => p.startsWith('/replay') },
   { to: '/season', label: 'Season', match: (p: string) => p.startsWith('/season') },
+  { to: '/drivers', label: 'Drivers', match: (p: string) => p.startsWith('/drivers') },
 ];
 
 export default function PitWallNav() {
