@@ -439,8 +439,6 @@ export class TrafficResolver {
 
   /** hold back any car that overlaps (laterally) with one in front of it */
   private sweep() {
-    const inp = this.input!;
-    const kind = inp.kind;
     for (let iter = 0; iter < 8; iter++) {
       this.buildOrder();
       const m = this.nOrd;

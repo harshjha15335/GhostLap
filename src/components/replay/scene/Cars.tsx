@@ -152,6 +152,17 @@ export const Cars = memo(function Cars({ scene }: { scene: RaceScene }) {
       rt.lastT = t;
     }
 
+    frame.leaderS = NaN;
+    for (let k = 0; k < states.length; k++) {
+      const s0 = states[k];
+      if (s0.retired) break;
+      const i0 = rt.ctx.idxByDriver.get(s0.driverNumber);
+      if (i0 !== undefined && out.input.kind[i0] !== KIND_OFF && !out.posed[i0]) {
+        frame.leaderS = tr.sv[i0];
+        break;
+      }
+    }
+
     // 3. transforms
     const scale = CAR_SCALE * (1 + frame.topW * 1.1);
     const air = frame.air;

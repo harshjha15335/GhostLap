@@ -49,6 +49,8 @@ export const frame = {
   carDir: new Map<number, Vector3>(),
   /** drivers currently side by side with someone */
   battling: new Set<number>(),
+  /** visual arc position (render units) of the race leader, NaN if none */
+  leaderS: NaN,
   /** safety car group while it is on track */
   safetyCar: null as Object3D | null,
   /** director cue: something worth cutting to (incident / SC), with its expiry (performance.now ms) */
