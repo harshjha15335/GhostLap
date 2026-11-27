@@ -220,10 +220,12 @@ describe('lateral resolver (real bundle)', () => {
       expect(out.hidden[i]).toBe(0);
       expect(out.input.kind[i]).toBe(KIND_OBSTACLE);
       expect(out.poses[i].phase).toBe(2);
-      // parked off the racing surface
+      // parked at the edge of the asphalt (stopped on track) or off the racing surface
       const lo = sampleLane(lt.lo, lt, out.poses[i].s);
       const hi = sampleLane(lt.hi, lt, out.poses[i].s);
-      expect(out.poses[i].d > hi + CLEAR_D * 0.5 || out.poses[i].d < lo - CLEAR_D * 0.5).toBe(true);
+      const d = out.poses[i].d;
+      if (p.onTrack) expect(Math.abs(d - hi) < 0.05 || Math.abs(d - lo) < 0.05).toBe(true);
+      else expect(d > hi + CLEAR_D * 0.5 || d < lo - CLEAR_D * 0.5).toBe(true);
     }
     expect(out.input.kind.some((k) => k === KIND_OFF)).toBeDefined();
   });

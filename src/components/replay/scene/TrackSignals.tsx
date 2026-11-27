@@ -96,7 +96,7 @@ export function TrackSignals({ scene }: { scene: RaceScene }) {
       if (!st) {
         for (const p of plans) {
           if (!p || p.kind === 'garage' || t < p.tStop || t > p.tStop + p.lapTime * 1.5) continue;
-          let dd = Math.abs(rt.s[k] - p.sStop);
+          let dd = Math.abs(rt.s[k] - (((p.sRest % lt.length) + lt.length) % lt.length));
           dd = Math.min(dd, lt.length - dd);
           if (dd < lt.length / BOARDS * 1.6) c = Math.sin(e * 10) > 0 ? YELLOW : OFF;
         }

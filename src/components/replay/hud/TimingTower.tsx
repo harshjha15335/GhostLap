@@ -6,6 +6,8 @@ import { useRaceLab } from '@/store/raceLabStore';
 import { useDriverLookup } from '@/store/seasonStore';
 import { useTicker } from '../lib/frame';
 import { COMPOUND_SHORT, fmtGap, ghostProgress, timeAtProgress } from '../lib/raceMath';
+import { buildRaceScene } from '../lib/raceScene';
+import { towerOrder } from '../lib/towerOrder';
 
 export function TyreChip({ compound, age, size = 'sm' }: { compound: Compound; age?: number; size?: 'sm' | 'md' }) {
   return (
@@ -35,7 +37,9 @@ export function TimingTower() {
 
   if (!timeline || !bundle) return null;
   const compact = window.innerWidth < 768;
-  const states = timeline.statesAt(time);
+  // retiring cars stay in the order until they come to rest at their real stop point
+  const scene = buildRaceScene(bundle, timeline);
+  const states = towerOrder(timeline.statesAt(time), scene.plans, scene.idxByDriver, time, scene.lt.length);
   const leader = states[0];
   const pitSet = new Map(bundle.cars.map((c) => [c.driverNumber, new Set(c.pits.map((p) => p.lap))]));
 

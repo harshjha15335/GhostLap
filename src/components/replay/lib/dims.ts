@@ -28,3 +28,8 @@ export const REPLAY_TRACK_OPTS = {
   pitLane: { offset: PIT_LANE_OFFSET, width: PIT_LANE_WIDTH },
   pitSpan: PIT_SPAN,
 };
+
+/** lap-1 grid: half a car length + clearance per slot, columns one car width apart */
+export const GRID_STEP = CLEAR_S / 2 + 0.12;
+export const GRID_SIDE = CLEAR_D / 2 + 0.03;
+export const GRID_LEAD = 1.2;

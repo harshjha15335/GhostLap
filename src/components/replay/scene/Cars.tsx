@@ -13,6 +13,7 @@ import { createFieldCtx, createFieldOut, fillField } from '../lib/field';
 import { KIND_OFF, KIND_PIT, KIND_RACE, TrafficResolver } from '../lib/traffic';
 import type { RaceScene } from '../lib/raceScene';
 import { createScState, scState } from '../lib/safetyCar';
+import { isOut } from '../lib/incidents';
 import { PIT_LANE_OFFSET } from '../lib/dims';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -329,9 +330,13 @@ function FocusMarker() {
     g.position.y += 2.3 * (1 + frame.topW * 1.6) + Math.sin(clock.elapsedTime * 3) * 0.12;
     g.rotation.y = clock.elapsedTime * 1.4;
     const st = frame.byDriver.get(focusDriver!);
-    if (label.current && st && (last.current.dn !== focusDriver || last.current.pos !== st.position)) {
-      last.current = { dn: focusDriver, pos: st.position };
-      label.current.textContent = st.retired ? `OUT ${lookup.code(focusDriver!)}` : `P${st.position} ${lookup.code(focusDriver!)}`;
+    const sc = frame.scene;
+    const pi = sc?.idxByDriver.get(focusDriver!);
+    const out = isOut(sc && pi !== undefined ? sc.plans[pi] : null, frame.time, !!st?.retired);
+    const key = out ? -1 : (st?.position ?? 0);
+    if (label.current && st && (last.current.dn !== focusDriver || last.current.pos !== key)) {
+      last.current = { dn: focusDriver, pos: key };
+      label.current.textContent = out ? `OUT ${lookup.code(focusDriver!)}` : st.retired ? lookup.code(focusDriver!) : `P${st.position} ${lookup.code(focusDriver!)}`;
     }
   });
 

@@ -173,7 +173,7 @@ export function Incidents({ scene }: { scene: RaceScene }) {
     if (fm) {
       list.forEach(({ plan }, c) => {
         const on = t >= plan.tStop && t < plan.tStop + plan.lapTime * 1.6;
-        const rest = retirePose(plan, plan.tStop + SLIDE_SECONDS, lt, rt.pose);
+        const rest = retirePose(plan, plan.tRest, lt, rt.pose);
         for (let k = 0; k < 2; k++) {
           if (!on) dm.scale.setScalar(0);
           else {

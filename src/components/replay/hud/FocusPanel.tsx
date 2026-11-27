@@ -3,22 +3,25 @@ import { useDriverLookup } from '@/store/seasonStore';
 import { useTicker } from '../lib/frame';
 import { dirtyAirPenalty, downforcePct, fmtGap, tyreWear } from '../lib/raceMath';
 import { TyreChip } from './TimingTower';
+import { buildRaceScene } from '../lib/raceScene';
+import { towerOrder } from '../lib/towerOrder';
 
 /** Focus-car telemetry: position, gaps, tyre life and the dirty-air downforce bar. */
 export function FocusPanel() {
   useTicker(6);
-  const { timeline, time, focusDriver } = useRaceLab.getState();
+  const { timeline, time, focusDriver, bundle } = useRaceLab.getState();
   useRaceLab((s) => s.focusDriver);
   const lookup = useDriverLookup();
-  if (!timeline || focusDriver == null) return null;
-  const states = timeline.statesAt(time);
+  if (!timeline || !bundle || focusDriver == null) return null;
+  const scene = buildRaceScene(bundle, timeline);
+  const states = towerOrder(timeline.statesAt(time), scene.plans, scene.idxByDriver, time, scene.lt.length);
   const s = states.find((x) => x.driverNumber === focusDriver);
   if (!s) return null;
   const d = lookup.driver(focusDriver);
   const team = d ? lookup.team(d.teamId) : undefined;
   const color = lookup.color(focusDriver);
   const ahead = states[s.position - 2];
-  const gap = s.retired || s.finished || s.inPit ? Infinity : s.gapAhead;
+  const gap = s.retired || s.finished || s.inPit || Number.isNaN(s.gapAhead) ? Infinity : s.gapAhead;
   const df = downforcePct(gap);
   const pen = dirtyAirPenalty(gap);
   const wear = tyreWear(s.compound, s.tyreAge);

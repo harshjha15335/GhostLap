@@ -1,8 +1,8 @@
 import type { CarState, RaceBundle, TrackStatusType } from '@/types';
 import type { RaceTimeline } from '@/engine/raceInterpolator';
-import { CLEAR_D, CLEAR_S, GHOST_LANE, PIT_LANE_OFFSET } from './dims';
+import { GHOST_LANE, GRID_LEAD, GRID_SIDE, GRID_STEP, PIT_LANE_OFFSET } from './dims';
 import type { LaneTrack } from './laneTrack';
-import { retirePose, type RetirePlan, type RetirePose } from './incidents';
+import { planActive, planInPit, planS, retirePose, type RetirePlan, type RetirePose } from './incidents';
 import { KIND_OBSTACLE, KIND_OFF, KIND_PIT, KIND_RACE, type TrafficInput } from './traffic';
 
 /**
@@ -12,11 +12,10 @@ import { KIND_OBSTACLE, KIND_OFF, KIND_PIT, KIND_RACE, type TrafficInput } from 
  *    one car width apart) that closes up over the first part of the lap
  *  - after the flag: each car rolls on and slows down (cool-down lap)
  *  - pit lane: pit offset; red-flag waiting cars queue in two columns
- *  - retirements: staged by lib/incidents.ts (driving on → spinning / pulling off → parked)
+ *  - retirements: staged by lib/incidents.ts (driving on → spinning / pulling off → parked),
+ *    from the moment the plan takes over (≤ the end of the last completed lap)
  */
-export const GRID_STEP = CLEAR_S / 2 + 0.12;
-const GRID_SIDE = CLEAR_D / 2 + 0.03;
-const GRID_LEAD = 1.2;
+export { GRID_STEP } from './dims';
 
 export interface FieldCtx {
   n: number;
@@ -95,27 +94,36 @@ export function fillField(
     out.posed[i] = 0;
     out.onGrid[i] = 0;
     inp.prefD[i] = NaN;
-    if (s.retired) {
-      const plan = ctx.plans[i];
-      if (!plan || t < plan.tRetire) {
-        out.hidden[i] = 1;
-        inp.kind[i] = KIND_OFF;
-        continue;
-      }
+    const plan = ctx.plans[i];
+    if (planActive(plan, t)) {
+      // retiring: the plan drives the car to its (real) stop point
       const pose = retirePose(plan, t, lt, out.poses[i]);
-      if (plan.kind === 'garage') {
+      inp.sTrue[i] = pose.s;
+      if (pose.phase === 0) {
+        if (plan.kind === 'garage' && planInPit(plan, t, L)) {
+          inp.kind[i] = KIND_PIT;
+          inp.prefD[i] = PIT_LANE_OFFSET;
+        } else {
+          inp.kind[i] = KIND_RACE;
+          if (plan.gridSide && planS(plan, t) < plan.sTake + 0.035 * L) {
+            out.onGrid[i] = 1;
+            inp.prefD[i] = plan.gridSide * GRID_SIDE;
+          }
+        }
+      } else if (plan.kind === 'garage') {
         out.hidden[i] = pose.phase === 2 ? 1 : 0;
         out.posed[i] = 1;
         inp.kind[i] = KIND_OFF;
-      } else if (pose.phase === 0) {
-        inp.kind[i] = KIND_RACE;
-        inp.sTrue[i] = pose.s;
       } else {
         out.posed[i] = 1;
         inp.kind[i] = KIND_OBSTACLE;
-        inp.sTrue[i] = pose.s;
         inp.prefD[i] = pose.d;
       }
+      continue;
+    }
+    if (s.retired) {
+      out.hidden[i] = 1;
+      inp.kind[i] = KIND_OFF;
       continue;
     }
     // lap fraction (unwrapped on lap 1 so the grid stagger is continuous)

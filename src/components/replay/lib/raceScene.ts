@@ -27,6 +27,8 @@ export interface RaceScene {
   model: TrackModel;
   lt: LaneTrack;
   plans: (RetirePlan | null)[];
+  /** bundle.cars index by driver number (plans are indexed like bundle.cars) */
+  idxByDriver: Map<number, number>;
   sc: ScWindow[];
 }
 
@@ -55,7 +57,8 @@ export function buildRaceScene(bundle: RaceBundle, timeline: RaceTimeline): Race
         tEnd: endLap + 1 <= timeline.totalLaps ? timeline.timeAtLap(endLap + 1) : timeline.duration,
       };
     });
-  const scene = { bundle, timeline, circuit, curve, model, lt, plans, sc };
+  const idxByDriver = new Map(bundle.cars.map((c, i) => [c.driverNumber, i]));
+  const scene = { bundle, timeline, circuit, curve, model, lt, plans, idxByDriver, sc };
   cache.set(timeline, scene);
   return scene;
 }
