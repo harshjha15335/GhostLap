@@ -50,6 +50,7 @@ const Scene = memo(function Scene({ bundle, timeline }: { bundle: RaceBundle; ti
   // circuit clean-up, track model, racing line and incident plans: once per race
   const scene = useMemo(() => buildRaceScene(bundle, timeline), [bundle, timeline]);
   const { curve } = scene;
+  frame.scene = scene;
   return (
     <>
       {/* bright daytime sky; background + horizon-haze fog come from the dome */}

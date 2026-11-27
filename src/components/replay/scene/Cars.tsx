@@ -12,6 +12,8 @@ import { tyreWear } from '../lib/raceMath';
 import { createFieldCtx, createFieldOut, fillField } from '../lib/field';
 import { KIND_OFF, KIND_PIT, KIND_RACE, TrafficResolver } from '../lib/traffic';
 import type { RaceScene } from '../lib/raceScene';
+import { createScState, scState } from '../lib/safetyCar';
+import { PIT_LANE_OFFSET } from '../lib/dims';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const GREY = new THREE.Color('#5b6068');
@@ -76,8 +78,10 @@ export const Cars = memo(function Cars({ scene }: { scene: RaceScene }) {
     const typical = lt.length / (laps[laps.length >> 1] || 90);
     return {
       ctx,
-      out: createFieldOut(n),
-      traffic: new TrafficResolver(lt, n),
+      // slot n = the safety car
+      out: createFieldOut(n + 1),
+      traffic: new TrafficResolver(lt, n + 1),
+      sc: createScState(),
       lastT: NaN,
       typical,
       speed: new Float32Array(n),
@@ -140,6 +144,11 @@ export const Cars = memo(function Cars({ scene }: { scene: RaceScene }) {
 
     // 1. timeline → resolver input; 2. resolve (only when the race clock moved)
     fillField(rt.ctx, states, t, ghostDn, frame.status, out);
+    // the safety car runs in the same resolver (ahead of last frame's leader)
+    const sc = scState(scene.sc, t, frame.leaderS, L, rt.sc);
+    out.input.kind[n] = sc.on ? (sc.pit ? KIND_PIT : KIND_RACE) : KIND_OFF;
+    out.input.sTrue[n] = sc.s;
+    out.input.prefD[n] = sc.pit ? PIT_LANE_OFFSET : NaN;
     const dRace = t - rt.lastT;
     if (dRace !== 0 || Number.isNaN(rt.lastT)) {
       tr.step(out.input, Number.isNaN(rt.lastT) ? -1 : dRace);
@@ -153,13 +162,20 @@ export const Cars = memo(function Cars({ scene }: { scene: RaceScene }) {
       rt.lastT = t;
     }
 
+    const scp = frame.scPose;
+    scp.on = sc.on;
+    scp.s = tr.sv[n];
+    scp.d = tr.d[n];
+    scp.yaw = tr.yaw[n];
+    scp.lights = sc.lights;
+
     frame.leaderS = NaN;
     for (let k = 0; k < states.length; k++) {
       const s0 = states[k];
       if (s0.retired) break;
       const i0 = rt.ctx.idxByDriver.get(s0.driverNumber);
       if (i0 !== undefined && out.input.kind[i0] !== KIND_OFF && !out.posed[i0]) {
-        frame.leaderS = tr.sv[i0];
+        frame.leaderS = out.input.sTrue[i0];
         break;
       }
     }

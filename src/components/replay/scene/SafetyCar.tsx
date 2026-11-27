@@ -2,10 +2,9 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame, useLoader } from '@react-three/fiber';
 import { GLTFLoader, MeshoptDecoder } from 'three-stdlib';
-import { CAR_SCALE, CLEAR_S, PIT_LANE_OFFSET, PIT_SPAN } from '../lib/dims';
+import { CAR_SCALE } from '../lib/dims';
 import { frame } from '../lib/frame';
-import { sampleLane } from '../lib/laneTrack';
-import type { RaceScene, ScWindow } from '../lib/raceScene';
+import type { RaceScene } from '../lib/raceScene';
 
 /**
  * The safety car: a low-poly road sports coupé (Kenney "Car Kit" sedan-sports, CC0 —
@@ -14,18 +13,15 @@ import type { RaceScene, ScWindow } from '../lib/raceScene';
  * "SAFETY CAR" lettering. No maker or sponsor logos. (In 2026 Mercedes-AMG supplies the
  * FIA safety car at every round; we keep one generic look.)
  *
- * Behaviour per SC period (lib/raceScene.ts ScWindow, laps from the data):
- *   - leaves the pit exit as the leader starts the first SC lap, then settles a couple of
- *     car lengths ahead of the leader (the field's real order / bunching comes from the
- *     timeline: the resolver keeps them single file)
- *   - on the last SC lap the lights go out and it peels into the pit lane before the line
+ * Behaviour per SC period (lib/safetyCar.ts; laps from the data): it leaves the pit exit
+ * as the leader starts the first SC lap, settles a couple of car lengths ahead of the
+ * leader (the field's real order and bunching come from the timeline; the resolver keeps
+ * everyone single file and never lets the SC overlap a car — it runs in the resolver as
+ * one more car), and on the last SC lap turns its lights off and peels into the pit lane.
  * 5 draw calls (body, lettering, bar, two lamps). Lazy: loaded only for races with an SC.
  */
 const url = `${import.meta.env.BASE_URL}models/safety-car/safety-car.glb`;
 const UP = new THREE.Vector3(0, 1, 0);
-const FOLLOW_GAP = CLEAR_S * 2.3;
-const JOIN_GAP_FRAC = PIT_SPAN * 0.8;
-const PIT_IN_FRAC = 0.9;
 
 function letteringTexture() {
   const c = document.createElement('canvas');
@@ -49,17 +45,22 @@ function letteringTexture() {
 }
 
 function letteringGeometry() {
-  // one quad per flank, facing outwards (car-local, model units)
-  const a = new THREE.PlaneGeometry(1.7, 0.21);
+  // one quad per flank (facing outwards) + one on the roof (reads from the TV cameras above)
+  const a = new THREE.PlaneGeometry(1.9, 0.3);
   a.rotateY(Math.PI / 2);
-  a.translate(0.662, 0.42, -0.05);
-  const b = new THREE.PlaneGeometry(1.7, 0.21);
+  a.translate(0.656, 0.5, -0.05);
+  const b = new THREE.PlaneGeometry(1.9, 0.3);
   b.rotateY(-Math.PI / 2);
-  b.translate(-0.662, 0.42, -0.05);
+  b.translate(-0.656, 0.5, -0.05);
+  const c = new THREE.PlaneGeometry(0.85, 0.14);
+  c.rotateX(-Math.PI / 2);
+  c.rotateY(Math.PI / 2);
+  c.translate(0, 1.104, 0.12);
   const pos: number[] = [];
   const uv: number[] = [];
   const idx: number[] = [];
-  [a, b].forEach((g, k) => {
+  let base = 0;
+  [a, b, c].forEach((g) => {
     const p = g.getAttribute('position');
     const u = g.getAttribute('uv');
     for (let i = 0; i < p.count; i++) {
@@ -67,7 +68,8 @@ function letteringGeometry() {
       uv.push(u.getX(i), u.getY(i));
     }
     const ix = g.getIndex()!;
-    for (let i = 0; i < ix.count; i++) idx.push(ix.getX(i) + k * p.count);
+    for (let i = 0; i < ix.count; i++) idx.push(ix.getX(i) + base);
+    base += p.count;
     g.dispose();
   });
   const out = new THREE.BufferGeometry();
@@ -96,7 +98,7 @@ export function SafetyCar({ scene }: { scene: RaceScene }) {
     });
     const tex = letteringTexture();
     const letterGeo = letteringGeometry();
-    const letterMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+    const letterMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 });
     const barGeo = new THREE.BoxGeometry(0.86, 0.06, 0.16);
     const barMat = new THREE.MeshStandardMaterial({ color: '#15181f', roughness: 0.5 });
     const lampGeo = new THREE.BoxGeometry(0.34, 0.09, 0.14);
@@ -127,6 +129,7 @@ export function SafetyCar({ scene }: { scene: RaceScene }) {
       t: new THREE.Vector3(),
       r: new THREE.Vector3(),
       look: new THREE.Vector3(),
+      h: new THREE.Vector3(),
       lastT: NaN,
     }),
     [],
@@ -136,69 +139,35 @@ export function SafetyCar({ scene }: { scene: RaceScene }) {
     const g = group.current;
     if (!g) return;
     const t = frame.time;
-    const L = lt.length;
-    let w: ScWindow | null = null;
-    for (const x of sc) if (t >= x.tStart && t < x.tEnd) w = x;
+    const pose = frame.scPose;
     const prevT = rt.lastT;
     rt.lastT = t;
-    if (!w || Number.isNaN(frame.leaderS)) {
+    if (!pose.on) {
       g.visible = false;
       frame.safetyCar = null;
       return;
     }
     // deploy cue (forward playback only)
-    if (!Number.isNaN(prevT) && prevT < w.tStart && t >= w.tStart && t - prevT < 40)
-      frame.cue = { target: g, until: performance.now() + 5000, label: 'SAFETY CAR' };
+    for (const w of sc)
+      if (!Number.isNaN(prevT) && prevT < w.tStart && t >= w.tStart && t - prevT < 40)
+        frame.cue = { target: g, until: performance.now() + 5000, label: 'SAFETY CAR' };
 
-    const lastLap = t >= w.tLastLap;
-    const lapT = Math.max(20, w.tEnd - w.tLastLap);
-    // gap ahead of the leader: from the pit exit down to a couple of car lengths
-    const sinceStart = t - w.tStart;
-    const join = Math.min(1, sinceStart / Math.max(8, lapT * 0.35));
-    const joinGap = JOIN_GAP_FRAC * L;
-    const gap = FOLLOW_GAP + (joinGap - FOLLOW_GAP) * (1 - join) * (1 - join);
-    let s = frame.leaderS + gap;
-    let d: number;
-    let inPitLane = false;
-    // last lap: lights off; it peels off before the line, then runs down the pit lane
-    const tPitIn = w.tLastLap + Math.max(0, PIT_IN_FRAC - FOLLOW_GAP / L) * lapT;
-    if (lastLap && t >= tPitIn) {
-      const dist = (t - tPitIn) * (L / lapT) * 0.55;
-      s = PIT_IN_FRAC * L + dist;
-      inPitLane = true;
-      if (dist > (1 - PIT_IN_FRAC + PIT_SPAN * 0.5) * L) {
-        g.visible = false;
-        frame.safetyCar = null;
-        return;
-      }
-    }
-    s = ((s % L) + L) % L;
-    const f = s / L;
-    // lateral: pit lane while joining / leaving, racing line otherwise
-    const line = sampleLane(lt.line, lt, s);
-    if (inPitLane) {
-      const k = Math.min(1, (t - tPitIn) / 4);
-      d = line + (PIT_LANE_OFFSET - line) * k * k * (3 - 2 * k);
-    } else if (sinceStart < 30 && f < PIT_SPAN * 1.6) {
-      const k = Math.min(1, Math.max(0, (f - PIT_SPAN * 0.6) / (PIT_SPAN * 0.9)));
-      d = PIT_LANE_OFFSET + (line - PIT_LANE_OFFSET) * k * k * (3 - 2 * k);
-    } else d = line;
-
+    const f = pose.s / lt.length;
     curve.pointAt(f, rt.p);
     curve.tangentAt(f, rt.t);
     rt.r.crossVectors(rt.t, UP).normalize();
     g.visible = true;
-    g.position.copy(rt.p).addScaledVector(rt.r, d);
+    g.position.copy(rt.p).addScaledVector(rt.r, pose.d);
     g.position.y += 0.02;
-    rt.look.copy(g.position).add(rt.t);
+    rt.h.copy(rt.t).multiplyScalar(Math.cos(pose.yaw)).addScaledVector(rt.r, Math.sin(pose.yaw));
+    rt.look.copy(g.position).add(rt.h);
     g.lookAt(rt.look);
     g.scale.setScalar(1 + frame.topW * 1.1);
     frame.safetyCar = g;
 
-    const on = !lastLap;
     const blink = Math.sin(clock.elapsedTime * 11) > 0;
-    res.lampMatL.color.set(on ? (blink ? '#FFB000' : '#3a2a00') : '#2a2a2a');
-    res.lampMatR.color.set(on ? (!blink ? '#FFB000' : '#3a2a00') : '#2a2a2a');
+    res.lampMatL.color.set(pose.lights ? (blink ? '#FFB000' : '#3a2a00') : '#2a2a2a');
+    res.lampMatR.color.set(pose.lights ? (!blink ? '#FFB000' : '#3a2a00') : '#2a2a2a');
   });
 
   // Kenney model units → our scale: ~4.6 m long, 1.95 m wide, 1.3 m tall at CAR_SCALE
@@ -210,7 +179,7 @@ export function SafetyCar({ scene }: { scene: RaceScene }) {
       <group scale={[sx, sy, sz]}>
         <primitive object={res.model} />
         <mesh geometry={res.letterGeo} material={res.letterMat} />
-        <group position={[0, 1.0, -0.12]}>
+        <group position={[0, 1.13, -0.28]}>
           <mesh geometry={res.barGeo} material={res.barMat} />
           <mesh ref={lampL} geometry={res.lampGeo} material={res.lampMatL} position={[0.22, 0.06, 0]} />
           <mesh ref={lampR} geometry={res.lampGeo} material={res.lampMatR} position={[-0.22, 0.06, 0]} />

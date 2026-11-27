@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Group, Object3D, Vector3 } from 'three';
 import type { CarState, TrackStatusType, WhatIfScenario } from '@/types';
 import type { LapProgress } from '@/engine/raceInterpolator';
+import type { RaceScene } from './raceScene';
 import { useRaceLab } from '@/store/raceLabStore';
 import { scenarioChangeLap } from './raceMath';
 
@@ -43,6 +44,8 @@ export const frame = {
   /** gap (s) of the car directly behind, keyed by the car being followed */
   gapBehind: new Map<number, number>(),
   ghost: null as LapProgress | null,
+  /** the derived per-race scene data (racing line, incident plans, SC windows) */
+  scene: null as RaceScene | null,
   /** track status at `time` (SC / VSC / RED) */
   status: null as TrackStatusType | null,
   carGroups: new Map<number, Group>(),
@@ -52,6 +55,8 @@ export const frame = {
   battling: new Set<number>(),
   /** visual arc position (render units) of the race leader, NaN if none */
   leaderS: NaN,
+  /** resolved safety-car pose (Cars.tsx: the SC is one more car in the traffic resolver) */
+  scPose: { on: false, s: 0, d: 0, yaw: 0, lights: false },
   /** safety car group while it is on track */
   safetyCar: null as Object3D | null,
   /** director cue: something worth cutting to (incident / SC), with its expiry (performance.now ms) */
