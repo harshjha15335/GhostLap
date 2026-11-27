@@ -44,6 +44,8 @@ export const frame = {
   /** gap (s) of the car directly behind, keyed by the car being followed */
   gapBehind: new Map<number, number>(),
   ghost: null as LapProgress | null,
+  /** dev only: draw calls / triangles of the last rendered frame */
+  glStats: null as { calls: number; triangles: number } | null,
   /** the derived per-race scene data (racing line, incident plans, SC windows) */
   scene: null as RaceScene | null,
   /** track status at `time` (SC / VSC / RED) */

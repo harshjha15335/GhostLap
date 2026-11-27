@@ -14,13 +14,16 @@ import { Airflow } from './Airflow';
 import { Incidents } from './Incidents';
 import { TrackSignals } from './TrackSignals';
 import { SafetyCar } from './SafetyCar';
+import { RacingLine } from './RacingLine';
 import { buildRaceScene } from '../lib/raceScene';
 import { SkyDome } from '@/components/track/SkyDome';
 
 /** Advances the race clock and samples car states once per frame (runs before everything else). */
 function RaceClock() {
   const last = useMemo(() => ({ time: NaN, ghost: null as unknown, timeline: null as unknown }), []);
-  useFrame((_, rawDt) => {
+  useFrame(({ gl }, rawDt) => {
+    // dev only: last frame's renderer stats for the QA scripts (draw-call budget)
+    if (import.meta.env.DEV) frame.glStats = { calls: gl.info.render.calls, triangles: gl.info.render.triangles };
     const s = useRaceLab.getState();
     const tl = s.timeline;
     if (!tl) return;
@@ -61,6 +64,7 @@ const Scene = memo(function Scene({ bundle, timeline }: { bundle: RaceBundle; ti
       <directionalLight position={[-90, 60, -80]} intensity={0.5} color="#bcd8ff" />
       <RaceClock />
       <Track circuit={scene.circuit} curve={curve} />
+      <RacingLine scene={scene} />
       <Cars scene={scene} />
       <Airflow scene={scene} />
       <Incidents scene={scene} />

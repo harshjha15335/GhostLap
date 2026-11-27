@@ -68,7 +68,9 @@ export function RaceToasts() {
       last.current = time;
       const now = performance.now();
       setToasts((cur) => {
-        let next = cur.filter((x) => now - x.born < 5200);
+        // a seek (backwards or a big jump) clears what was on screen
+        const seek = !Number.isNaN(prev) && (time < prev || time - prev > 60);
+        let next = seek ? [] : cur.filter((x) => now - x.born < 5200);
         if (playing && !Number.isNaN(prev) && time > prev && time - prev < 60) {
           for (const c of cues) if (c.t > prev && c.t <= time) next = [...next, { ...c, id: ++seq.current, born: now }];
         }
