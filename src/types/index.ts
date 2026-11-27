@@ -137,6 +137,23 @@ export interface CarRace {
   points: number;
   /** total race time if classified (seconds) */
   raceTime: number | null;
+  /**
+   * Optional: where and when a retired car really stopped, from the OpenF1 location feed
+   * (scripts/retirements.py). `lap` is the lap it was on (1-based), `lapFraction` the stop
+   * point projected onto circuit.points (arc-length share 0..1), `time` race seconds
+   * (0 = lights out) when it came to rest, `onTrack` whether that is on the asphalt.
+   * kind: 'crash' (race control named it in an incident), 'stopped' (parked anywhere
+   * else), 'pits' (came to rest in the pit lane / garage), 'unknown' (no location data;
+   * lapFraction / time are then not measured). `message`: race-control text, verbatim.
+   */
+  retirement?: {
+    lap: number;
+    lapFraction: number;
+    time: number;
+    onTrack: boolean;
+    kind: 'crash' | 'stopped' | 'pits' | 'unknown';
+    message?: string;
+  };
 }
 
 export type TrackStatusType = 'SC' | 'VSC' | 'RED';

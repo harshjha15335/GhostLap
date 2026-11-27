@@ -9,7 +9,6 @@ import { buildRaceScene } from './raceScene';
 import { createScState, scState } from './safetyCar';
 import { buildLaneTrack, sampleLane, type LaneTrack } from './laneTrack';
 import { KIND_OBSTACLE, KIND_OFF, KIND_PIT, KIND_RACE, MIN_LAT, SLOPE, SLOPE_PIT, TrafficResolver, overlaps, type TrafficInput } from './traffic';
-import { cleanCircuit } from './cleanCircuit';
 import { planRetirements } from './incidents';
 import { createFieldCtx, createFieldOut, fillField } from './field';
 
@@ -95,7 +94,7 @@ describe('lateral resolver (synthetic field)', () => {
 describe('racing line', () => {
   it('stays inside the usable width and takes the inside at apexes', () => {
     const b = loadBundle('silverstone');
-    const circuit = cleanCircuit(b.circuit);
+    const circuit = b.circuit;
     const curve = createCircuitCurve(circuit);
     const m = buildTrackModel(circuit, curve, REPLAY_TRACK_OPTS);
     const lt = buildLaneTrack(m);
@@ -117,7 +116,7 @@ describe('lateral resolver (real bundle)', () => {
   const slug = 'silverstone';
   const b = loadBundle(slug);
   const tl = createRaceTimeline(b);
-  const circuit = cleanCircuit(b.circuit);
+  const circuit = b.circuit;
   const curve = createCircuitCurve(circuit);
   const m = buildTrackModel(circuit, curve, REPLAY_TRACK_OPTS);
   const lt = buildLaneTrack(m);

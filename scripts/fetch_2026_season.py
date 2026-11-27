@@ -41,6 +41,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True  # keep scripts/ free of __pycache__
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from track_widths import attach_widths  # noqa: E402  (sibling module, stdlib only)
+from retirements import find_retirement  # noqa: E402  (sibling module, stdlib only)
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / "scripts" / ".cache"
@@ -222,6 +223,55 @@ def build_circuit(session_key: int, laps_by_driver: dict, slug: str, name: str, 
     return circuit
 
 
+def _lerp_sample(a, b, f):
+    return tuple(a[i] + (b[i] - a[i]) * f for i in range(4))
+
+
+def _trim_one_lap(raw, t0, t1):
+    """Cut a time-sorted trace (x, y, z, ts) to exactly one lap.
+
+    The location query is padded by ±0.5 s around the lap, so the raw trace starts a
+    little BEFORE the start/finish line and ends a little PAST it: the loop overlapped
+    itself at the seam (the last points overshot points[0]). The trace now starts at the
+    car's interpolated position at the lap start t0 and ends where it passes closest to
+    that start point near the lap end t1 (the line crossing), so the closing segment is
+    a few decimetres long and points forward."""
+    if len(raw) < 4:
+        return raw
+    def at_time(t):
+        if t <= raw[0][3]:
+            return raw[0]
+        for a, b in zip(raw, raw[1:]):
+            if a[3] <= t <= b[3]:
+                return _lerp_sample(a, b, (t - a[3]) / ((b[3] - a[3]) or 1))
+        return raw[-1]
+
+    start = at_time(t0)
+    # closest approach to the start point on the segments around the lap end
+    best = None
+    lo_t = t1 - 3.0
+    for k in range(len(raw) - 1):
+        a, b = raw[k], raw[k + 1]
+        if b[3] < lo_t or a[3] <= t0 + 0.5 * (t1 - t0):
+            continue
+        ax, ay = b[0] - a[0], b[1] - a[1]
+        den = ax * ax + ay * ay
+        f = 0.0 if den == 0 else max(0.0, min(1.0, ((start[0] - a[0]) * ax + (start[1] - a[1]) * ay) / den))
+        q = _lerp_sample(a, b, f)
+        dd = math.dist(q[:2], start[:2])
+        if best is None or dd < best[0]:
+            best = (dd, k, q)
+    if best is None:
+        return raw
+    _, k, end = best
+    body = [r for r in raw[: k + 1] if r[3] > start[3] + 1e-6]
+    out = [start] + body + ([end] if end[3] > (body[-1][3] if body else start[3]) + 1e-6 else [])
+    # the final point coincides with the start (closest approach): drop it if it adds nothing
+    if len(out) > 3 and math.dist(out[-1][:2], out[0][:2]) < 1e-6:
+        out.pop()
+    return out
+
+
 def _resample(pts, t0, lap, slug, name):
     raw = [(p["x"], p["y"], p.get("z") or 0, parse_ts(p["date"])) for p in pts]
     raw.sort(key=lambda r: r[3])
@@ -230,7 +280,7 @@ def _resample(pts, t0, lap, slug, name):
     for r in raw[1:]:
         if math.dist(r[:2], clean[-1][:2]) > 1e-6:
             clean.append(r)
-    raw = clean
+    raw = _trim_one_lap(clean, t0, t0 + lap["lap_duration"])
     # cumulative arc length (OpenF1 units are ~decimetres)
     cum = [0.0]
     for a, b in zip(raw, raw[1:]):
@@ -300,6 +350,8 @@ def _resample(pts, t0, lap, slug, name):
         "points": points,
         "sectorSplits": [round(s1, 4), round(s2, 4)],
         "elevationRangeM": round(elev_range_m, 1),
+        # private: OpenF1 → render transform (used to project retirement locations; not written)
+        "_xf": {"cx": cx, "cy": cy, "scale": scale},
     }
 
 
@@ -770,7 +822,7 @@ def process_race(meeting, race_sess, quali_sess, round_no, slug, drivers_meta):
 
     # ---- pass 1: raw lap times per car (race-clock anchored) ----
     pass1 = {}
-    qa = {"anchored": 0, "repaired": 0, "strategy": []}
+    qa = {"anchored": 0, "repaired": 0, "strategy": [], "retirements": []}
     for r in results:
         dn = r["driver_number"]
         n = int(r.get("number_of_laps") or 0)
@@ -952,7 +1004,29 @@ def process_race(meeting, race_sess, quali_sess, round_no, slug, drivers_meta):
         qa["strategy"].append("WARNING: no location data — fallback oval geometry")
         circuit = fallback_circuit(slug, race_sess["circuit_short_name"])
 
-    podium = [c["driverNumber"] for c in cars if c["finishPosition"] in (1, 2, 3)]
+    # where / when each retired car actually stopped (OpenF1 location feed)
+    named_stopped = {int(g.group(1)) for m in rc if re.search(r"STOPPED", m["message"], re.I)
+                     for g in [CAR_NUM.search(m["message"].upper())] if g}
+    for c in cars:
+        if c["status"] != "DNF" and not (c["driverNumber"] in named_stopped and c["status"] not in ("FINISHED", "DNS")):
+            continue
+        ret = find_retirement(api, sk, c["driverNumber"], t0, c["laps"], circuit, rc, {p["lap"] for p in c["pits"]})
+        if not ret:
+            continue
+        dbg = ret.pop("_dbg", None)
+        c["retirement"] = ret
+        qa["retirements"].append(f"#{c['driverNumber']}: {ret['kind']} lap {ret['lap']} @ {ret['lapFraction']:.3f}"
+                                 f" t={ret['time']:.1f}s onTrack={ret['onTrack']} {dbg or ''}"
+                                 + (f" · {ret['message'][:60]}" if ret.get("message") else ""))
+        where = {"pits": "in the pit lane", "unknown": None}.get(ret["kind"],
+                                                                    "on the track" if ret["onTrack"] else "off the track")
+        if where:
+            for e in events:
+                if e["type"] == "DNF" and e.get("driverNumber") == c["driverNumber"]:
+                    e["message"] = f"Retired from the race · stopped {where} on lap {ret['lap']}"
+    circuit.pop("_xf", None)
+
+    podium =[c["driverNumber"] for c in cars if c["finishPosition"] in (1, 2, 3)]
     second = next((r for r in results if r.get("position") == 2), None)
     gap = second.get("gap_to_leader") if second and isinstance(second.get("gap_to_leader"), (int, float)) else None
 
@@ -1063,6 +1137,8 @@ def validate_bundle(b):
         out.append(f"lap times: {qa.get('anchored', 0)} re-anchored to race clock, {qa.get('repaired', 0)} implausible laps repaired")
     for note in qa.get("strategy", []):
         out.append(note)
+    for note in qa.get("retirements", []):
+        out.append("retirement " + note)
     T = b["totalLaps"]
     cars = b["cars"]
     winner = next((c for c in cars if c["finishPosition"] == 1), None)
@@ -1108,13 +1184,15 @@ def main():
     global REFRESH
     ap = argparse.ArgumentParser()
     ap.add_argument("--refresh", action="store_true", help="ignore the on-disk cache")
+    ap.add_argument("--as-of", help="treat this ISO time as 'now' (reproduce a dataset: only races "
+                    "finished by then are processed), e.g. 2026-11-21T16:52:23Z")
     args = ap.parse_args()
     REFRESH = args.refresh
 
     meetings = [m for m in api("meetings", year=YEAR) if "testing" not in m["meeting_name"].lower()]
     meetings.sort(key=lambda m: m["date_start"])
     sessions = api("sessions", year=YEAR)
-    now = datetime.now(timezone.utc).timestamp()
+    now = parse_ts(args.as_of) if args.as_of else datetime.now(timezone.utc).timestamp()
 
     races, bundles = [], {}
     penalties, incidents = [], []
@@ -1254,7 +1332,7 @@ def main():
 
     season = {
         "year": YEAR,
-        "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generatedAt": (datetime.fromtimestamp(now, timezone.utc) if args.as_of else datetime.now(timezone.utc)).isoformat(timespec="seconds"),
         "teams": team_list,
         "drivers": drivers,
         "races": races,

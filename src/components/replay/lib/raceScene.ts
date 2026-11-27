@@ -3,7 +3,6 @@ import type { RaceTimeline } from '@/engine/raceInterpolator';
 import { createCircuitCurve, type CircuitCurve } from '@/engine/circuitCurve';
 import { buildTrackModel, type TrackModel } from '@/components/track/trackModel';
 import { REPLAY_TRACK_OPTS } from './dims';
-import { cleanCircuit } from './cleanCircuit';
 import { buildLaneTrack, type LaneTrack } from './laneTrack';
 import { planRetirements, type RetirePlan } from './incidents';
 
@@ -36,7 +35,7 @@ const cache = new WeakMap<RaceTimeline, RaceScene>();
 export function buildRaceScene(bundle: RaceBundle, timeline: RaceTimeline): RaceScene {
   const hit = cache.get(timeline);
   if (hit) return hit;
-  const circuit = cleanCircuit(bundle.circuit);
+  const circuit = bundle.circuit;
   const curve = createCircuitCurve(circuit);
   const model = buildTrackModel(circuit, curve, REPLAY_TRACK_OPTS);
   const lt = buildLaneTrack(model);
