@@ -8,10 +8,18 @@ import { TimingTower } from './hud/TimingTower';
 import { Scrubber } from './hud/Scrubber';
 import { CameraSwitch, RaceSelector, TrackStatusBanner } from './hud/TopBar';
 import { FocusPanel } from './hud/FocusPanel';
+import { RaceToasts } from './hud/RaceToasts';
+import { ViewToggles } from './hud/ViewToggles';
+import { useReplayPrefs } from './lib/prefs';
 import { decodeScenario, encodeScenario } from './lib/shareCodec';
-import { launchScenario } from './lib/frame';
+import { frame, launchScenario } from './lib/frame';
 
 const ReplayCanvas = lazy(() => import('./scene/ReplayCanvas'));
+
+// dev-only handle for the screenshot / QA scripts (stripped from production builds)
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  (window as unknown as { __raceLab: unknown }).__raceLab = { useRaceLab, frame, useReplayPrefs };
+}
 
 /**
  * /replay/:raceSlug — 3D race replay + telemetry HUD + What-If ghost.
@@ -75,7 +83,7 @@ export default function ReplayView() {
     [],
   );
 
-  // keyboard: space play/pause, ←/→ lap, 1/2/3 cameras, W what-if
+  // keyboard: space play/pause, ←/→ lap, 1/2/3 cameras, W what-if, A airflow, C auto-cut
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
@@ -88,6 +96,13 @@ export default function ReplayView() {
       else if (e.key === '2') s.setCamera('topdown');
       else if (e.key === '3') s.setCamera('chase');
       else if (e.key.toLowerCase() === 'w') s.setDrawerOpen(!s.drawerOpen);
+      else if (e.key.toLowerCase() === 'a') {
+        const p = useReplayPrefs.getState();
+        p.setAirflow(!p.airflow);
+      } else if (e.key.toLowerCase() === 'c') {
+        const p = useReplayPrefs.getState();
+        p.setAutoCut(!p.autoCut);
+      }
       else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && s.timeline && el?.getAttribute('role') !== 'slider') {
         const lap = s.timeline.leaderLapAt(s.time) + (e.key === 'ArrowRight' ? 1 : -1);
         s.seekLap(Math.max(1, Math.min(s.timeline.totalLaps, lap)));
@@ -131,8 +146,14 @@ export default function ReplayView() {
           <div className="pointer-events-auto min-w-0 flex-1 md:flex-none">
             <RaceSelector />
           </div>
-          <div className="hidden flex-1 justify-center pt-1 md:flex">{ready && <TrackStatusBanner />}</div>
+          <div className="hidden flex-1 flex-col items-center gap-2 pt-1 md:flex">
+            {ready && <TrackStatusBanner />}
+            {ready && <RaceToasts />}
+          </div>
           <div className={`pointer-events-auto flex shrink-0 items-center gap-2 transition-[margin] duration-300 ${drawerOpen ? 'md:mr-[400px]' : ''}`}>
+            <span className="hidden md:block">
+              <ViewToggles />
+            </span>
             <span className="hidden md:block">
               <CameraSwitch />
             </span>
@@ -152,15 +173,17 @@ export default function ReplayView() {
         </div>
 
         {ready && (
-          <div className="mt-2 flex justify-center md:hidden">
+          <div className="mt-2 flex flex-col items-center gap-1.5 md:hidden">
             <TrackStatusBanner />
+            <RaceToasts />
           </div>
         )}
 
         <div className="relative mt-2 flex min-h-0 flex-1 items-start justify-between gap-2">
           <div className="min-h-0">{ready && <TimingTower />}</div>
-          <div className="pointer-events-auto md:hidden">
+          <div className="pointer-events-auto flex flex-col gap-2 md:hidden">
             <CameraSwitch vertical />
+            <ViewToggles vertical />
           </div>
         </div>
 

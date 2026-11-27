@@ -61,7 +61,7 @@ const Scene = memo(function Scene({ bundle, timeline }: { bundle: RaceBundle; ti
       <RaceClock />
       <Track circuit={scene.circuit} curve={curve} />
       <Cars scene={scene} />
-      <Airflow />
+      <Airflow scene={scene} />
       <Incidents scene={scene} />
       <TrackSignals scene={scene} />
       {scene.sc.length > 0 && (

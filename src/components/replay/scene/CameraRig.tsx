@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import type { CircuitCurve } from '@/engine/circuitCurve';
 import { useRaceLab } from '@/store/raceLabStore';
 import { frame } from '../lib/frame';
+import { useReplayPrefs } from '../lib/prefs';
 import { circuitBounds } from './Track';
 
 const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
@@ -43,6 +44,7 @@ export function CameraRig({ curve }: { curve: CircuitCurve }) {
       orbit: 0,
       pairW: 0,
       pairDist: 0,
+      battleW: 0,
       init: false,
     };
   }, [curve]);
@@ -87,17 +89,27 @@ export function CameraRig({ curve }: { curve: CircuitCurve }) {
     const { camera: mode, focusDriver, ghost } = useRaceLab.getState();
     const cam = camera as THREE.PerspectiveCamera;
 
-    // --- focus car anchor, with a 1 s blend when the focus changes
-    const car = focusDriver != null ? frame.carGroups.get(focusDriver) : undefined;
-    if (focusDriver !== rt.focus) {
+    // --- director: a fresh incident / safety-car cue briefly takes over the anchor
+    const cue = frame.cue;
+    const cueOn = !!cue && useReplayPrefs.getState().autoCut && mode !== 'topdown' && performance.now() < cue.until && cue.target.visible;
+    if (cue && !cueOn && performance.now() >= cue.until) frame.cue = null;
+    const key = cueOn ? -1 : focusDriver;
+
+    // --- focus car anchor, with a 1 s blend when the focus (or the cue) changes
+    const car = cueOn ? cue!.target : focusDriver != null ? frame.carGroups.get(focusDriver) : undefined;
+    if (key !== rt.focus) {
       rt.prevAnchor.copy(rt.carAnchor);
-      rt.focus = focusDriver;
+      rt.focus = key;
       rt.switchT = rt.init ? 0 : 1;
     }
     rt.switchT = Math.min(1, rt.switchT + dt / 1.1);
     if (car && car.visible) {
       rt.tmp.copy(car.position);
-      car.getWorldDirection(rt.tanTarget);
+      // racing direction (steady while a car spins); the cue target keeps the last one
+      const dir = !cueOn && focusDriver != null ? frame.carDir.get(focusDriver) : undefined;
+      if (dir) rt.tanTarget.copy(dir);
+      else if (!cueOn) car.getWorldDirection(rt.tanTarget);
+      else rt.tanTarget.copy(rt.tan);
     } else {
       rt.tmp.copy(rt.carAnchor.lengthSq() ? rt.carAnchor : rt.center);
       rt.tanTarget.copy(rt.tan);
@@ -125,7 +137,10 @@ export function CameraRig({ curve }: { curve: CircuitCurve }) {
 
     // --- desired offsets per mode
     const z = zoom.current;
-    const spread = 1 + rt.pairDist / 26;
+    // widen a little while the focus car is wheel to wheel (or on an incident cut)
+    const battle = cueOn || (focusDriver != null && frame.battling.has(focusDriver)) ? 1 : 0;
+    rt.battleW = THREE.MathUtils.damp(rt.battleW, battle, 1.5, dt);
+    const spread = (1 + rt.pairDist / 26) * (1 + 0.3 * rt.battleW);
     if (mode === 'topdown') {
       const vfov = THREE.MathUtils.degToRad(cam.fov) / 2;
       const aspect = size.width / Math.max(1, size.height);

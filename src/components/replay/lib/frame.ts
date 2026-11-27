@@ -18,8 +18,9 @@ export interface AirflowBus {
   yaw: Float32Array;
   /** 0..1 speed relative to a typical racing speed */
   speed: Float32Array;
-  /** path curvature (dyaw / ds, rad per render unit) */
-  curv: Float32Array;
+  /** arc position along the lap and lateral offset (render units) */
+  s: Float32Array;
+  d: Float32Array;
   /** dirty-air downforce loss of the car directly behind (0..1, strategySimulator.downforceLoss) */
   loss: Float32Array;
   /** distance (render units) to that follower's nose, 0 = none */
@@ -59,7 +60,8 @@ export const frame = {
     pos: new Float32Array(MAX_CARS * 3),
     yaw: new Float32Array(MAX_CARS),
     speed: new Float32Array(MAX_CARS),
-    curv: new Float32Array(MAX_CARS),
+    s: new Float32Array(MAX_CARS),
+    d: new Float32Array(MAX_CARS),
     loss: new Float32Array(MAX_CARS),
     follow: new Float32Array(MAX_CARS),
     weight: new Float32Array(MAX_CARS),

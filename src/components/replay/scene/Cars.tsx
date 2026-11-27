@@ -9,9 +9,8 @@ import { useDriverLookup } from '@/store/seasonStore';
 import { CAR_LEN, CAR_SCALE } from '../lib/dims';
 import { MAX_CARS, frame } from '../lib/frame';
 import { tyreWear } from '../lib/raceMath';
-import { sampleLane } from '../lib/laneTrack';
 import { createFieldCtx, createFieldOut, fillField } from '../lib/field';
-import { KIND_OFF, KIND_RACE, TrafficResolver } from '../lib/traffic';
+import { KIND_OFF, KIND_PIT, KIND_RACE, TrafficResolver } from '../lib/traffic';
 import type { RaceScene } from '../lib/raceScene';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -145,7 +144,9 @@ export const Cars = memo(function Cars({ scene }: { scene: RaceScene }) {
     if (dRace !== 0 || Number.isNaN(rt.lastT)) {
       tr.step(out.input, Number.isNaN(rt.lastT) ? -1 : dRace);
       for (let i = 0; i < n; i++) {
-        const v = tr.resetLast || dRace <= 0 ? rt.speed[i] : Math.abs(tr.diff(rt.prevS[i], tr.sv[i])) / dRace;
+        // after a seek there is no history: assume a typical pace (slower when neutralised / pitting)
+        const guess = rt.typical * (out.input.kind[i] === KIND_PIT ? 0.3 : frame.status ? 0.6 : 1);
+        const v = tr.resetLast ? guess : dRace <= 0 ? rt.speed[i] : Math.abs(tr.diff(rt.prevS[i], tr.sv[i])) / dRace;
         rt.speed[i] += (v - rt.speed[i]) * (tr.resetLast ? 1 : 0.35);
         rt.prevS[i] = tr.sv[i];
       }
@@ -208,7 +209,8 @@ export const Cars = memo(function Cars({ scene }: { scene: RaceScene }) {
         air.yaw[i] = Math.atan2(rt.h.x, rt.h.z);
         const sp = out.posed[i] ? out.poses[i].speed : rt.speed[i];
         air.speed[i] = Math.min(1.2, sp / rt.typical);
-        air.curv[i] = -sampleLane(lt.kappa, lt, s);
+        air.s[i] = s;
+        air.d[i] = d;
         air.loss[i] = 0;
         air.follow[i] = 0;
         air.weight[i] = out.input.kind[i] === KIND_RACE ? 0.35 : 0;
