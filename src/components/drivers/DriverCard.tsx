@@ -64,7 +64,7 @@ export function RevealFrame({
     return img;
   }, [media.helmet, placeholder]);
 
-  const radius = variant === 'hero' ? 0.2 : 0.25;
+  const radius = variant === 'hero' ? 0.22 : 0.26;
 
   const start = useCallback(
     (clientX: number, clientY: number) => {
@@ -253,8 +253,8 @@ function PortraitPlaceholder({ code, number, name, hero }: { code: string; numbe
     <span aria-hidden className="absolute inset-0 flex flex-col items-center justify-center text-cream">
       <span className={`font-display leading-none [text-shadow:0.05em_0.06em_0_#170F33] ${hero ? 'text-[11rem]' : 'text-[5.5rem]'}`}>{code}</span>
       <span className={`mt-1 font-display uppercase tracking-wide text-ink ${hero ? 'text-3xl' : 'text-lg'}`}>{name}</span>
-      <span className="absolute bottom-2 right-2 rotate-2 rounded-[3px] border-[1.5px] border-ink bg-cream px-1 font-mono text-[8px] font-semibold uppercase tracking-[0.16em] text-ink">
-        portrait not supplied · #{number}
+      <span className="absolute bottom-2 right-2 rotate-2 whitespace-nowrap rounded-[3px] border-[1.5px] border-ink bg-cream px-1 font-mono text-[7px] font-semibold uppercase tracking-[0.12em] text-ink sm:text-[8px]">
+        {hero ? `portrait not supplied · #${number}` : 'no portrait'}
       </span>
     </span>
   );

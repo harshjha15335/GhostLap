@@ -108,14 +108,16 @@ precision highp float;
 in vec2 vUv;
 out vec4 o;
 uniform sampler2D uState, uImage;
-uniform float uAspect, uTime, uEdge;
+uniform float uAspect, uTime;
 ${NOISE}
 void main() {
   float ink = texture(uState, vUv).r;
   vec2 q = vec2(vUv.x * uAspect, vUv.y);
   float n = fbm(q * 5.5 + vec2(uTime * 0.07, -uTime * 0.05));
   float m = ink + (n - 0.5) * 0.62;
-  float a = smoothstep(0.42 - uEdge, 0.42 + uEdge, m);
+  // pixel-exact antialiasing: the edge is ~1 device pixel wide however flat the ink is
+  float w = max(fwidth(m) * 0.8, 1e-4);
+  float a = smoothstep(-w, w, m - 0.42);
   vec4 c = texture(uImage, vec2(vUv.x, 1.0 - vUv.y));
   o = c * a;
 }`;
@@ -452,8 +454,6 @@ export class RevealEngine {
     gl.uniform1i(cu('uImage'), 1);
     gl.uniform1f(cu('uAspect'), this.aspect);
     gl.uniform1f(cu('uTime'), this.time);
-    // ~1 device pixel of antialiasing on the edge, whatever the card size
-    gl.uniform1f(cu('uEdge'), Math.max(0.004, 1.2 / (r.height * dpr) * 6));
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
