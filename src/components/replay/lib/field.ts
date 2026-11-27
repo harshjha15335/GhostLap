@@ -99,7 +99,12 @@ export function fillField(
       // retiring: the plan drives the car to its (real) stop point
       const pose = retirePose(plan, t, lt, out.poses[i]);
       inp.sTrue[i] = pose.s;
-      if (pose.phase === 0) {
+      if (pose.phase === 0 && plan.limp) {
+        // crawling along the edge: a moving obstacle the field steers around
+        out.posed[i] = 1;
+        inp.kind[i] = KIND_OBSTACLE;
+        inp.prefD[i] = pose.d;
+      } else if (pose.phase === 0) {
         if (plan.kind === 'garage' && planInPit(plan, t, L)) {
           inp.kind[i] = KIND_PIT;
           inp.prefD[i] = PIT_LANE_OFFSET;

@@ -4,7 +4,7 @@ import { loadBundle, raceSlugs } from '@/engine/testUtils';
 import { createCircuitCurve } from '@/engine/circuitCurve';
 import { createRaceTimeline } from '@/engine/raceInterpolator';
 import { buildTrackModel } from '@/components/track/trackModel';
-import { CLEAR_D, CLEAR_S, PIT_LANE_OFFSET, REPLAY_TRACK_OPTS } from './dims';
+import { CAR_LEN, CLEAR_D, CLEAR_S, PIT_LANE_OFFSET, REPLAY_TRACK_OPTS } from './dims';
 import { buildRaceScene } from './raceScene';
 import { createScState, scState } from './safetyCar';
 import { buildLaneTrack, sampleLane, type LaneTrack } from './laneTrack';
@@ -267,4 +267,135 @@ describe('lateral resolver (every bundled race, with the safety car in the field
     }
     if (scene.sc.length) expect(scFrames).toBeGreaterThan(0);
   }, 60_000);
+});
+
+/** side-by-side episodes per pair of racing cars: duration and the largest real gap (s) during it */
+function sideBySideEpisodes(slug: string, dt: number) {
+  const b = loadBundle(slug);
+  const tl = createRaceTimeline(b);
+  const scene = buildRaceScene(b, tl);
+  const ctx = createFieldCtx(b, tl, scene.lt, scene.plans);
+  const n = ctx.n;
+  const r = new TrafficResolver(scene.lt, n);
+  const out = createFieldOut(n);
+  const lap1End = Math.min(...b.cars.filter((c) => c.laps.length).map((c) => c.laps[0]));
+  const open = new Map<number, { t0: number; maxGap: number; why: Set<string> }>();
+  const episodes: { a: number; b: number; t0: number; dur: number; maxGap: number; why: string }[] = [];
+  const prevTrue = new Float64Array(n);
+  let states: CarState[] = [];
+  for (let t = 0; t <= tl.duration; t += dt) {
+    states = tl.statesAt(t, states);
+    fillField(ctx, states, t, -1, tl.trackStatusAt(t), out);
+    r.step(out.input, t === 0 ? -1 : dt);
+    const bad = overlaps(r, out.input.kind);
+    if (bad) throw new Error(`${slug} overlap at t=${t.toFixed(1)}`);
+    const k = out.input.kind;
+    const seen = new Set<number>();
+    for (let i = 0; i < n; i++) {
+      if (k[i] !== KIND_RACE || out.onGrid[i]) continue;
+      for (let o = i + 1; o < n; o++) {
+        if (k[o] !== KIND_RACE || out.onGrid[o]) continue;
+        // side by side = the car bodies overlap lengthwise, in separate lanes
+        if (Math.abs(r.diff(r.sv[i], r.sv[o])) >= CAR_LEN || Math.abs(r.d[i] - r.d[o]) < CLEAR_D - 1e-3) continue;
+        const key = i * 64 + o;
+        seen.add(key);
+        const v = Math.max(1, (Math.abs(r.diff(prevTrue[i], out.input.sTrue[i])) + Math.abs(r.diff(prevTrue[o], out.input.sTrue[o]))) / (2 * dt));
+        const gap = Math.abs(r.diff(out.input.sTrue[i], out.input.sTrue[o])) / v;
+        let ep = open.get(key);
+        if (ep) ep.maxGap = Math.max(ep.maxGap, gap);
+        else if (t > lap1End) open.set(key, (ep = { t0: t, maxGap: gap, why: new Set() }));
+        if (ep) {
+          if (r.partner(i) === o || r.partner(o) === i) ep.why.add('pass');
+          if (r.merging[i] || r.merging[o]) ep.why.add('merge');
+          if (out.input.noPass) ep.why.add('neutral');
+          if (r.partner(i) >= 0 && r.partner(i) !== o) ep.why.add('pass-other');
+          if (r.partner(o) >= 0 && r.partner(o) !== i) ep.why.add('pass-other');
+        }
+      }
+    }
+    for (const [key, ep] of open) {
+      if (seen.has(key)) continue;
+      episodes.push({ a: Math.floor(key / 64), b: key % 64, t0: ep.t0, dur: t - ep.t0, maxGap: ep.maxGap, why: [...ep.why].sort().join('+') || 'none' });
+      open.delete(key);
+    }
+    prevTrue.set(out.input.sTrue);
+  }
+  return { episodes, aborts: r.aborts, b };
+}
+
+describe('overtakes: short, decisive side-by-side phases', () => {
+  it.each(['silverstone', 'monza', 'zandvoort', 'baku'])('%s: no side-by-side over 6 s unless the real gap stays under 0.15 s', (slug) => {
+    const { episodes, aborts, b } = sideBySideEpisodes(slug, 0.25);
+    expect(episodes.length).toBeGreaterThan(0);
+    const long = episodes.filter((e) => e.dur > 6 && e.maxGap >= 0.15);
+    const d = episodes.map((e) => e.dur).sort((x, y) => x - y);
+    if (process.env.TRAFFIC_DEBUG) {
+      console.log(slug, 'episodes', d.length, 'median', d[d.length >> 1], 'p90', d[Math.floor(d.length * 0.9)], 'max', d[d.length - 1], 'aborts', aborts);
+    }
+    expect(long.map((e) => `car ${b.cars[e.a].driverNumber}/${b.cars[e.b].driverNumber} at ${e.t0.toFixed(0)}s: ${e.dur.toFixed(1)}s, gap ${e.maxGap.toFixed(2)}s ${e.why}`)).toEqual([]);
+    // typical phases are 1–4 s
+    expect(d[d.length >> 1]).toBeLessThanOrEqual(4);
+  }, 120_000);
+});
+
+describe('overtakes: abort path', () => {
+  it('a predicted pass that does not happen is abandoned without any overlap', () => {
+    const lt = syntheticTrack();
+    const n = 2;
+    const r = new TrafficResolver(lt, n);
+    const inp: TrafficInput = { sTrue: new Float64Array(n), kind: new Uint8Array(n).fill(KIND_RACE), prefD: new Float32Array(n).fill(NaN), noPass: false };
+    inp.prefD[0] = 0.6; // the leader keeps right: room to attack on the left
+    const dt = 0.1;
+    // car 1 closes on car 0 fast (swap predicted ~2 s ahead), then loses ground before the swap
+    let s0 = 100;
+    let s1 = 100 - CLEAR_S * 0.45;
+    let wasAlongside = false;
+    let maxRun = 0;
+    let run = 0;
+    for (let step = 0; step < 400; step++) {
+      const t = step * dt;
+      s0 += 6.6 * dt;
+      s1 += (t < 1.9 ? 7.3 : 5.6) * dt;
+      inp.sTrue[0] = s0 % lt.length;
+      inp.sTrue[1] = s1 % lt.length;
+      r.step(inp, step === 0 ? -1 : dt);
+      expect(overlaps(r, inp.kind)).toBeNull();
+      expect(s1).toBeLessThan(s0); // reality never swaps
+      if (r.alongside[1]) {
+        wasAlongside = true;
+        run += dt;
+        maxRun = Math.max(maxRun, run);
+      } else run = 0;
+    }
+    expect(wasAlongside).toBe(true); // it did go for it …
+    expect(r.aborts).toBeGreaterThan(0); // … and gave up
+    expect(maxRun).toBeLessThan(6);
+    // back in line, behind by a car length + clearance at least
+    expect(r.diff(r.sv[1], r.sv[0])).toBeGreaterThanOrEqual(CLEAR_S - 1e-3);
+    expect(r.partner(1)).toBe(-1);
+    expect(Math.abs(r.d[1] - sampleLane(lt.line, lt, r.sv[1]))).toBeLessThan(0.05);
+  });
+
+  it('a follower holds station in the slipstream until the swap is imminent', () => {
+    const lt = syntheticTrack();
+    const n = 2;
+    const r = new TrafficResolver(lt, n);
+    const inp: TrafficInput = { sTrue: new Float64Array(n), kind: new Uint8Array(n).fill(KIND_RACE), prefD: new Float32Array(n).fill(NaN), noPass: false };
+    const dt = 0.1;
+    // true gap half a car length, closing very slowly: the swap is ~40 s away
+    let s0 = 100;
+    let s1 = 100 - CLEAR_S * 0.5;
+    for (let step = 0; step < 150; step++) {
+      s0 += 6.6 * dt;
+      s1 += 6.64 * dt;
+      inp.sTrue[0] = s0 % lt.length;
+      inp.sTrue[1] = s1 % lt.length;
+      r.step(inp, step === 0 ? -1 : dt);
+      expect(overlaps(r, inp.kind)).toBeNull();
+      if (step > 10) {
+        expect(r.alongside[1]).toBe(0);
+        expect(r.diff(r.sv[1], r.sv[0])).toBeGreaterThanOrEqual(CLEAR_S - 1e-3);
+      }
+    }
+  });
 });

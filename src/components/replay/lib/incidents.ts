@@ -60,6 +60,10 @@ export interface RetirePlan {
   driveDt: number;
   /** lap-1 retirement: starts from its grid slot (column side) */
   gridSide: number;
+  /** crawls to the stop point (well under racing pace): moves off the line so the field can pass */
+  limp: boolean;
+  /** lateral offset while limping */
+  dLimp: number;
 }
 
 export interface RetirePose {
@@ -81,6 +85,10 @@ const SETTLE: Record<RetireKind, number> = { crash: 3.2, stop: 5.5, garage: 3 };
 /** kept for consumers that want "a few seconds after the incident started" */
 export const SLIDE_SECONDS = 6;
 const DRIVE_DT = 0.25;
+/** a retiring car slower than this share of racing pace limps along the edge of the track */
+const LIMP_SHARE = 0.6;
+/** seconds to move from the line to the edge when it starts limping */
+const LIMP_MOVE = 4;
 const PIT_ZONE = 0.065;
 
 function involves(e: RaceEvent, dn: number) {
@@ -94,6 +102,7 @@ function ease(tau: number, T: number, tc: number) {
   return (1 - Math.exp(-tau / tc)) / (1 - Math.exp(-T / tc));
 }
 const TC: Record<RetireKind, number> = { crash: 0.8, stop: 1.6, garage: 0.9 };
+const wrapS = (s: number, L: number) => ((s % L) + L) % L;
 
 export function planRetirements(bundle: RaceBundle, timeline: RaceTimeline, lt: LaneTrack, corners: CornerRun[]): (RetirePlan | null)[] {
   const L = lt.length;
@@ -278,6 +287,12 @@ export function planRetirements(bundle: RaceBundle, timeline: RaceTimeline, lt: 
       drive[k] = sTake + (sStop - sTake) * u;
     }
 
+    // a car crawling to its stop point (puncture, damage, failing power unit) keeps to the side
+    const vAvg = (sStop - sTake) / Math.max(1e-3, tStop - tTake);
+    const limp = exact && kind !== 'garage' && tStop - tTake > 4 && vAvg < LIMP_SHARE * v0;
+    const sL = wrapS(sTake + 0.25 * (sStop - sTake), L);
+    const dLimp = side > 0 ? sampleLane(lt.hi, lt, sL) - 0.05 : sampleLane(lt.lo, lt, sL) + 0.05;
+
     // lateral rest point
     const sr = sRest;
     const lo = sampleLane(lt.lo, lt, sr);
@@ -309,11 +324,11 @@ export function planRetirements(bundle: RaceBundle, timeline: RaceTimeline, lt: 
       drive,
       driveDt: DRIVE_DT,
       gridSide,
+      limp,
+      dLimp,
     } satisfies RetirePlan;
   });
 }
-
-const wrapS = (s: number, L: number) => ((s % L) + L) % L;
 
 /** unwrapped arc position of the plan at time t (≥ tTake) */
 export function planS(p: RetirePlan, t: number): number {
@@ -358,6 +373,10 @@ export function retirePose(p: RetirePlan, t: number, lt: LaneTrack, out: RetireP
   out.speed = Math.max(0, (planS(p, t + h) - planS(p, Math.max(p.tTake, t - h))) / (2 * h));
   if (t < p.tStop) {
     out.d = p.kind === 'garage' && planInPit(p, t, L) ? PIT_LANE_OFFSET : sampleLane(lt.line, lt, out.s);
+    if (p.limp) {
+      const k = Math.min(1, Math.max(0, (t - p.tTake) / LIMP_MOVE));
+      out.d += (p.dLimp - out.d) * k * k * (3 - 2 * k);
+    }
     out.yaw = 0;
     out.phase = 0;
     out.since = 0;
@@ -365,7 +384,7 @@ export function retirePose(p: RetirePlan, t: number, lt: LaneTrack, out: RetireP
   }
   const tau = t - p.tStop;
   const T = p.tRest - p.tStop;
-  const d0 = p.kind === 'garage' ? PIT_LANE_OFFSET : sampleLane(lt.line, lt, wrapS(p.sStop, L));
+  const d0 = p.kind === 'garage' ? PIT_LANE_OFFSET : p.limp ? p.dLimp : sampleLane(lt.line, lt, wrapS(p.sStop, L));
   if (p.kind === 'crash') {
     const kd = ease(tau, T, 1.0);
     out.d = d0 + (p.dRest - d0) * kd * kd * (3 - 2 * kd);

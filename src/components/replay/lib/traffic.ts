@@ -10,14 +10,19 @@ import { sampleLane, type LaneTrack } from './laneTrack';
  * Each step (race-time sub-steps of ≤ 0.25 s):
  *
  *  1. `e` relaxes back to 0 (cars catch up with reality at R units/s).
- *  2. Lateral targets: the racing line by default. A car that reality says is about to
- *     pass (true gap < 15 % of a car length and closing, or already ahead) pulls into a
- *     passing lane beside the car in front — the inside of the next corner, or the side
- *     with more room on a straight — and stays there while the two are overlapping.
+ *  2. Lateral targets: the racing line by default. A follower holds station in the
+ *     slipstream (one car length + 0.5 m behind, no overlap) until the timeline's order
+ *     swap is imminent: the true gap closes to zero within COMMIT_S (2.5 s race time) at
+ *     the current closing rate (smoothed true-progress derivatives), or reality already
+ *     has it ahead. Only then does it pull into a passing lane beside the car in front —
+ *     the inside of the next corner, or the side with more room on a straight. If the
+ *     predicted swap does not come (the gap stops closing, or the attempt runs past
+ *     ATTEMPT_S), it aborts: it drops back behind and rejoins the line.
  *     Lateral motion is rate-limited per metre travelled (eased, never a jump) and kept
  *     inside the asphalt (+ kerb allowance).
  *  3. A car alongside another that reality has behind yields (drops back) until it is a
  *     full car length behind, so the pass completes; the passer then rejoins the line.
+ *     During a committed pass both rates are higher, so side-by-side lasts ~1–4 s.
  *  4. A longitudinal sweep guarantees that no two footprints overlap: a car overlapping
  *     laterally with one in front is held back to one car length + clearance.
  *
@@ -42,13 +47,25 @@ export interface TrafficInput {
 }
 
 const RELAX = 1.0; // units/s a held-back car regains on reality
-const YIELD = 0.8; // extra units/s a passed car drops back
+const RELAX_PASS = 2.2; // … while passing (decisive manoeuvre)
+const YIELD_PASS = 1.4; // extra units/s a car alongside one that reality has ahead drops back
+const YIELD_MARGIN = 0.05;
 export const SLOPE = 0.25; // max lateral change per unit travelled (racing)
 export const SLOPE_PIT = 0.4;
 export const MIN_LAT = 0.35; // units/s lateral even when (nearly) stationary
 const KAPPA_MIN = 0.03;
-const ATTACK = 0.15 * CLEAR_S;
-const GIVE_UP = 0.35 * CLEAR_S;
+/** commit to a pass when the true order swap is predicted within this many race seconds */
+export const COMMIT_S = 2.5;
+/** abort when the prediction drifts past this (hysteresis) … */
+const ABORT_S = 4;
+/** … or the attempt (still truly behind) has lasted this long */
+export const ATTEMPT_S = 4;
+/** no new attempt on the same car for this long after an abort */
+const COOLDOWN_S = 3;
+/** a committed attacker never goes for a car more than this far ahead (true gap) */
+const GIVE_UP = 0.6 * CLEAR_S;
+/** closing-rate smoothing (race seconds) */
+const VEL_TAU = 0.8;
 const SUB_DT = 0.25;
 export const MAX_STEP_DT = 8;
 
@@ -66,6 +83,8 @@ export class TrafficResolver {
   readonly merging: Uint8Array;
   /** true when the last step re-solved from scratch (seek) */
   resetLast = true;
+  /** passes abandoned because the predicted swap did not happen (debug / tests) */
+  aborts = 0;
 
   private readonly e: Float64Array;
   private readonly sT: Float64Array;
@@ -76,6 +95,13 @@ export class TrafficResolver {
   private readonly subStart: Float64Array;
   private readonly side: Int8Array;
   private readonly pairWith: Int16Array;
+  /** smoothed true-progress speed (units/s) */
+  private readonly velS: Float64Array;
+  /** seconds the current attempt has been running while still truly behind */
+  private readonly attemptT: Float64Array;
+  /** car index the last abort was against, and the cooldown left */
+  private readonly coolWith: Int16Array;
+  private readonly coolT: Float64Array;
   private readonly lastKind: Uint8Array;
   private readonly dNext: Float32Array;
   private readonly dOld: Float32Array;
@@ -104,6 +130,10 @@ export class TrafficResolver {
     this.subStart = new Float64Array(n);
     this.side = new Int8Array(n);
     this.pairWith = new Int16Array(n).fill(-1);
+    this.velS = new Float64Array(n);
+    this.attemptT = new Float64Array(n);
+    this.coolWith = new Int16Array(n).fill(-1);
+    this.coolT = new Float64Array(n);
     this.lastKind = new Uint8Array(n);
     this.dNext = new Float32Array(n);
     this.dOld = new Float32Array(n);
@@ -115,6 +145,11 @@ export class TrafficResolver {
 
   reset() {
     this.init = false;
+  }
+
+  /** the car `i` is currently passing (or attempting to), −1 if none */
+  partner(i: number): number {
+    return this.side[i] !== 0 ? this.pairWith[i] : -1;
   }
 
   private wrapS(x: number) {
@@ -174,6 +209,12 @@ export class TrafficResolver {
       }
       const nSub = dt > 0 ? Math.min(32, Math.max(1, Math.ceil(dt / SUB_DT))) : 1;
       const h = dt / nSub;
+      for (let i = 0; i < n; i++) {
+        if (input.kind[i] === KIND_OFF) continue;
+        const v = dt > 0 ? this.diff(this.prevTrue[i], input.sTrue[i]) / dt : this.vel[i];
+        const fresh = this.lastKind[i] === KIND_OFF;
+        this.velS[i] = fresh ? v : this.velS[i] + (v - this.velS[i]) * Math.min(1, dt / VEL_TAU);
+      }
       for (let s = 1; s <= nSub; s++) {
         const w = s / nSub;
         for (let i = 0; i < n; i++) {
@@ -200,10 +241,14 @@ export class TrafficResolver {
       this.pairWith[i] = -1;
       this.yaw[i] = 0;
       this.merging[i] = 0;
+      this.attemptT[i] = 0;
+      this.coolT[i] = 0;
+      this.coolWith[i] = -1;
       if (inp.kind[i] === KIND_OFF) continue;
       this.sT[i] = inp.sTrue[i];
       this.sv[i] = inp.sTrue[i];
       this.vel[i] = 0;
+      this.velS[i] = 0;
       const k = inp.kind[i];
       this.d[i] = k === KIND_RACE ? this.clampTrack(i, this.pref(i)) : this.pref(i);
       this.frameD[i] = this.d[i];
@@ -259,7 +304,8 @@ export class TrafficResolver {
       }
       const before = this.sv[i];
       this.subStart[i] = before;
-      this.e[i] = Math.min(0, this.e[i] + RELAX * h);
+      this.e[i] = Math.min(0, this.e[i] + (this.side[i] !== 0 ? RELAX_PASS : RELAX) * h);
+      if (this.coolT[i] > 0) this.coolT[i] = Math.max(0, this.coolT[i] - h);
       this.sv[i] = this.wrapS(this.sT[i] + this.e[i]);
       // lateral allowance follows the car's VISUAL progress (a held-back car moves less)
       this.travel[i] = Math.min(Math.abs(this.diff(before, this.sv[i])), this.netTravel[i] * 1.15 + 0.02);
@@ -302,10 +348,24 @@ export class TrafficResolver {
       if (j >= 0) {
         if (kind[j] === KIND_OBSTACLE) intent = Math.abs(pref - this.d[j]) < CLEAR_D + 0.2 || Math.abs(this.d[i] - this.d[j]) < CLEAR_D;
         else if (!inp.noPass) {
-          const tg = this.diff(this.sT[i], this.sT[j]);
-          const closing = this.vel[i] > this.vel[j] + 1e-4;
+          const tg = this.diff(this.sT[i], this.sT[j]); // > 0: j is truly ahead
+          const rate = this.velS[i] - this.velS[j];
+          const swapIn = tg <= 0 ? 0 : rate > 1e-4 ? tg / rate : Infinity;
           const latched = this.side[i] !== 0 && this.pairWith[i] === j;
-          intent = (tg < ATTACK && (closing || tg < 0)) || (latched && tg < GIVE_UP);
+          if (latched) {
+            this.attemptT[i] = tg > 0 ? this.attemptT[i] + h : 0;
+            intent = tg <= 0 || (tg < GIVE_UP && swapIn <= ABORT_S && this.attemptT[i] < ATTEMPT_S);
+            if (!intent) {
+              // the predicted swap is not coming: abort, drop back behind and rejoin the line
+              this.aborts++;
+              this.coolWith[i] = j;
+              this.coolT[i] = COOLDOWN_S;
+            }
+          } else {
+            const cooling = this.coolT[i] > 0 && this.coolWith[i] === j;
+            intent = tg <= 0 || (!cooling && tg < CLEAR_S && swapIn <= COMMIT_S);
+            this.attemptT[i] = 0;
+          }
         }
       }
       let target = pref;
@@ -340,6 +400,23 @@ export class TrafficResolver {
         this.side[i] = 0;
         this.pairWith[i] = -1;
       }
+      // give way: a car that reality has clearly ahead is stuck right behind in my lane
+      // (e.g. I just rejoined from the pits slowly) → move aside so it can go by
+      if (!intent && !inp.noPass) {
+        for (let b = 0; b < m; b++) {
+          const o = rot[b];
+          if (o === i || kind[o] !== KIND_RACE) continue;
+          const dl = this.diff(this.sv[i], this.sv[o]);
+          if (dl > 0 || dl < -1.6 * CLEAR_S) continue;
+          if (this.diff(this.sT[i], this.sT[o]) < 0.5 * CLEAR_S) continue;
+          if (Math.abs(this.d[i] - this.d[o]) >= CLEAR_D) continue;
+          let sg = Math.sign(this.d[i] - this.d[o]);
+          if (sg === 0) sg = this.d[o] > 0 ? -1 : 1;
+          target = this.d[o] + sg * CLEAR_D * 1.05;
+          if (Math.abs(this.clampTrack(i, target) - this.d[o]) < CLEAR_D) target = this.d[o] - sg * CLEAR_D * 1.05;
+          break;
+        }
+      }
       // steer around a stopped / spinning car close by (in front or beside)
       for (let b = 0; b < m; b++) {
         const o = rot[b];
@@ -363,7 +440,20 @@ export class TrafficResolver {
       }
       target = this.clampTrack(i, target);
       if (this.merging[i] && this.outside(i)) {
-        // rejoining from the pit lane: glide onto the asphalt at pit-lane rate
+        // rejoining from the pit lane: wait outside while a car that reality has ahead is
+        // right behind / beside (it would be stuck behind the slow rejoining car) …
+        let wait = false;
+        for (let b = 0; b < m && !wait; b++) {
+          const o = rot[b];
+          if (o === i || kind[o] !== KIND_RACE || this.merging[o]) continue;
+          const dl = this.diff(this.sv[i], this.sv[o]);
+          if (dl > -2.5 * CLEAR_S && dl < CLEAR_S && this.diff(this.sT[i], this.sT[o]) > 0) wait = true;
+        }
+        if (wait) {
+          this.dNext[i] = this.d[i];
+          continue;
+        }
+        // … then glide onto the asphalt at pit-lane rate
         const st = SLOPE_PIT * travel + 4 * MIN_LAT * h;
         this.dNext[i] = this.d[i] + Math.max(-st, Math.min(st, target - this.d[i]));
         continue;
@@ -416,9 +506,12 @@ export class TrafficResolver {
         if (Math.abs(this.d[i] - this.d[o]) < CLEAR_D - 1e-3) continue;
         const tg = this.diff(this.sT[i], this.sT[o]);
         if (tg <= 0) continue; // i is truly ahead
-        if (this.side[i] !== 0 && this.pairWith[i] === o && tg < GIVE_UP) continue; // attacking
-        const need = CLEAR_S - dl;
-        const back = Math.min(need, (RELAX + YIELD) * h);
+        if (this.side[i] !== 0 && this.pairWith[i] === o) continue; // attacking
+        // a little past one car length, so the next relax step does not bring it back alongside
+        const need = CLEAR_S + YIELD_MARGIN + RELAX * h - dl;
+        // make room decisively: being passed, or two cars that ended up alongside without a
+        // pass on (congestion in a train) — the one reality has behind drops in behind
+        const back = Math.min(need, (RELAX + YIELD_PASS) * h);
         this.e[i] -= back;
         this.sv[i] = this.wrapS(this.sT[i] + this.e[i]);
       }
