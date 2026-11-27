@@ -2,39 +2,21 @@ import { memo, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import type { RaceBundle } from '@/types';
-import type { CircuitCurve } from '@/engine/circuitCurve';
-import type { RaceTimeline } from '@/engine/raceInterpolator';
 import { F1Car, COMPOUND_COLORS } from '@/components/three/F1Car';
+import { downforceLoss } from '@/engine/strategySimulator';
 import { useRaceLab } from '@/store/raceLabStore';
 import { useDriverLookup } from '@/store/seasonStore';
-import { CAR_SCALE, GHOST_LANE, PIT_LANE_OFFSET, frame } from '../lib/frame';
-import { tyreWear, wakeIntensity } from '../lib/raceMath';
+import { CAR_LEN, CAR_SCALE } from '../lib/dims';
+import { MAX_CARS, frame } from '../lib/frame';
+import { tyreWear } from '../lib/raceMath';
+import { sampleLane } from '../lib/laneTrack';
+import { createFieldCtx, createFieldOut, fillField } from '../lib/field';
+import { KIND_OFF, KIND_RACE, TrafficResolver } from '../lib/traffic';
+import type { RaceScene } from '../lib/raceScene';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const GREY = new THREE.Color('#5b6068');
-const AMBER = new THREE.Color('#FF7A00');
-
-/** Shared geometries (car-local metres; the car group carries CAR_SCALE). */
-function makeWakeGeometry() {
-  const len = 16;
-  const g = new THREE.ConeGeometry(2.6, len, 24, 6, true);
-  const pos = g.getAttribute('position');
-  const col = new Float32Array(pos.count * 4);
-  for (let i = 0; i < pos.count; i++) {
-    const y = pos.getY(i);
-    const a = Math.pow((y + len / 2) / len, 1.6); // 1 at apex → 0 at mouth
-    col[i * 4] = AMBER.r;
-    col[i * 4 + 1] = AMBER.g;
-    col[i * 4 + 2] = AMBER.b;
-    col[i * 4 + 3] = a;
-  }
-  g.setAttribute('color', new THREE.BufferAttribute(col, 4));
-  g.rotateX(Math.PI / 2); // apex → +Z (towards the car)
-  g.scale(1, 0.35, 1); // hug the ground
-  g.translate(0, 0.45, -(len / 2 + 2.4));
-  return g;
-}
+const HAZARD = new THREE.Color('#FFB000');
 
 function makeHaloGeometry() {
   const g = new THREE.RingGeometry(1.7, 1.92, 40);
@@ -44,35 +26,23 @@ function makeHaloGeometry() {
   return g;
 }
 
-interface CarsProps {
-  bundle: RaceBundle;
-  timeline: RaceTimeline;
-  curve: CircuitCurve;
-}
-
-export const Cars = memo(function Cars({ bundle, timeline, curve }: CarsProps) {
+/**
+ * The 22-car field. Positions come from the timeline (race truth); the lateral placement,
+ * passing manoeuvres and the no-overlap guarantee come from lib/traffic.ts, retirements
+ * from lib/incidents.ts. Also publishes the per-car airflow inputs (frame.air).
+ * Per car: the low-LOD W17 (≤ 3 draw calls) + its tyre halo; the pick box is never drawn.
+ */
+export const Cars = memo(function Cars({ scene }: { scene: RaceScene }) {
+  const { bundle, timeline, curve, lt, plans } = scene;
   const lookup = useDriverLookup();
   const setFocus = useRaceLab((s) => s.setFocusDriver);
   const n = bundle.cars.length;
 
   const shared = useMemo(() => {
-    const wakeGeo = makeWakeGeometry();
     const haloGeo = makeHaloGeometry();
     const hitGeo = new THREE.BoxGeometry(3.2, 2.2, 6.5);
     // pick target only: never drawn (material.visible = false), still raycast by the click handler
     const hitMat = new THREE.MeshBasicMaterial({ visible: false });
-    const wakeMats = bundle.cars.map(
-      () =>
-        new THREE.MeshBasicMaterial({
-          vertexColors: true,
-          transparent: true,
-          opacity: 0,
-          depthWrite: false,
-          blending: THREE.AdditiveBlending,
-          side: THREE.DoubleSide,
-          toneMapped: false,
-        }),
-    );
     const haloMats = bundle.cars.map(
       () =>
         new THREE.MeshBasicMaterial({
@@ -83,58 +53,63 @@ export const Cars = memo(function Cars({ bundle, timeline, curve }: CarsProps) {
           toneMapped: false,
         }),
     );
-    return { wakeGeo, haloGeo, hitGeo, hitMat, wakeMats, haloMats };
+    return { haloGeo, hitGeo, hitMat, haloMats };
   }, [bundle]);
 
   useEffect(
     () => () => {
-      shared.wakeGeo.dispose();
       shared.haloGeo.dispose();
       shared.hitGeo.dispose();
       shared.hitMat.dispose();
-      shared.wakeMats.forEach((m) => m.dispose());
       shared.haloMats.forEach((m) => m.dispose());
     },
     [shared],
   );
 
   const groups = useRef<(THREE.Group | null)[]>([]);
-  const wakes = useRef<(THREE.Mesh | null)[]>([]);
 
-  // per-car runtime scratch (no per-frame allocation)
+  // per-race runtime (no per-frame allocation)
   const rt = useMemo(() => {
-    const idxByDriver = new Map<number, number>();
-    bundle.cars.forEach((c, i) => idxByDriver.set(c.driverNumber, i));
-    const finishTime = bundle.cars.map((c) => {
-      const cum = timeline.cumulative.get(c.driverNumber) ?? [];
-      return c.status === 'FINISHED' ? (cum[cum.length - 1] ?? Infinity) : Infinity;
-    });
-    const lastLap = bundle.cars.map((c) => c.laps[c.laps.length - 1] ?? 90);
-    const grid = bundle.cars.map((c, i) => c.gridPosition ?? i + 1);
+    const ctx = createFieldCtx(bundle, timeline, lt, plans);
+    const laps: number[] = [];
+    for (const c of bundle.cars) for (let k = 1; k < c.laps.length; k++) laps.push(c.laps[k]);
+    laps.sort((a, b) => a - b);
+    const typical = lt.length / (laps[laps.length >> 1] || 90);
     return {
-      idxByDriver,
-      finishTime,
-      lastLap,
-      grid,
-      lane: new Float32Array(n),
-      frac: new Float32Array(n),
-      visible: new Uint8Array(n),
-      order: Array.from({ length: n }, (_, i) => i),
+      ctx,
+      out: createFieldOut(n),
+      traffic: new TrafficResolver(lt, n),
+      lastT: NaN,
+      typical,
+      speed: new Float32Array(n),
+      prevS: new Float64Array(n),
       haloTick: 0,
       ringMats: [] as (THREE.MeshStandardMaterial[] | null)[],
+      dirs: bundle.cars.map(() => new THREE.Vector3(0, 0, 1)),
       p: new THREE.Vector3(),
       t: new THREE.Vector3(),
       r: new THREE.Vector3(),
+      h: new THREE.Vector3(),
       look: new THREE.Vector3(),
       color: new THREE.Color(),
+      clock: 0,
     };
-  }, [bundle, timeline, n]);
+  }, [bundle, timeline, lt, plans, n]);
 
   useEffect(() => {
     frame.carGroups.clear();
-    groups.current.forEach((g, i) => g && frame.carGroups.set(bundle.cars[i].driverNumber, g));
+    frame.carDir.clear();
+    groups.current.forEach((g, i) => {
+      if (!g) return;
+      frame.carGroups.set(bundle.cars[i].driverNumber, g);
+      frame.carDir.set(bundle.cars[i].driverNumber, rt.dirs[i]);
+    });
     rt.ringMats = [];
-    return () => frame.carGroups.clear();
+    return () => {
+      frame.carGroups.clear();
+      frame.carDir.clear();
+      frame.battling.clear();
+    };
   });
 
   const findRings = (i: number) => {
@@ -152,95 +127,116 @@ export const Cars = memo(function Cars({ bundle, timeline, curve }: CarsProps) {
     return found.size ? [...found] : null;
   };
 
-  useFrame((_, dt) => {
+  useFrame((_, rawDt) => {
     const states = frame.states;
     if (!states.length) return;
-    const L = curve.length;
+    const dt = Math.min(rawDt, 0.1);
+    rt.clock += dt;
+    const L = lt.length;
     const t = frame.time;
-    const ghostDn = useRaceLab.getState().ghost?.scenario.driverNumber ?? -1;
+    const lab = useRaceLab.getState();
+    const ghostDn = lab.ghost?.scenario.driverNumber ?? -1;
+    const out = rt.out;
+    const tr = rt.traffic;
 
-    // 1. lap fraction (with grid stagger on lap 1 and a parade after the flag)
-    for (let k = 0; k < states.length; k++) {
-      const s = states[k];
-      const i = rt.idxByDriver.get(s.driverNumber);
-      if (i === undefined) continue;
-      if (s.retired) {
-        rt.visible[i] = 0;
-        continue;
+    // 1. timeline → resolver input; 2. resolve (only when the race clock moved)
+    fillField(rt.ctx, states, t, ghostDn, frame.status, out);
+    const dRace = t - rt.lastT;
+    if (dRace !== 0 || Number.isNaN(rt.lastT)) {
+      tr.step(out.input, Number.isNaN(rt.lastT) ? -1 : dRace);
+      for (let i = 0; i < n; i++) {
+        const v = tr.resetLast || dRace <= 0 ? rt.speed[i] : Math.abs(tr.diff(rt.prevS[i], tr.sv[i])) / dRace;
+        rt.speed[i] += (v - rt.speed[i]) * (tr.resetLast ? 1 : 0.35);
+        rt.prevS[i] = tr.sv[i];
       }
-      rt.visible[i] = 1;
-      let f = s.lapFraction;
-      const tf = rt.finishTime[i];
-      if (t >= tf) {
-        const since = t - tf;
-        f = Math.max(0, 0.11 * (1 - Math.exp(-since / (rt.lastLap[i] * 0.25))) - (s.position - 1) * 0.0035);
-      } else if (s.lap === 1) {
-        const back = ((rt.grid[i] - 1) * 0.95 + 1.2) / L;
-        f = f - back * Math.max(0, 1 - f * 1.6);
-      }
-      rt.frac[i] = f;
+      rt.lastT = t;
     }
 
-    // 2. physical order around the lap → keep close cars side-by-side instead of overlapping
-    rt.order.sort((a, b) => rt.frac[b] - rt.frac[a]);
-    for (let k = 0; k < n; k++) {
-      const i = rt.order[k];
-      if (!rt.visible[i]) continue;
-      const s = frame.byDriver.get(bundle.cars[i].driverNumber);
-      if (!s) continue;
-      let target = 0;
-      if (s.inPit) target = PIT_LANE_OFFSET;
-      else if (ghostDn === s.driverNumber) target = -GHOST_LANE; // make room for the ghost beside reality
-      else if (s.lap === 1 && t < rt.finishTime[i] && s.lapFraction < 0.06) target = (rt.grid[i] % 2 ? -0.55 : 0.55);
-      else {
-        // nearest visible car physically ahead
-        for (let j = k - 1; j >= 0; j--) {
-          const a = rt.order[j];
-          if (!rt.visible[a]) continue;
-          const d = (rt.frac[a] - rt.frac[i]) * L;
-          if (d < 4.2) target = rt.lane[a] >= 0 ? -1.0 : 1.0;
-          break;
-        }
-      }
-      rt.lane[i] = THREE.MathUtils.damp(rt.lane[i], target, s.inPit ? 5 : 2.2, Math.min(dt, 0.1));
-    }
-
-    // 3. transforms + wakes
-    for (let k = 0; k < states.length; k++) {
-      const s = states[k];
-      const i = rt.idxByDriver.get(s.driverNumber);
-      if (i === undefined) continue;
+    // 3. transforms
+    const scale = CAR_SCALE * (1 + frame.topW * 1.1);
+    const air = frame.air;
+    air.count = Math.min(n, MAX_CARS);
+    air.scale = 1 + frame.topW * 1.1;
+    frame.battling.clear();
+    for (let i = 0; i < n; i++) {
       const g = groups.current[i];
       if (!g) continue;
-      g.visible = rt.visible[i] === 1;
-      if (!g.visible) continue;
-      curve.pointAt(rt.frac[i], rt.p);
-      curve.tangentAt(rt.frac[i], rt.t);
+      const hidden = out.hidden[i] === 1 || (out.input.kind[i] === KIND_OFF && out.posed[i] !== 1);
+      g.visible = !hidden;
+      if (i < MAX_CARS) air.weight[i] = 0;
+      if (hidden) continue;
+      let s: number, d: number, yaw: number;
+      if (out.posed[i]) {
+        const pose = out.poses[i];
+        s = pose.s;
+        d = pose.d;
+        yaw = pose.yaw;
+      } else {
+        s = tr.sv[i];
+        d = tr.d[i];
+        yaw = tr.yaw[i];
+      }
+      const f = s / L;
+      curve.pointAt(f, rt.p);
+      curve.tangentAt(f, rt.t);
       rt.r.crossVectors(rt.t, UP).normalize();
-      g.position.copy(rt.p).addScaledVector(rt.r, rt.lane[i]);
+      rt.dirs[i].copy(rt.t);
+      g.position.copy(rt.p).addScaledVector(rt.r, d);
       g.position.y += 0.02;
-      rt.look.copy(g.position).add(rt.t);
+      // heading: tangent turned by the lateral-motion / spin yaw (+ = towards the right)
+      rt.h.copy(rt.t).multiplyScalar(Math.cos(yaw)).addScaledVector(rt.r, Math.sin(yaw));
+      rt.look.copy(g.position).add(rt.h);
       g.lookAt(rt.look);
-      g.scale.setScalar(CAR_SCALE * (1 + frame.topW * 1.1));
+      g.scale.setScalar(scale);
+      if (tr.alongside[i] && !out.posed[i]) frame.battling.add(bundle.cars[i].driverNumber);
 
-      const wake = wakes.current[i];
-      if (wake) {
-        const follower = states[k + 1];
-        const live = follower && !follower.retired && !follower.finished && !s.finished && !s.inPit && t < rt.finishTime[i];
-        const w = live ? wakeIntensity(follower.gapAhead) : 0;
-        const m = shared.wakeMats[i];
-        m.opacity = THREE.MathUtils.damp(m.opacity, w * 0.55, 6, Math.min(dt, 0.1));
-        wake.visible = m.opacity > 0.01;
+      if (i < MAX_CARS) {
+        air.pos[i * 3] = g.position.x;
+        air.pos[i * 3 + 1] = g.position.y;
+        air.pos[i * 3 + 2] = g.position.z;
+        air.yaw[i] = Math.atan2(rt.h.x, rt.h.z);
+        const sp = out.posed[i] ? out.poses[i].speed : rt.speed[i];
+        air.speed[i] = Math.min(1.2, sp / rt.typical);
+        air.curv[i] = -sampleLane(lt.kappa, lt, s);
+        air.loss[i] = 0;
+        air.follow[i] = 0;
+        air.weight[i] = out.input.kind[i] === KIND_RACE ? 0.35 : 0;
       }
     }
 
-    // 4. tyre halos at ~4 Hz (compound colour fading to grey with age)
+    // 4. airflow: who is in whose wake (timeline running order, physically close), focus weighting
+    const focus = lab.focusDriver;
+    let focusPos = -1;
+    for (let k = 0; k < states.length; k++) if (states[k].driverNumber === focus) focusPos = k;
+    for (let k = 0; k < states.length; k++) {
+      const s = states[k];
+      const i = rt.ctx.idxByDriver.get(s.driverNumber);
+      if (i === undefined || i >= MAX_CARS || air.weight[i] === 0) continue;
+      if (focusPos >= 0 && Math.abs(k - focusPos) <= 3) air.weight[i] = 1;
+      const fol = states[k + 1];
+      if (!fol || fol.retired || fol.inPit || s.finished) continue;
+      const j = rt.ctx.idxByDriver.get(fol.driverNumber);
+      if (j === undefined || out.input.kind[j] !== KIND_RACE) continue;
+      const dist = tr.diff(tr.sv[j], tr.sv[i]);
+      if (dist <= 0 || dist > 14) continue;
+      air.loss[i] = downforceLoss(fol.gapAhead);
+      air.follow[i] = Math.max(0.1, dist - CAR_LEN * 0.5);
+    }
+
+    // 5. tyre halos at ~4 Hz (compound colour fading to grey with age); parked cars flash hazards
     rt.haloTick += dt;
+    const blink = Math.sin(rt.clock * 9) > 0;
+    for (let i = 0; i < n; i++) {
+      if (!out.posed[i] || out.input.kind[i] === KIND_OFF) continue;
+      const hm = shared.haloMats[i];
+      hm.color.copy(HAZARD);
+      hm.opacity = blink ? 0.85 : 0.12;
+    }
     if (rt.haloTick > 0.25) {
       rt.haloTick = 0;
       for (const s of states) {
-        const i = rt.idxByDriver.get(s.driverNumber);
-        if (i === undefined) continue;
+        const i = rt.ctx.idxByDriver.get(s.driverNumber);
+        if (i === undefined || out.posed[i]) continue;
         const wear = tyreWear(s.compound, s.tyreAge);
         rt.color.set(COMPOUND_COLORS[s.compound] ?? '#ffffff').lerp(GREY, Math.pow(wear, 1.2));
         const hm = shared.haloMats[i];
@@ -265,15 +261,9 @@ export const Cars = memo(function Cars({ bundle, timeline, curve }: CarsProps) {
   return (
     <group>
       {bundle.cars.map((c, i) => (
-        <group
-          key={c.driverNumber}
-          ref={(g) => (groups.current[i] = g)}
-          scale={CAR_SCALE}
-          visible={false}
-        >
+        <group key={c.driverNumber} ref={(g) => (groups.current[i] = g)} scale={CAR_SCALE} visible={false}>
           <F1Car detail="low" teamId={lookup.driver(c.driverNumber)?.teamId} color={lookup.color(c.driverNumber)} accent="#D4FF00" tyreGlow={0.8} tyreColor="#FFD400" />
           <mesh geometry={shared.haloGeo} material={shared.haloMats[i]} />
-          <mesh ref={(m) => (wakes.current[i] = m)} geometry={shared.wakeGeo} material={shared.wakeMats[i]} visible={false} />
           <mesh
             geometry={shared.hitGeo}
             material={shared.hitMat}
@@ -312,7 +302,7 @@ function FocusMarker() {
     const st = frame.byDriver.get(focusDriver!);
     if (label.current && st && (last.current.dn !== focusDriver || last.current.pos !== st.position)) {
       last.current = { dn: focusDriver, pos: st.position };
-      label.current.textContent = `P${st.position} ${lookup.code(focusDriver!)}`;
+      label.current.textContent = st.retired ? `OUT ${lookup.code(focusDriver!)}` : `P${st.position} ${lookup.code(focusDriver!)}`;
     }
   });
 

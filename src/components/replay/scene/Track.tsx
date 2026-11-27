@@ -2,24 +2,25 @@ import * as THREE from 'three';
 import type { CircuitGeometry } from '@/types';
 import type { CircuitCurve } from '@/engine/circuitCurve';
 import { CircuitEnvironment } from '@/components/track/CircuitEnvironment';
-import { TRACK_WIDTH, PIT_LANE_OFFSET } from '../lib/frame';
+import { REPLAY_TRACK_OPTS } from '../lib/dims';
 
 /**
- * Replay circuit: the shared environment at "low" quality. Real track widths are
- * scaled so the mean equals TRACK_WIDTH; the half-width never drops below what the
- * side-by-side lanes in Cars.tsx need (±1.05 + half a car), and the pit lane sits
- * at PIT_LANE_OFFSET exactly where Cars.tsx parks pitting cars.
+ * Replay circuit: the shared environment at "low" quality, built with exactly the
+ * track-model options the lane maths uses (lib/dims.ts REPLAY_TRACK_OPTS), so racing
+ * line, passing lanes and track limits match the asphalt that is drawn. The pit lane
+ * sits at PIT_LANE_OFFSET where the field puts pitting cars.
  */
 export function Track({ circuit, curve }: { circuit: CircuitGeometry; curve: CircuitCurve }) {
+  const o = REPLAY_TRACK_OPTS;
   return (
     <CircuitEnvironment
       circuit={circuit}
       curve={curve}
-      quality="low"
-      trackWidth={TRACK_WIDTH}
-      minHalfWidth={1.5}
-      pitLane={{ offset: PIT_LANE_OFFSET, width: 1.3 }}
-      pitSpan={0.075}
+      quality={o.quality}
+      trackWidth={o.trackWidth}
+      minHalfWidth={o.minHalfWidth}
+      pitLane={o.pitLane}
+      pitSpan={o.pitSpan}
       showSectors
     />
   );

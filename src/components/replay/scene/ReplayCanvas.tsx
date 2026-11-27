@@ -1,9 +1,8 @@
-import { memo, useMemo } from 'react';
+import { memo, Suspense, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { RaceBundle } from '@/types';
 import type { RaceTimeline } from '@/engine/raceInterpolator';
-import { createCircuitCurve } from '@/engine/circuitCurve';
 import { useRaceLab } from '@/store/raceLabStore';
 import { frame } from '../lib/frame';
 import { ghostProgress } from '../lib/raceMath';
@@ -11,6 +10,11 @@ import { Track } from './Track';
 import { Cars } from './Cars';
 import { GhostCar } from './GhostCar';
 import { CameraRig } from './CameraRig';
+import { Airflow } from './Airflow';
+import { Incidents } from './Incidents';
+import { TrackSignals } from './TrackSignals';
+import { SafetyCar } from './SafetyCar';
+import { buildRaceScene } from '../lib/raceScene';
 import { SkyDome } from '@/components/track/SkyDome';
 
 /** Advances the race clock and samples car states once per frame (runs before everything else). */
@@ -26,8 +30,9 @@ function RaceClock() {
     last.time = time;
     last.ghost = ghost;
     last.timeline = tl;
-    const states = tl.statesAt(time);
+    const states = tl.statesAt(time, frame.states);
     frame.time = time;
+    frame.status = tl.trackStatusAt(time);
     frame.states = states;
     frame.byDriver.clear();
     frame.gapBehind.clear();
@@ -42,7 +47,9 @@ function RaceClock() {
 }
 
 const Scene = memo(function Scene({ bundle, timeline }: { bundle: RaceBundle; timeline: RaceTimeline }) {
-  const curve = useMemo(() => createCircuitCurve(bundle.circuit), [bundle]);
+  // circuit clean-up, track model, racing line and incident plans: once per race
+  const scene = useMemo(() => buildRaceScene(bundle, timeline), [bundle, timeline]);
+  const { curve } = scene;
   return (
     <>
       {/* bright daytime sky; background + horizon-haze fog come from the dome */}
@@ -52,8 +59,16 @@ const Scene = memo(function Scene({ bundle, timeline }: { bundle: RaceBundle; ti
       <directionalLight position={[80, 140, 60]} intensity={2.1} color="#fff3dc" />
       <directionalLight position={[-90, 60, -80]} intensity={0.5} color="#bcd8ff" />
       <RaceClock />
-      <Track circuit={bundle.circuit} curve={curve} />
-      <Cars bundle={bundle} timeline={timeline} curve={curve} />
+      <Track circuit={scene.circuit} curve={curve} />
+      <Cars scene={scene} />
+      <Airflow />
+      <Incidents scene={scene} />
+      <TrackSignals scene={scene} />
+      {scene.sc.length > 0 && (
+        <Suspense fallback={null}>
+          <SafetyCar scene={scene} />
+        </Suspense>
+      )}
       <GhostCar bundle={bundle} curve={curve} />
       <CameraRig curve={curve} />
     </>

@@ -1,15 +1,35 @@
 import { useEffect, useState } from 'react';
-import type { Group } from 'three';
-import type { CarState, WhatIfScenario } from '@/types';
+import type { Group, Object3D, Vector3 } from 'three';
+import type { CarState, TrackStatusType, WhatIfScenario } from '@/types';
 import type { LapProgress } from '@/engine/raceInterpolator';
 import { useRaceLab } from '@/store/raceLabStore';
 import { scenarioChangeLap } from './raceMath';
 
-/** Render-space constants shared by the replay scene. */
-export const TRACK_WIDTH = 3.4;
-export const CAR_SCALE = 0.55;
-export const PIT_LANE_OFFSET = TRACK_WIDTH / 2 + 1.35;
-export const GHOST_LANE = -1.05;
+export { TRACK_WIDTH, CAR_SCALE, PIT_LANE_OFFSET, GHOST_LANE } from './dims';
+
+/** Max cars the per-car GPU arrays are sized for (airflow shader uniforms). */
+export const MAX_CARS = 24;
+
+/** Per-car airflow inputs written by Cars.tsx each frame, read by Airflow.tsx. */
+export interface AirflowBus {
+  /** world position (x, y, z) */
+  pos: Float32Array;
+  /** world heading angle about +Y (rotation.y of the car) */
+  yaw: Float32Array;
+  /** 0..1 speed relative to a typical racing speed */
+  speed: Float32Array;
+  /** path curvature (dyaw / ds, rad per render unit) */
+  curv: Float32Array;
+  /** dirty-air downforce loss of the car directly behind (0..1, strategySimulator.downforceLoss) */
+  loss: Float32Array;
+  /** distance (render units) to that follower's nose, 0 = none */
+  follow: Float32Array;
+  /** 0..1 how strongly to draw this car's airflow (focus + neighbours 1, rest lighter) */
+  weight: Float32Array;
+  /** car scale factor (top-down zoom) */
+  scale: number;
+  count: number;
+}
 
 /**
  * Mutable per-frame bus written by the scene's sampler (useFrame) and read by
@@ -22,7 +42,28 @@ export const frame = {
   /** gap (s) of the car directly behind, keyed by the car being followed */
   gapBehind: new Map<number, number>(),
   ghost: null as LapProgress | null,
+  /** track status at `time` (SC / VSC / RED) */
+  status: null as TrackStatusType | null,
   carGroups: new Map<number, Group>(),
+  /** racing direction at each car (track tangent: steady even while a car spins) */
+  carDir: new Map<number, Vector3>(),
+  /** drivers currently side by side with someone */
+  battling: new Set<number>(),
+  /** safety car group while it is on track */
+  safetyCar: null as Object3D | null,
+  /** director cue: something worth cutting to (incident / SC), with its expiry (performance.now ms) */
+  cue: null as { target: Object3D; until: number; label: string } | null,
+  air: {
+    pos: new Float32Array(MAX_CARS * 3),
+    yaw: new Float32Array(MAX_CARS),
+    speed: new Float32Array(MAX_CARS),
+    curv: new Float32Array(MAX_CARS),
+    loss: new Float32Array(MAX_CARS),
+    follow: new Float32Array(MAX_CARS),
+    weight: new Float32Array(MAX_CARS),
+    scale: 1,
+    count: 0,
+  } as AirflowBus,
   ghostGroup: null as Group | null,
   /** 0..1 top-down camera weight (cars scale up so they read from above) */
   topW: 0,
