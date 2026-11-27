@@ -1,0 +1,71 @@
+{
+ "_doc": "Helmet photo per driver for prep_helmets.py. crop/erase are pixel boxes in the original photo. status: clean = studio/plain shot; partial = hand-held, hands removed. Drivers not listed show the 'Helmet coming soon' panel.",
+ "VER": {
+  "file": "f1-2026-max-verstappen-season-design-rb-3.jpg",
+  "url": "https://helmetarchive.com/photos/f1-2026-max-verstappen-season-design-rb-3.jpg",
+  "status": "clean",
+  "note": "white studio, straight front view"
+ },
+ "ALB": {
+  "file": "f1-2026-alexander-albon-season-design-dvovpgcik5u-4.jpg",
+  "url": "https://helmetarchive.com/photos/instagram/f1-2026-alexander-albon-season-design-dvovpgcik5u-4.jpg",
+  "status": "clean",
+  "note": "floating studio shot, front view tilted ~15 deg"
+ },
+ "GAS": {
+  "file": "f1-2026-pierre-gasly-season-design-dtyfqsajkae-4.jpg",
+  "url": "https://helmetarchive.com/photos/instagram/f1-2026-pierre-gasly-season-design-dtyfqsajkae-4.jpg",
+  "crop": [
+   250,
+   400,
+   700,
+   880
+  ],
+  "status": "clean",
+  "note": "floating front shot; helmet is only ~280 px wide in the source (soft at 1600 px)"
+ },
+ "OCO": {
+  "file": "f1-2026-esteban-ocon-season-design-dubphzkdrwb-1.jpg",
+  "url": "https://helmetarchive.com/photos/instagram/f1-2026-esteban-ocon-season-design-dubphzkdrwb-1.jpg",
+  "crop": [
+   80,
+   150,
+   480,
+   640
+  ],
+  "status": "partial",
+  "note": "held at the shoulder, three-quarter front view; the hand in front of the lower-left chin bar is masked out",
+  "erase_cut": [
+   [
+    [
+     0,
+     278
+    ],
+    [
+     72,
+     282
+    ],
+    [
+     98,
+     340
+    ],
+    [
+     128,
+     460
+    ],
+    [
+     0,
+     460
+    ]
+   ]
+  ]
+ },
+ "_rejected": {
+  "BEA": "duoainpindh-1/-2: helmet seen from above (visor at the bottom) with fingers on the crown; does not read as the face turning into the helmet",
+  "NOR": "duiudbjjadz-1: rear three-quarter view, visor not visible, hand over the chin bar",
+  "HUL": "dtqygvqiero-1: held at the waist, cut-out keeps the hand and background; dtqygvqiero-5 is a pure side view",
+  "BOR": "the only Audi studio shot (nico-hulkenberg-season-design-dtqygvqiero-5) is filed under Hulkenberg on helmetarchive.com and is a side view; ownership unconfirmed",
+  "LIN/RUS/ANT": "only in-car shots (driver wearing the helmet in the cockpit)",
+  "HAM/LEC/PIA/ALO/STR/SAI/COL/LAW/HAD/PER/BOT": "only on-track crops"
+ }
+}

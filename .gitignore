@@ -28,3 +28,8 @@ scripts/models/.out/
 
 # Drivers page: original source photos (licensed / supplied locally, never committed)
 scripts/drivers/source/
+# Drivers page: processed portrait/helmet images and their manifest (built locally by
+# scripts/drivers/process_driver_media.py from the photos above)
+public/drivers/*/
+src/components/drivers/media.generated.json
+scripts/drivers/__pycache__/

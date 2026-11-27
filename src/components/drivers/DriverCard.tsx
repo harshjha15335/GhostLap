@@ -4,6 +4,9 @@ import { mediaSrcSet, mediaUrl, type DriverMedia } from './driverMedia';
 import { useRevealEngine } from './revealContext';
 import { placeholderReveal } from './placeholderArt';
 
+/** head circle used before / without a media manifest entry (matches the pipeline's framing) */
+const DEFAULT_HEAD = { cx: 0.5, cy: 0.24, r: 0.155 };
+
 /**
  * A driver portrait frame with the helmet reveal. Pointer: the reveal follows the cursor.
  * Touch: tap (or press and hold, then drag) opens it at the finger; tap again closes it.
@@ -64,26 +67,27 @@ export function RevealFrame({
     return img;
   }, [media.helmet, placeholder]);
 
-  const radius = variant === 'hero' ? 0.22 : 0.26;
+  const head = media.align ?? DEFAULT_HEAD;
+  // brush a little larger than the head circle, so a cursor on the face floods most of it
+  const radius = head.r * (variant === 'hero' ? 1.05 : 1.15);
 
   const start = useCallback(
     (clientX: number, clientY: number) => {
       const el = frameRef.current;
       if (!el || !engine) return;
-      const target = { el, layer: layerRef.current, source: null as TexImageSource | null, key: `${driver.code}:${media.helmet ? 'h' : 'p'}`, radius };
+      const target = { el, layer: layerRef.current, source: null as TexImageSource | null, key: `${driver.code}:${media.helmet ? 'h' : 'p'}`, radius, head };
       engine.activate(target, clientX, clientY);
       void source().then((s) => {
         target.source = s;
       });
     },
-    [engine, driver.code, media.helmet, radius, source],
+    [engine, driver.code, media.helmet, radius, head, source],
   );
 
   const headPoint = useCallback(() => {
     const r = frameRef.current!.getBoundingClientRect();
-    const a = media.align ?? { cx: 0.5, cy: 0.3, r: 0.18 };
-    return [r.left + a.cx * r.width, r.top + a.cy * r.height] as const;
-  }, [media.align]);
+    return [r.left + head.cx * r.width, r.top + head.cy * r.height] as const;
+  }, [head]);
 
   // crossfade for reduced motion (WAAPI, so the global reduced-motion CSS rule doesn't zero it)
   useEffect(() => {
@@ -124,7 +128,11 @@ export function RevealFrame({
     touch.current = { id: e.pointerId, wasOpen };
     if (wasOpen) return;
     setOpen(true);
-    if (!reducedMotion) start(e.clientX, e.clientY);
+    // a tap opens the reveal centred on the face; holding and dragging then steers it
+    if (!reducedMotion) {
+      const [x, y] = headPoint();
+      start(x, y);
+    }
   };
   const onPointerUp = (e: ReactPointerEvent) => {
     if (e.pointerType !== 'touch' || !touch.current) return;
@@ -188,7 +196,7 @@ export function RevealFrame({
       onBlur={onBlur}
       onClick={onClick}
       onContextMenu={(e) => suppressClick.current && e.preventDefault()}
-      aria-label={`${driver.fullName}, ${team.name}. ${helmet ? 'Hover, tap or focus to reveal the helmet.' : 'Helmet image not supplied.'} Open season stats.`}
+      aria-label={`${driver.fullName}, ${team.name}. ${helmet ? 'Hover the face, tap or focus to reveal the 2026 helmet.' : '2026 helmet image coming soon.'} Open season stats.`}
       className={`group relative block aspect-[4/5] w-full touch-pan-y select-none overflow-hidden border-ink bg-cream text-left [-webkit-touch-callout:none] ${
         variant === 'hero' ? 'rounded-2xl border-[3px] shadow-sticker-lg' : 'rounded-xl border-2 shadow-sticker'
       }`}

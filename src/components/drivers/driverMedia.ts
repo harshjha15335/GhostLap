@@ -1,5 +1,5 @@
 /**
- * Driver portrait / helmet media. `public/drivers/media.json` is written by
+ * Driver portrait / helmet media. `media.generated.json` is written by
  * scripts/drivers/process_driver_media.py and lists, per driver code, which processed
  * images exist and where the head sits in the portrait. A driver with no entry renders the
  * clearly-labelled placeholder card; nothing is ever invented.
@@ -72,13 +72,13 @@ export function mediaSrcSet(code: string, kind: 'portrait' | 'helmet', img: Medi
   return img.sizes.map((h) => `${mediaUrl(code, kind, h)} ${Math.round((img.w * h) / img.h)}w`).join(', ');
 }
 
-let manifestPromise: Promise<MediaManifest> | null = null;
+// Written by scripts/drivers/process_driver_media.py next to this file and gitignored, like
+// the images it describes. Without it (fresh clone) the glob is empty and every card shows
+// its labelled stand-in; no request is made, so nothing 404s.
+const generated = import.meta.glob<{ default: unknown }>('./media.generated.json', { eager: true });
+const manifest = parseManifest(Object.values(generated)[0]?.default ?? null);
 
-/** Fetches the manifest once; a missing file is a normal state (no media processed yet). */
+/** The processed-media manifest (bundled at build time). */
 export function loadManifest(): Promise<MediaManifest> {
-  manifestPromise ??= fetch(`${import.meta.env.BASE_URL}drivers/media.json`)
-    .then((r) => (r.ok ? r.json() : null))
-    .catch(() => null)
-    .then(parseManifest);
-  return manifestPromise;
+  return Promise.resolve(manifest);
 }

@@ -12,6 +12,9 @@
  *    field, so fast moves smear a liquid wake that curls and breaks up as it fades.
  *  - The composite pass adds fbm noise to the ink and thresholds it with a narrow
  *    smoothstep: the reveal has a crisp, antialiased, blobby edge, not a soft spotlight.
+ *  - The brush only paints while the cursor is over the driver's head (a soft gate around
+ *    the head circle from the media manifest), so the face turns into the helmet and the
+ *    torso / empty card never reveal anything.
  *  - Entering ramps the brush radius up (grow); leaving stops stamping and raises the decay
  *    rate, so the shape erodes along its noisy edge (shrink). Once the ink is gone the loop
  *    stops and the canvas is hidden: idle cards cost nothing.
@@ -31,6 +34,8 @@ export interface RevealTarget {
   key: string;
   /** brush radius as a fraction of the frame height */
   radius: number;
+  /** head circle in frame fractions (cx, cy from top-left; r of the frame height): the reveal only paints over the head */
+  head: { cx: number; cy: number; r: number };
 }
 
 type Mode = 'gl' | 'css';
@@ -172,6 +177,7 @@ export class RevealEngine {
   private vel = { x: 0, y: 0 };
   private aspect = 0.8;
   private cssR = 0;
+  private gate = 0;
 
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -368,6 +374,11 @@ export class RevealEngine {
     const grow = 1 - Math.pow(1 - Math.min(1, this.enterT / 0.42), 3);
     const speed = Math.hypot(this.vel.x, this.vel.y);
     const radius = t.radius * (0.55 + 0.45 * grow) * (1 + Math.min(0.35, speed * 0.18));
+    // head gate: 1 over the head, fading to 0 a little outside it
+    const hx = t.head.cx * this.aspect;
+    const hy = 1 - t.head.cy;
+    const hd = Math.hypot(this.pos.x - hx, this.pos.y - hy) / Math.max(1e-3, t.head.r);
+    this.gate = 1 - Math.min(1, Math.max(0, (hd - 1.15) / 0.75));
 
     const r = t.el.getBoundingClientRect();
     const onScreen = r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
@@ -377,7 +388,7 @@ export class RevealEngine {
       this.drawGl(t, r, dt, radius, onScreen);
     } else if (t.layer) {
       // CSS fallback: a lerped circle radius, no liquid edge
-      const goalR = this.active ? radius : 0;
+      const goalR = this.active ? radius * this.gate : 0;
       this.cssR += (goalR - this.cssR) * (1 - Math.exp(-dt * (this.active ? 10 : 7)));
       t.layer.style.setProperty('--rx', `${(this.pos.x / this.aspect) * 100}%`);
       t.layer.style.setProperty('--ry', `${(1 - this.pos.y) * 100}%`);
@@ -428,9 +439,9 @@ export class RevealEngine {
     gl.uniform1f(u('uAspect'), this.aspect);
     gl.uniform1f(u('uDt'), dt);
     gl.uniform1f(u('uTime'), this.time);
-    gl.uniform1f(u('uDecay'), this.active ? 1.5 : 3.6);
+    gl.uniform1f(u('uDecay'), this.active && this.gate > 0.5 ? 1.5 : 3.6);
     gl.uniform1f(u('uRadius'), radius);
-    gl.uniform1f(u('uStamp'), this.active && img ? 1 : 0);
+    gl.uniform1f(u('uStamp'), this.active && img ? this.gate : 0);
     gl.uniform1f(u('uBias'), this.float ? 0 : 1);
     gl.uniform2f(u('uP0'), this.prev.x, this.prev.y);
     gl.uniform2f(u('uP1'), this.pos.x, this.pos.y);

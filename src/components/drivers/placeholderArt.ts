@@ -1,13 +1,15 @@
 /**
- * Reveal-layer stand-in for drivers whose helmet image has not been supplied. It is a
- * plainly labelled graphic panel (team colour, number, "helmet image not supplied"), not
- * a drawing of a helmet: GhostLap never invents a driver's helmet design.
+ * Reveal-layer panel for drivers whose 2026 helmet image is not available yet: a designed
+ * team-colour halftone panel with the number and "2026 HELMET · COMING SOON". It is not a
+ * drawing of a helmet: GhostLap never invents a driver's helmet design.
  */
 
 const cache = new Map<string, HTMLCanvasElement>();
 
 export const PLACEHOLDER_W = 640;
 export const PLACEHOLDER_H = 800;
+/** head centre height in the frame (see scripts/drivers/process_driver_media.py) */
+const HEAD_CY = 0.24;
 
 export async function placeholderReveal(code: string, number: number, color: string): Promise<HTMLCanvasElement> {
   const key = `${code}:${color}`;
@@ -48,38 +50,44 @@ export async function placeholderReveal(code: string, number: number, color: str
     g.fill();
   }
 
-  // giant number, chalk with an ink drop
+  // everything is laid out around the head (the reveal only opens over the face):
+  // head centre at (0.5, HEAD_CY) of the frame, matching the portrait pipeline's framing
+  const cx = W / 2;
+  const cy = H * HEAD_CY;
+
+  // number, chalk with an ink drop
   g.textAlign = 'center';
   g.textBaseline = 'alphabetic';
-  g.font = '360px "Anton", Impact, sans-serif';
+  g.font = '150px "Anton", Impact, sans-serif';
   g.fillStyle = '#170F33';
-  g.fillText(String(number), W / 2 + 14, H * 0.6 + 16);
+  g.fillText(String(number), cx + 8, cy + 38 + 9);
   g.fillStyle = '#FFF7EE';
-  g.fillText(String(number), W / 2, H * 0.6);
+  g.fillText(String(number), cx, cy + 38);
 
-  // label sticker
-  const label = 'HELMET IMAGE NOT SUPPLIED';
-  g.font = '600 22px "JetBrains Mono", ui-monospace, monospace';
-  const tw = g.measureText(label).width + 36;
+  // two-line label sticker under the number
+  g.font = '700 19px "JetBrains Mono", ui-monospace, monospace';
+  const lines = ['2026 HELMET', 'COMING SOON'];
+  const tw = Math.max(...lines.map((l) => g.measureText(l).width)) + 28;
+  const th = 58;
   g.save();
-  g.translate(W / 2, H * 0.74);
-  g.rotate(-0.035);
+  g.translate(cx, cy + 92);
+  g.rotate(-0.04);
   g.fillStyle = '#170F33';
-  g.fillRect(-tw / 2 + 5, -24 + 6, tw, 48);
+  g.fillRect(-tw / 2 + 4, -th / 2 + 5, tw, th);
   g.fillStyle = '#FFD23F';
-  g.fillRect(-tw / 2, -24, tw, 48);
+  g.fillRect(-tw / 2, -th / 2, tw, th);
   g.strokeStyle = '#170F33';
   g.lineWidth = 3;
-  g.strokeRect(-tw / 2, -24, tw, 48);
+  g.strokeRect(-tw / 2, -th / 2, tw, th);
   g.fillStyle = '#170F33';
   g.textBaseline = 'middle';
-  g.fillText(label, 0, 1);
+  g.fillText(lines[0], 0, -12);
+  g.fillText(lines[1], 0, 13);
   g.restore();
 
-  g.font = '600 26px "JetBrains Mono", ui-monospace, monospace';
+  g.font = '600 20px "JetBrains Mono", ui-monospace, monospace';
   g.fillStyle = '#FFF7EE';
-  g.textBaseline = 'middle';
-  g.fillText(code, W / 2, H * 0.84);
+  g.fillText(code, cx, cy - 92);
 
   cache.set(key, c);
   return c;

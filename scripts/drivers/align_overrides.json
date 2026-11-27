@@ -1,1 +1,6 @@
-{}
+{
+ "ALB": { "helmet_rotate": 16, "helmet_scale": 1.45, "helmet_dy": 0.004 },
+ "GAS": { "helmet_scale": 1.45, "helmet_dy": 0.008 },
+ "OCO": { "helmet_scale": 1.5, "helmet_dy": 0.012 },
+ "VER": { "helmet_scale": 1.3, "helmet_dy": 0.006 }
+}

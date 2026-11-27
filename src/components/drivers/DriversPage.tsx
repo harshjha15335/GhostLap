@@ -56,10 +56,8 @@ function DriversContent({ season }: { season: SeasonData }) {
 
   const leader = roster.drivers[0];
   const teamPos = new Map(season.constructorStandings.map((c) => [c.teamId, c]));
-  const missing = roster.drivers.filter((d) => {
-    const m = mediaFor(manifest, d.driver.code);
-    return !m.portrait || !m.helmet;
-  }).length;
+  const missing = roster.drivers.filter((d) => !mediaFor(manifest, d.driver.code).helmet).length;
+  const noPortrait = roster.drivers.filter((d) => !mediaFor(manifest, d.driver.code).portrait).length;
   const openEntry = roster.drivers.find((d) => d.driver.code === openCode) ?? null;
 
   return (
@@ -72,7 +70,7 @@ function DriversContent({ season }: { season: SeasonData }) {
             <div className="min-w-0">
               <PageTitle kicker={`2026 grid · ${roster.drivers.length} race drivers`}>Drivers</PageTitle>
               <p className="mt-5 max-w-md font-mono text-[13px] leading-relaxed text-cream/90">
-                Every race seat of the 2026 season, grouped by team. Run your cursor over a portrait and the helmet floods in under it; tap on a phone, or tab through
+                Every race seat of the 2026 season, grouped by team. Run your cursor over a driver's face and their 2026 helmet floods in under it; tap on a phone, or tab through
                 with the keyboard.
               </p>
               {leader && (
@@ -84,8 +82,9 @@ function DriversContent({ season }: { season: SeasonData }) {
               )}
               {missing > 0 && (
                 <p className="mt-5 max-w-md rounded-md border-2 border-dashed border-cream/70 px-3 py-2 font-mono text-[11px] leading-relaxed text-cream/90">
-                  {missing === roster.drivers.length ? 'Driver photos are not bundled with this build' : `${missing} drivers have no photos bundled yet`}: those cards show a labelled
-                  stand-in instead of a portrait or helmet.
+                  {noPortrait === roster.drivers.length
+                    ? 'Driver photos are not bundled with this build: the cards show labelled stand-ins.'
+                    : `${missing} of ${roster.drivers.length} 2026 helmet designs are not available as clean images yet: those reveals show a "coming soon" panel.`}
                 </p>
               )}
             </div>

@@ -10,12 +10,12 @@ Input (gitignored, never committed, never served):
 Output (served by the app):
     public/drivers/<code>/portrait-<h>.webp   head-and-shoulders, 4:5, transparent
     public/drivers/<code>/helmet-<h>.webp     the helmet placed over the head in the SAME frame
-    public/drivers/media.json                 sizes + head position per driver (read by the page)
+    src/components/drivers/media.generated.json  sizes + head position per driver (bundled into the page)
 
 Framing is computed per driver from the portrait's alpha channel (head top, neck, head
 width and centre), so every card frames the head identically and the helmet lands on the
 head. Fine-tune any driver in scripts/drivers/align_overrides.json:
-    { "NOR": { "helmet_scale": 1.5, "helmet_dx": 0.0, "helmet_dy": -0.02, "zoom": 1.0 } }
+    { "NOR": { "helmet_scale": 1.5, "helmet_dx": 0.0, "helmet_dy": -0.02, "helmet_rotate": 0, "zoom": 1.0 } }
 (dx/dy are fractions of the frame; helmet_scale is helmet width / head width.)
 
 This script does not download anything. Record where every source image came from, and
@@ -90,25 +90,34 @@ def head_geometry(im: Image.Image) -> dict:
     if not rows:
         raise ValueError('empty image')
     top = rows[0]
-    widths = [(s[1] - s[0] + 1) if s else 0 for s in spans]
+    # opaque pixel count per row, not left..right extent: stray specks far from the body
+    # (a loose hair, a cut-out artefact) must not count as width
+    w_img, h_img = im.size
+    opaque = im.getchannel('A').point(lambda v: 1 if v >= 128 else 0).tobytes()
+    widths = [opaque[y * w_img:(y + 1) * w_img].count(1) for y in range(h_img)]
     # smooth widths over a few rows (hair wisps, ear gaps)
     k = max(2, im.height // 400)
     sm = [sum(widths[max(0, y - k):y + k + 1]) / len(widths[max(0, y - k):y + k + 1]) for y in range(len(widths))]
     head_w = 0.0
-    neck = None
+    y_headmax = top
+    shoulders = None
     for y in range(top, im.height):
         w = sm[y]
-        if y - top < 0.5 * max(head_w, 1) or w <= head_w * 1.08:
-            head_w = max(head_w, w)
-            continue
+        grown = y - top > max(0.8 * head_w, 0.04 * im.height)
         # the silhouette has widened clearly past the skull: shoulders / collar begin
-        if w > head_w * 1.65:
-            neck = y
+        if grown and head_w > 0 and w > head_w * 1.6:
+            shoulders = y
             break
-    if neck is None:
+        # the skull's width is measured only over the first ~head-width of rows; later rows
+        # must not ratchet it up (the collar ramps up gradually)
+        if not grown and w > head_w:
+            head_w, y_headmax = w, y
+    if shoulders is None or head_w < 20:
         raise ValueError('could not find the shoulders; is this a head-and-shoulders or full-body cut-out?')
-    # chin sits a little above where the shoulders flare
-    head_h = (neck - top) * 0.9
+    # the neck is the narrowest row between the widest part of the skull and the shoulders;
+    # the chin sits a little above it
+    neck = min(range(y_headmax, shoulders), key=lambda y: sm[y])
+    head_h = (neck - top) * 0.93
     head_rows = range(top, top + int(head_h))
     cxs = [(spans[y][0] + spans[y][1]) / 2 for y in head_rows if spans[y]]
     cx = sum(cxs) / len(cxs)
@@ -148,6 +157,8 @@ def process(code: str, sizes: list[int], overrides: dict) -> dict | None:
     big = max(sizes)
     scale = big / F
     out_w, out_h = round(W * scale), big
+    if scale > 3.0:
+        raise ValueError(f'head detection looks wrong (would upscale x{scale:.1f}); set "zoom" in align_overrides.json or check the cut-out')
     if scale > 1.0:
         print(f'  {code}: upscaling portrait x{scale:.2f} (source head is small); supply a larger source for best quality')
 
@@ -169,6 +180,9 @@ def process(code: str, sizes: list[int], overrides: dict) -> dict | None:
     helm_frame = None
     if hp:
         helmet = load_rgba(hp)
+        if ov.get('helmet_rotate'):
+            # degrees, counter-clockwise: stand a tilted helmet upright like the face
+            helmet = helmet.rotate(float(ov['helmet_rotate']), resample=Image.BICUBIC, expand=True)
         bx0, by0, bx1, by1 = bbox_alpha(helmet)
         helmet = helmet.crop((bx0, by0, bx1, by1))
         target_w = g['head_w'] * float(ov.get('helmet_scale', HELMET_SCALE)) * scale
@@ -210,7 +224,7 @@ def main() -> None:
         want = {c.strip().upper() for c in args.only.split(',')}
         codes = [c for c in codes if c in want]
 
-    manifest_path = OUT / 'media.json'
+    manifest_path = ROOT / 'src' / 'components' / 'drivers' / 'media.generated.json'
     manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {'version': 1, 'drivers': {}}
     for code in codes:
         print(code)
@@ -223,7 +237,6 @@ def main() -> None:
             manifest['drivers'][code] = entry
         else:
             print(f'  {code}: no portrait source, skipped')
-    OUT.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(manifest, indent=1, sort_keys=True) + '\n')
     total = sum(p.stat().st_size for p in OUT.glob('*/*-1600.webp'))
     print(f'wrote {manifest_path.relative_to(ROOT)}; large images total {total / 1e6:.2f} MB')
