@@ -16,6 +16,16 @@
 - **License**: Creative Commons Attribution (CC-BY 4.0) (http://creativecommons.org/licenses/by/4.0/)
 - **Usage**: Reference proportions, aerodynamic sub-assemblies, and regulation contours for GhostLap 2026's procedural 3D model.
 
+## Safety Car
+- **Model**: "sedan-sports" from the **Car Kit** (v3.1)
+- **Author**: Kenney (https://www.kenney.nl) — https://kenney.nl/assets/car-kit
+- **License**: Creative Commons Zero (CC0 1.0) (http://creativecommons.org/publicdomain/zero/1.0/) — attribution not required, given with thanks
+- **Usage**: `safety-car/safety-car.glb` (~22 KB, 1 primitive), the Race Lab safety car. Built by
+  `scripts/models/build-safety-car.mjs`: palette texture baked to vertex colours, red body
+  swatches repainted silver, meshes joined, meshopt-compressed. The light bar and "SAFETY CAR"
+  lettering are added at runtime; no manufacturer or sponsor marks. (The real 2026 FIA safety
+  cars are Mercedes-AMG road cars; GhostLap shows one generic coupé.)
+
 ## 3D Circuit Style Reference
 - **Project**: F1TrackViewer / Boxlane
 - **Author**: Makakashan (https://github.com/makakashan)
