@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { CarState, TrackStatusType } from '@/types';
-import { loadBundle } from '@/engine/testUtils';
+import { loadBundle, raceSlugs } from '@/engine/testUtils';
 import { createCircuitCurve } from '@/engine/circuitCurve';
 import { createRaceTimeline } from '@/engine/raceInterpolator';
 import { buildTrackModel } from '@/components/track/trackModel';
-import { CLEAR_D, CLEAR_S, REPLAY_TRACK_OPTS } from './dims';
+import { CLEAR_D, CLEAR_S, PIT_LANE_OFFSET, REPLAY_TRACK_OPTS } from './dims';
+import { buildRaceScene } from './raceScene';
+import { createScState, scState } from './safetyCar';
 import { buildLaneTrack, sampleLane, type LaneTrack } from './laneTrack';
-import { KIND_OBSTACLE, KIND_OFF, KIND_RACE, MIN_LAT, SLOPE, SLOPE_PIT, TrafficResolver, overlaps, type TrafficInput } from './traffic';
+import { KIND_OBSTACLE, KIND_OFF, KIND_PIT, KIND_RACE, MIN_LAT, SLOPE, SLOPE_PIT, TrafficResolver, overlaps, type TrafficInput } from './traffic';
 import { cleanCircuit } from './cleanCircuit';
 import { planRetirements } from './incidents';
 import { createFieldCtx, createFieldOut, fillField } from './field';
@@ -226,4 +228,42 @@ describe('lateral resolver (real bundle)', () => {
     }
     expect(out.input.kind.some((k) => k === KIND_OFF)).toBeDefined();
   });
+});
+
+describe('lateral resolver (every bundled race, with the safety car in the field)', () => {
+  it.each(raceSlugs())('%s: no overlaps (coarse steps)', (slug) => {
+    const b = loadBundle(slug);
+    const tl = createRaceTimeline(b);
+    const scene = buildRaceScene(b, tl);
+    const ctx = createFieldCtx(b, tl, scene.lt, scene.plans);
+    const n = ctx.n;
+    const r = new TrafficResolver(scene.lt, n + 1);
+    const out = createFieldOut(n + 1);
+    const sc = createScState();
+    let states: CarState[] = [];
+    let leaderS = NaN;
+    let scFrames = 0;
+    for (let t = 0; t <= tl.duration; t += 2.5) {
+      states = tl.statesAt(t, states);
+      fillField(ctx, states, t, -1, tl.trackStatusAt(t), out);
+      scState(scene.sc, t, leaderS, scene.lt.length, sc);
+      out.input.kind[n] = sc.on ? (sc.pit ? KIND_PIT : KIND_RACE) : KIND_OFF;
+      out.input.sTrue[n] = sc.s;
+      out.input.prefD[n] = sc.pit ? PIT_LANE_OFFSET : NaN;
+      if (sc.on) scFrames++;
+      r.step(out.input, t === 0 ? -1 : 2.5);
+      const bad = overlaps(r, out.input.kind);
+      if (bad) throw new Error(`${slug} overlap at t=${t.toFixed(1)}: slots ${bad[0]} & ${bad[1]}`);
+      leaderS = NaN;
+      for (const s of states) {
+        if (s.retired) break;
+        const i = ctx.idxByDriver.get(s.driverNumber)!;
+        if (out.input.kind[i] !== KIND_OFF && !out.posed[i]) {
+          leaderS = out.input.sTrue[i];
+          break;
+        }
+      }
+    }
+    if (scene.sc.length) expect(scFrames).toBeGreaterThan(0);
+  }, 60_000);
 });
