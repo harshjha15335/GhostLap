@@ -3,9 +3,11 @@
 Turn helmet photos into transparent cut-outs for process_driver_media.py.
 
 Reads scripts/drivers/helmet_sources.json:
-  { "VER": { "file": "<photo filename>", "url": "<where it came from>", "crop": [x0, y0, x1, y1],
-             "erase": [[x0, y0, x1, y1], ...], "erase_cut": [[[x, y], ...]], "status": "clean" | "partial", "note": "..." } }
-Photos are looked up in --raw (default scripts/drivers/source/_raw/, gitignored).
+  { "VER": { "file": "<CODE>/<photo filename>", "url": "<where it came from>", "page": "<page it is shown on>",
+             "crop": [x0, y0, x1, y1], "erase": [[x0, y0, x1, y1], ...], "erase_cut": [[[x, y], ...]],
+             "cutout": false, "status": "clean" | "partial", "note": "..." } }
+Photos are looked up in --raw (default scripts/drivers/source/_raw/, gitignored), one folder per driver.
+"cutout": true means the source already has a transparent background (no rembg pass).
 
 For each entry: crop to the helmet, remove the background with rembg (U^2-Net salient-object
 matting; `pip install "rembg[cpu]"`), optionally erase rectangles (hands / fingers that overlap
@@ -79,10 +81,17 @@ def main() -> None:
     for code, e in entries.items():
         if code.startswith('_') or (want and code not in want) or not e.get('file'):
             continue
-        im = Image.open(Path(a.raw) / e['file']).convert('RGB')
-        if e.get('crop'):
-            im = im.crop(tuple(e['crop']))
-        cut = remove(im, session=session, post_process_mask=True).convert('RGBA')
+        src = Image.open(Path(a.raw) / e['file'])
+        if e.get('cutout'):
+            # the source is already a transparent cut-out (e.g. an official render): keep its alpha
+            cut = src.convert('RGBA')
+            if e.get('crop'):
+                cut = cut.crop(tuple(e['crop']))
+        else:
+            im = src.convert('RGB')
+            if e.get('crop'):
+                im = im.crop(tuple(e['crop']))
+            cut = remove(im, session=session, post_process_mask=True).convert('RGBA')
         alpha = cut.getchannel('A')
         if e.get('erase'):
             d = ImageDraw.Draw(alpha)

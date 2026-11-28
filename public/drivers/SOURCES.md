@@ -12,7 +12,8 @@ downloaded and processed locally (see "Rebuild" below) into gitignored folders.
 
 ```sh
 python3 scripts/drivers/fetch_portraits.py          # official portraits -> scripts/drivers/source/<CODE>/portrait.png
-# helmet photos: put the files listed below in scripts/drivers/source/_raw/, then
+# helmet photos: download the image URLs listed below into scripts/drivers/source/_raw/<CODE>/
+# (file names as in scripts/drivers/helmet_sources.json), then
 pip install "rembg[cpu]" && python3 scripts/drivers/prep_helmets.py   # -> scripts/drivers/source/<CODE>/helmet.png
 python3 scripts/drivers/process_driver_media.py     # -> public/drivers/<code>/*.webp + src/components/drivers/media.generated.json
 ```
@@ -52,34 +53,38 @@ All 22: official formula1.com 2026 driver portraits, front view, transparent ful
 
 ## Helmets
 
-Season 2026 helmet designs from helmetarchive.com (photo credit as listed there). Background removed
-with rembg; helmet pixels are never repainted or generated. Drivers without a usable image show a
-"2026 helmet · coming soon" panel in the reveal.
+Season 2026 (main) helmet designs. Searched first on the team's official site and shop and the
+driver's own site and store, then on official helmet-maker / F1 memorabilia pages, then
+helmetarchive.com (the four helmets kept from the first pass). Most images are product photos of
+the licensed Bell 1:2 / team mini-helmet replicas of the 2026 season design, sold by the team or
+the driver. Backgrounds are removed with rembg (isnet-general-use); helmet pixels are never
+repainted, generated or upscaled by us. Drivers without a usable image show a
+"2026 helmet · coming soon" panel in the reveal. Retrieved 2026-11-28.
 
-| Driver | Code | Status | Source URL | Notes |
-|---|---|---|---|---|
-| Pierre Gasly | GAS | clean | https://helmetarchive.com/photos/instagram/f1-2026-pierre-gasly-season-design-dtyfqsajkae-4.jpg | helmetarchive.com (photo credit as listed there). floating front shot; helmet is only ~280 px wide in the source (soft at 1600 px) |
-| Franco Colapinto | COL | coming soon | — | only on-track crops |
-| Fernando Alonso | ALO | coming soon | — | only on-track crops |
-| Lance Stroll | STR | coming soon | — | only on-track crops |
-| Gabriel Bortoleto | BOR | coming soon | — | the only Audi studio shot (nico-hulkenberg-season-design-dtqygvqiero-5) is filed under Hulkenberg on helmetarchive.com and is a side view; ownership unconfirmed |
-| Nico Hulkenberg | HUL | coming soon | — | dtqygvqiero-1: held at the waist, cut-out keeps the hand and background; dtqygvqiero-5 is a pure side view |
-| Sergio Perez | PER | coming soon | — | only on-track crops |
-| Valtteri Bottas | BOT | coming soon | — | only on-track crops |
-| Charles Leclerc | LEC | coming soon | — | only on-track crops |
-| Lewis Hamilton | HAM | coming soon | — | only on-track crops |
-| Esteban Ocon | OCO | partial | https://helmetarchive.com/photos/instagram/f1-2026-esteban-ocon-season-design-dubphzkdrwb-1.jpg | helmetarchive.com (photo credit as listed there). held at the shoulder, three-quarter front view; the hand in front of the lower-left chin bar is masked out |
-| Oliver Bearman | BEA | coming soon | — | duoainpindh-1/-2: helmet seen from above (visor at the bottom) with fingers on the crown; does not read as the face turning into the helmet |
-| Lando Norris | NOR | coming soon | — | duiudbjjadz-1: rear three-quarter view, visor not visible, hand over the chin bar |
-| Oscar Piastri | PIA | coming soon | — | only on-track crops |
-| Kimi Antonelli | ANT | coming soon | — | only in-car shots (driver wearing the helmet in the cockpit) |
-| George Russell | RUS | coming soon | — | only in-car shots (driver wearing the helmet in the cockpit) |
-| Liam Lawson | LAW | coming soon | — | only on-track crops |
-| Arvid Lindblad | LIN | coming soon | — | only in-car shots (driver wearing the helmet in the cockpit) |
-| Max Verstappen | VER | clean | https://helmetarchive.com/photos/f1-2026-max-verstappen-season-design-rb-3.jpg | helmetarchive.com (photo credit as listed there). white studio, straight front view |
-| Isack Hadjar | HAD | coming soon | — | only on-track crops |
-| Alexander Albon | ALB | clean | https://helmetarchive.com/photos/instagram/f1-2026-alexander-albon-season-design-dvovpgcik5u-4.jpg | helmetarchive.com (photo credit as listed there). floating studio shot, front view tilted ~15 deg |
-| Carlos Sainz | SAI | coming soon | — | only on-track crops |
+| Driver | Code | Status | Publisher | Page | Image URL | Date | View | Notes |
+|---|---|---|---|---|---|---|---|---|
+| Kimi Antonelli | ANT | clean | Mercedes-AMG PETRONAS F1 Team official shop | https://shop.mercedesamgf1.com/products/kimi-antonelli-2026-mini-bell-helmet-replica-1-2 | https://cdn.shopify.com/s/files/1/0563/8314/3997/files/4100527_KA_Mini_Helmet_4.jpg | listed 2026-01-20 | straight front | Bell 1:2 replica, 2026 season design (#12); light-grey studio, 3200x4000 |
+| George Russell | RUS | clean | Mercedes-AMG PETRONAS F1 Team official shop | https://shop.mercedesamgf1.com/products/george-russell-2026-mini-bell-helmet-replica-1-2 | https://cdn.shopify.com/s/files/1/0563/8314/3997/files/4100526_GR_Mini_Helmet_4.jpg | listed 2026-01-20 | straight front | Bell 1:2 replica, 2026 season design (#63); studio, 3200x4000 |
+| Lando Norris | NOR | clean | Lando Norris official store (LN4) | https://landonorris.store/products/1-2-scale-2026-season-mini-helmet | https://cdn.shopify.com/s/files/1/0618/7322/5899/files/AOC-312.jpg | listed 2026-02-09 | three-quarter front | 1:2 2026 season mini helmet staged on a road; background removed, 1200x1500 (helmet ~660 px wide). Rejected: f1authentics.com "Lando Norris 2026 1:2 Scale Helmet", whose image files are named ChatGPTImage*.png (likely AI-generated/edited) |
+| Oscar Piastri | PIA | clean | Oscar Piastri official store | https://store.oscarpiastri.com/products/1-2-scale-2026-season-helmet-oscar-piastri | https://cdn.shopify.com/s/files/1/0758/2063/0314/files/thumbnail-2026season-front2.jpg | listed 2026-02-05 | straight front | 1:2 2026 season replica on a dark set; 1400x1750 (helmet ~710 px wide) |
+| Charles Leclerc | LEC | clean | Scuderia Ferrari official store | https://store.ferrari.com/en-ch/collectibles/replica-and-scale-models/helmets/mini-leclerc-replica-2026-helmet-in-12-scale-LA0IGf170.html | https://store.ferrari.com/on/demandware.static/-/Sites-48/default/dw573d2375/images/zoom/LA0IGf_170_1.jpg | 2026 | straight front | Bell 1:2 replica of his 2026 HP77 helmet (#16); studio |
+| Lewis Hamilton | HAM | clean | Scuderia Ferrari official store | https://store.ferrari.com/en-ch/collectibles/replica-and-scale-models/helmets/hamilton-replica-2026-mini-helmet-in-12-scale-LA0IHf170.html | https://store.ferrari.com/on/demandware.static/-/Sites-48/default/dw59e92d63/images/zoom/LA0IHf_170_1.jpg | 2026 | three-quarter front | Bell 1:2 replica of his 2026 helmet (#44); no straight front shot offered |
+| Isack Hadjar | HAD | clean | Red Bull official shop (redbullshop.com) | https://www.redbullshop.com/en-int/p/1%3A2-Isack-Hadjar-2026-Season-Mini-Helmet/M-RBR26293/ | https://assets.redbullshop.com/images/q_100/products/RBR/2026/M-RBR26293_5_3/1-2-Isack-Hadjar-2026-Season-Mini-Helmet.jpg | 2026 | straight front | 1:2 2026 season mini helmet (#6); white studio, 2250x3000 |
+| Arvid Lindblad | LIN | clean | Red Bull official shop (Visa Cash App Racing Bulls) | https://www.redbullshop.com/en-int/p/1%3A2-Arvid-Lindblad-2026-Season-Mini-Helmet/M-RAB26094/ | https://assets.redbullshop.com/images/q_100/products/RAB/2026/M-RAB26094_5_3/1-2-Arvid-Lindblad-2026-Season-Mini-Helmet.jpg | 2026 | straight front | 1:2 2026 season mini helmet (#41); white studio, 2250x3000 |
+| Carlos Sainz | SAI | clean | Atlassian Williams F1 Team official store | https://www.williamsf1.com/store/products/carlos-sainz-2026-season-mini-helmet | https://mcprod.williamsf1.com/media/catalog/product/2/6/26stmemhcs_-_picture_1.jpg | 2026 | straight front | 2026 season mini helmet; studio, but only 900x1200 (helmet ~480 px wide, soft at 1600 px) |
+| Nico Hulkenberg | HUL | clean | F1 Authentics (official Formula 1 memorabilia) | https://www.f1authentics.com/products/nico-hulkenberg-signed-2026-audi-f1-team-1-2-scale-helmet | https://cdn.shopify.com/s/files/1/0565/1742/7397/files/NicoHulkenberg2026SignedMiniHelmet_3.jpg | listed 2026-09-21 | straight front | signed Bell 1:2 replica, 2026 Audi design; signature is on the crown, not visible from the front. audif1.com was not reachable from the build environment |
+| Gabriel Bortoleto | BOR | clean | F1 Authentics (official Formula 1 memorabilia) | https://www.f1authentics.com/products/gabriel-bortoleto-signed-2026-audi-f1-team-1-2-scale-helmet | https://cdn.shopify.com/s/files/1/0565/1742/7397/files/GabrielBortoletto2026SignedMiniHelmet_6.jpg | listed 2026-09-04 | straight front | signed Bell 1:2 replica, 2026 Audi design (#5); signature on the crown, not visible from the front |
+| Valtteri Bottas | BOT | clean | F1 Authentics (official Formula 1 memorabilia) | https://www.f1authentics.com/products/valtteri-bottas-2026-cadillac-helmet-australian-gp-used | https://cdn.shopify.com/s/files/1/0565/1742/7397/files/ValtteriBottasCadillacHelmet_2.jpg | listed 2026-04-17 | straight front | his race-used helmet from the 2026 Australian GP (season design), visor tear-off tabs fitted; white studio, 2000x2000 |
+| Sergio Perez | PER | clean (render) | Sergio Perez official website | https://checoperez.com/ | https://checo.joinamply.cc/helmetv3/Helmet_Visor172.avif | site live 2026 | straight front | last frame of the site's hero helmet animation: an official 3D render of his 2026 Cadillac helmet (black/green, as revealed at Bahrain testing), already transparent; not a photo |
+| Max Verstappen | VER | clean | helmetarchive.com (photo credit as listed there) | — | https://helmetarchive.com/photos/f1-2026-max-verstappen-season-design-rb-3.jpg | 2026 | straight front | white studio |
+| Alexander Albon | ALB | clean | helmetarchive.com (photo credit as listed there) | — | https://helmetarchive.com/photos/instagram/f1-2026-alexander-albon-season-design-dvovpgcik5u-4.jpg | 2026 | front, tilted ~15 deg | floating studio shot. Williams store has no Albon 2026 mini helmet listing |
+| Pierre Gasly | GAS | clean | helmetarchive.com (photo credit as listed there) | — | https://helmetarchive.com/photos/instagram/f1-2026-pierre-gasly-season-design-dtyfqsajkae-4.jpg | 2026 | straight front | helmet only ~280 px wide in the source (soft at 1600 px). pierregasly.com's 2026 season mini-helmet photos are lifestyle shots (held, worn), not usable |
+| Esteban Ocon | OCO | partial | helmetarchive.com (photo credit as listed there) | — | https://helmetarchive.com/photos/instagram/f1-2026-esteban-ocon-season-design-dubphzkdrwb-1.jpg | 2026 | three-quarter front | held at the shoulder; the hand in front of the lower-left chin bar is masked out. esteban-ocon.com and haasf1.shop have no helmet images |
+| Fernando Alonso | ALO | coming soon | — | — | — | — | — | Aston Martin shop (shop.astonmartinf1.com) returns 0 results for helmets; fernandoalonso.com (home, AMR26 launch article) has no helmet images. Manual check: f1store.formula1.com Aston Martin helmets (blocks automated access, HTTP 403); Spark 1:5 2026 model on retailer sites only |
+| Lance Stroll | STR | coming soon | — | — | — | — | — | Aston Martin shop has no helmets; lancestroll.com has no 2026 helmet images. Manual check: f1store.formula1.com (403 to automated access) |
+| Franco Colapinto | COL | coming soon | — | — | — | — | — | alpinecars.com returns 403 to automated access (manual check: Alpine F1 driver page / shop); francocolapinto.com is a parked domain. A Bell 1:2 2026 season replica exists (retailer listings only) |
+| Oliver Bearman | BEA | coming soon | — | — | — | — | — | Haas shop (haasf1.shop) sells no helmets; haasf1team.com driver pages 404; oliverbearman.com not reachable from the build environment (manual check). A Bell 1:2 2026 season replica exists (retailer listings only, e.g. competitionmotorsport.com) |
+| Liam Lawson | LAW | coming soon | — | — | — | — | — | Red Bull shop 1:2 and 1:5 2026 season mini-helmet listings (M-RAB26100, M-RAB26102) only show on-track action photos; visacashapprb.com driver page has no helmet image; liamlawson.com is a parked domain |
 
 Reserves and one-off substitutes in the 2026 data (not shown on the page): Yuki Tsunoda
 (TSU, Racing Bulls, 3 race entries), Ryo Hirakawa (HIR, Haas, 1), Rafael Câmara (CAM, Haas, 1).

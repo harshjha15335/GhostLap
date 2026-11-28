@@ -1,71 +1,117 @@
 {
- "_doc": "Helmet photo per driver for prep_helmets.py. crop/erase are pixel boxes in the original photo. status: clean = studio/plain shot; partial = hand-held, hands removed. Drivers not listed show the 'Helmet coming soon' panel.",
+ "_doc": "Helmet photo per driver for prep_helmets.py. file is relative to scripts/drivers/source/_raw/. crop/erase are pixel boxes in the original photo. cutout = source already transparent. status: clean = studio/plain shot; partial = hand-held, hands removed. Drivers not listed show the 'Helmet coming soon' panel. Sources and publishers are listed in public/drivers/SOURCES.md.",
+ "ANT": {
+  "file": "ANT/kimi-antonelli-2026-mini-bell-helmet-rep-03.jpg",
+  "page": "https://shop.mercedesamgf1.com/products/kimi-antonelli-2026-mini-bell-helmet-replica-1-2",
+  "status": "clean",
+  "note": "Mercedes-AMG F1 official shop, Bell 1:2 replica of the 2026 season helmet; studio, straight front view, 3200x4000"
+ },
+ "RUS": {
+  "file": "RUS/george-russell-2026-mini-bell-helmet-rep-02.jpg",
+  "page": "https://shop.mercedesamgf1.com/products/george-russell-2026-mini-bell-helmet-replica-1-2",
+  "status": "clean",
+  "note": "Mercedes-AMG F1 official shop, Bell 1:2 replica of the 2026 season helmet; studio, straight front view, 3200x4000"
+ },
+ "NOR": {
+  "file": "NOR/1-2-scale-2026-season-mini-helmet-05.jpg",
+  "url": "https://cdn.shopify.com/s/files/1/0618/7322/5899/files/AOC-312.jpg",
+  "page": "https://landonorris.store/products/1-2-scale-2026-season-mini-helmet",
+  "status": "clean",
+  "note": "Lando Norris official store (LN4), 1:2 2026 season mini helmet; front view staged on a road set, background removed; 1200x1500. Rejected: f1authentics.com's 2026 1:2 listing, whose files are named ChatGPTImage*.png (likely AI-generated/edited)"
+ },
+ "PIA": {
+  "file": "PIA/1-2-scale-2026-season-helmet-oscar-piast-01.jpg",
+  "page": "https://store.oscarpiastri.com/products/1-2-scale-2026-season-helmet-oscar-piastri",
+  "status": "clean",
+  "note": "Oscar Piastri official store, 1:2 2026 season replica; front view on a dark set, 1400x1750"
+ },
+ "LEC": {
+  "file": "LEC/LA0IGf_170_1.jpg",
+  "page": "https://store.ferrari.com/en-ch/collectibles/replica-and-scale-models/helmets/mini-leclerc-replica-2026-helmet-in-12-scale-LA0IGf170.html",
+  "status": "clean",
+  "note": "Ferrari official store, Bell 1:2 replica of the 2026 season helmet; studio, straight front view"
+ },
+ "HAM": {
+  "file": "HAM/LA0IHf_170_1.jpg",
+  "page": "https://store.ferrari.com/en-ch/collectibles/replica-and-scale-models/helmets/hamilton-replica-2026-mini-helmet-in-12-scale-LA0IHf170.html",
+  "status": "clean",
+  "note": "Ferrari official store, Bell 1:2 replica of the 2026 season helmet; studio, three-quarter front view (no straight front shot offered)"
+ },
+ "HAD": {
+  "file": "HAD/M-RBR26293_5_3.jpg",
+  "page": "https://www.redbullshop.com/en-int/p/1%3A2-Isack-Hadjar-2026-Season-Mini-Helmet/M-RBR26293/",
+  "status": "clean",
+  "note": "Red Bull official shop, 1:2 2026 season mini helmet; white studio, straight front view, 2250x3000"
+ },
+ "LIN": {
+  "file": "LIN/M-RAB26094_5_3.jpg",
+  "page": "https://www.redbullshop.com/en-int/p/1%3A2-Arvid-Lindblad-2026-Season-Mini-Helmet/M-RAB26094/",
+  "status": "clean",
+  "note": "Red Bull official shop, 1:2 2026 season mini helmet; white studio, straight front view, 2250x3000"
+ },
+ "SAI": {
+  "file": "SAI/26stmemhcs_-_picture_1.jpg",
+  "page": "https://www.williamsf1.com/store/products/carlos-sainz-2026-season-mini-helmet",
+  "status": "clean",
+  "note": "Williams official store, 2026 season mini helmet; studio, straight front view; only 900x1200 (soft at 1600 px)"
+ },
+ "HUL": {
+  "file": "HUL/nico-hulkenberg-signed-2026-audi-f1-team-04.jpg",
+  "page": "https://www.f1authentics.com/products/nico-hulkenberg-signed-2026-audi-f1-team-1-2-scale-helmet",
+  "status": "clean",
+  "note": "F1 Authentics, signed Bell 1:2 replica (signature is on the crown, not visible from the front); white studio, straight front view"
+ },
+ "BOR": {
+  "file": "BOR/gabriel-bortoleto-signed-2026-audi-f1-te-06.jpg",
+  "page": "https://www.f1authentics.com/products/gabriel-bortoleto-signed-2026-audi-f1-team-1-2-scale-helmet",
+  "status": "clean",
+  "note": "F1 Authentics, signed Bell 1:2 replica (signature is on the crown, not visible from the front); white studio, straight front view"
+ },
+ "BOT": {
+  "file": "BOT/valtteri-bottas-2026-cadillac-helmet-aus-01.jpg",
+  "page": "https://www.f1authentics.com/products/valtteri-bottas-2026-cadillac-helmet-australian-gp-used",
+  "status": "clean",
+  "note": "F1 Authentics, his race-used 2026 Australian GP helmet (season design, visor tear-offs fitted); white studio, straight front view, 2000x2000"
+ },
+ "PER": {
+  "file": "PER/Helmet_Visor172.avif",
+  "url": "https://checo.joinamply.cc/helmetv3/Helmet_Visor172.avif",
+  "page": "https://checoperez.com/",
+  "cutout": true,
+  "status": "clean",
+  "note": "Sergio Perez official website, last frame of the hero helmet animation: an official 3D render of the 2026 Cadillac helmet (black/green), transparent, front view"
+ },
  "VER": {
-  "file": "f1-2026-max-verstappen-season-design-rb-3.jpg",
+  "file": "VER/f1-2026-max-verstappen-season-design-rb-3.jpg",
   "url": "https://helmetarchive.com/photos/f1-2026-max-verstappen-season-design-rb-3.jpg",
   "status": "clean",
   "note": "white studio, straight front view"
  },
  "ALB": {
-  "file": "f1-2026-alexander-albon-season-design-dvovpgcik5u-4.jpg",
+  "file": "ALB/f1-2026-alexander-albon-season-design-dvovpgcik5u-4.jpg",
   "url": "https://helmetarchive.com/photos/instagram/f1-2026-alexander-albon-season-design-dvovpgcik5u-4.jpg",
   "status": "clean",
   "note": "floating studio shot, front view tilted ~15 deg"
  },
  "GAS": {
-  "file": "f1-2026-pierre-gasly-season-design-dtyfqsajkae-4.jpg",
+  "file": "GAS/f1-2026-pierre-gasly-season-design-dtyfqsajkae-4.jpg",
   "url": "https://helmetarchive.com/photos/instagram/f1-2026-pierre-gasly-season-design-dtyfqsajkae-4.jpg",
-  "crop": [
-   250,
-   400,
-   700,
-   880
-  ],
+  "crop": [250, 400, 700, 880],
   "status": "clean",
-  "note": "floating front shot; helmet is only ~280 px wide in the source (soft at 1600 px)"
+  "note": "floating front shot; helmet is only ~280 px wide in the source (soft at 1600 px). pierregasly.com's 2026 mini-helmet photos are lifestyle shots, not studio"
  },
  "OCO": {
-  "file": "f1-2026-esteban-ocon-season-design-dubphzkdrwb-1.jpg",
+  "file": "OCO/f1-2026-esteban-ocon-season-design-dubphzkdrwb-1.jpg",
   "url": "https://helmetarchive.com/photos/instagram/f1-2026-esteban-ocon-season-design-dubphzkdrwb-1.jpg",
-  "crop": [
-   80,
-   150,
-   480,
-   640
-  ],
+  "crop": [80, 150, 480, 640],
   "status": "partial",
   "note": "held at the shoulder, three-quarter front view; the hand in front of the lower-left chin bar is masked out",
-  "erase_cut": [
-   [
-    [
-     0,
-     278
-    ],
-    [
-     72,
-     282
-    ],
-    [
-     98,
-     340
-    ],
-    [
-     128,
-     460
-    ],
-    [
-     0,
-     460
-    ]
-   ]
-  ]
+  "erase_cut": [[[0, 278], [72, 282], [98, 340], [128, 460], [0, 460]]]
  },
- "_rejected": {
-  "BEA": "duoainpindh-1/-2: helmet seen from above (visor at the bottom) with fingers on the crown; does not read as the face turning into the helmet",
-  "NOR": "duiudbjjadz-1: rear three-quarter view, visor not visible, hand over the chin bar",
-  "HUL": "dtqygvqiero-1: held at the waist, cut-out keeps the hand and background; dtqygvqiero-5 is a pure side view",
-  "BOR": "the only Audi studio shot (nico-hulkenberg-season-design-dtqygvqiero-5) is filed under Hulkenberg on helmetarchive.com and is a side view; ownership unconfirmed",
-  "LIN/RUS/ANT": "only in-car shots (driver wearing the helmet in the cockpit)",
-  "HAM/LEC/PIA/ALO/STR/SAI/COL/LAW/HAD/PER/BOT": "only on-track crops"
+ "_missing": {
+  "ALO/STR": "Aston Martin shop sells no helmets (0 search results); fernandoalonso.com / lancestroll.com have no helmet images; F1 Store (f1store.formula1.com) blocks automated access",
+  "COL": "alpinecars.com returns 403 to automated requests; francocolapinto.com is a parked domain",
+  "BEA": "Haas shop (haasf1.shop) sells no helmets; oliverbearman.com unreachable from this environment",
+  "LAW": "Red Bull shop 1:2 and 1:5 2026 season listings only show on-track action shots; liamlawson.com is a parked domain"
  }
 }
