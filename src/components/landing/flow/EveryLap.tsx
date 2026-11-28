@@ -56,8 +56,8 @@ const ROWS: RowDef[] = [
   {
     n: 3,
     verb: 'DEBRIEF',
-    to: '/season',
-    label: 'Season',
+    to: '/teams',
+    label: 'Teams',
     note: ['stay out!', 'then read the', 'whole season'],
     floaters: [
       { compound: 'WET', fx: 0.5, fy: -0.38, d: 0.62, k: -0.14, spin: 0.08 },

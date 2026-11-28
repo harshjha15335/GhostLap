@@ -103,7 +103,7 @@ export default function LaunchCard({
               <Link to="/circuits" className="rounded-full border px-4 py-2 transition hover:bg-[#FFD23F] hover:text-[#170F33]" style={{ borderColor: C.sun }}>
                 {stats.ready ? `Circuits · ${stats.racesTotal} rounds →` : 'Circuits →'}
               </Link>
-              <Link to="/season" className="rounded-full border px-4 py-2 transition hover:bg-[#FFD23F] hover:text-[#170F33]" style={{ borderColor: C.sun }}>
+              <Link to="/teams" className="rounded-full border px-4 py-2 transition hover:bg-[#FFD23F] hover:text-[#170F33]" style={{ borderColor: C.sun }}>
                 Season →
               </Link>
             </div>

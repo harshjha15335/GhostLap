@@ -11,7 +11,7 @@ const NAV = [
   { to: '/', label: 'Home' },
   { to: '/circuits', label: 'Circuits' },
   { to: '/replay/silverstone?autoplay=1', label: 'Race Lab' },
-  { to: '/season', label: 'Season' },
+  { to: '/teams', label: 'Teams' },
 ];
 
 interface Item {

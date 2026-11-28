@@ -12,7 +12,7 @@ const links = [
   { to: '/', label: 'Home', match: (p: string) => p === '/' },
   { to: '/circuits', label: 'Circuits', match: (p: string) => p.startsWith('/circuits') },
   { to: '/replay', label: 'Race Lab', match: (p: string) => p.startsWith('/replay') },
-  { to: '/season', label: 'Season', match: (p: string) => p.startsWith('/season') },
+  { to: '/teams', label: 'Teams', match: (p: string) => p.startsWith('/teams') },
   { to: '/drivers', label: 'Drivers', match: (p: string) => p.startsWith('/drivers') },
 ];
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Upgrade } from '@/types';
-import { upgradeTitle } from './seasonStats';
+import { upgradeTitle } from './teamStats';
 
 /** Lightweight SVG line charts (no chart lib) on light sticker cards. One y-axis, 2.5px lines, crosshair tooltip. */
 
@@ -196,6 +196,35 @@ function niceStep(raw: number) {
   const p = Math.pow(10, Math.floor(Math.log10(raw)));
   const f = raw / p;
   return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p;
+}
+
+/** Tiny cumulative-points sparkline (no axes): `values` per completed round, `max` shared across cards so slopes compare. */
+export function Sparkline({ values, max, color = '#170F33', width = 120, height = 32, label }: { values: (number | null)[]; max: number; color?: string; width?: number; height?: number; label: string }) {
+  const n = values.length;
+  const pad = 3;
+  const x = (i: number) => pad + (n <= 1 ? 0 : (i / (n - 1)) * (width - pad * 2));
+  const y = (v: number) => height - pad - (max > 0 ? (v / max) * (height - pad * 2) : 0);
+  let d = '';
+  let pen = false;
+  let first = -1;
+  let last = -1;
+  values.forEach((v, i) => {
+    if (v == null) {
+      pen = false;
+      return;
+    }
+    d += `${pen ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`;
+    pen = true;
+    if (first < 0) first = i;
+    last = i;
+  });
+  const area = last >= 0 ? `${d}L${x(last).toFixed(1)} ${height - pad}L${x(first).toFixed(1)} ${height - pad}Z` : '';
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} preserveAspectRatio="none" role="img" aria-label={label} className="block">
+      {area && <path d={area} fill={color} fillOpacity={0.2} />}
+      <path d={d} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
 }
 
 /** Before → after fuel-corrected race-pace badges for upgrade markers. */
