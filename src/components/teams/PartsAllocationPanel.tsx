@@ -1,6 +1,6 @@
 import type { Driver, PartPoolId, SeasonData } from '@/types';
 import { CAR_PARTS } from '@/components/three/F1Car';
-import { POOLS, POOL_LABEL, POOL_PART, usedUpTo } from './seasonStats';
+import { POOLS, POOL_LABEL, POOL_PART, usedUpTo } from './teamStats';
 
 /**
  * FIA power-unit / gearbox allocation counters.

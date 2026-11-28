@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import type { IncidentType, PenaltyCategory, SeasonData } from '@/types';
 import { useDriverLookup } from '@/store/seasonStore';
 import { DriverChip, Segmented } from '@/components/ui/primitives';
-import { INCIDENT_TYPES, PENALTY_CATEGORIES, completedIndices } from './seasonStats';
+import { INCIDENT_TYPES, PENALTY_CATEGORIES, completedIndices } from './teamStats';
 
-/** FIA penalties (race-control steward messages) + incidents, filterable. */
+/** FIA penalties (race-control steward messages) + incidents, filterable; `teamId` scopes it to one team's cars. */
 
 type Kind = 'all' | 'penalties' | 'incidents';
 
@@ -39,7 +39,7 @@ const TAG_STYLE: Partial<Record<Row['tag'], string>> = {
 const selectCls =
   'min-w-0 rounded-md border-2 border-ink bg-white px-2 py-1.5 font-mono text-[11px] text-ink disabled:opacity-50';
 
-export default function PenaltyLog({ season }: { season: SeasonData }) {
+export default function PenaltyLog({ season, teamId }: { season: SeasonData; teamId?: string }) {
   const { code, color, driver, team } = useDriverLookup();
   const [kind, setKind] = useState<Kind>('all');
   const [round, setRound] = useState<string>('all');
@@ -48,15 +48,17 @@ export default function PenaltyLog({ season }: { season: SeasonData }) {
   const [inc, setInc] = useState<string>('all');
   const [limit, setLimit] = useState(40);
 
+  const teamNums = useMemo(() => (teamId ? new Set(season.drivers.filter((d) => d.teamId === teamId).map((d) => d.number)) : null), [season, teamId]);
   const rows = useMemo<Row[]>(() => {
     const out: Row[] = [];
     let id = 0;
+    const mine = (n: number | null) => !teamNums || (n != null && teamNums.has(n));
     for (const p of season.penalties)
-      out.push({ id: id++, kind: 'penalty', round: p.round, lap: p.lap, driverNumber: p.driverNumber, tag: p.category, seconds: p.seconds, message: p.message });
+      if (mine(p.driverNumber)) out.push({ id: id++, kind: 'penalty', round: p.round, lap: p.lap, driverNumber: p.driverNumber, tag: p.category, seconds: p.seconds, message: p.message });
     for (const i of season.incidents)
-      out.push({ id: id++, kind: 'incident', round: i.round, lap: i.lap, driverNumber: i.driverNumber, tag: i.type, seconds: null, message: i.message });
+      if (mine(i.driverNumber)) out.push({ id: id++, kind: 'incident', round: i.round, lap: i.lap, driverNumber: i.driverNumber, tag: i.type, seconds: null, message: i.message });
     return out.sort((a, b) => a.round - b.round || (a.lap ?? 0) - (b.lap ?? 0));
-  }, [season]);
+  }, [season, teamNums]);
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
@@ -108,17 +110,19 @@ export default function PenaltyLog({ season }: { season: SeasonData }) {
               </option>
             ))}
           </select>
-          <select aria-label="Driver or team" className={selectCls} value={who} onChange={(e) => setWho(e.target.value)}>
-            <option value="all">All drivers & teams</option>
-            <optgroup label="Teams">
-              {season.teams.map((t) => (
-                <option key={t.id} value={`t:${t.id}`}>
-                  {t.name}
-                </option>
-              ))}
-            </optgroup>
+          <select aria-label={teamId ? "Driver" : "Driver or team"} className={selectCls} value={who} onChange={(e) => setWho(e.target.value)}>
+            <option value="all">{teamId ? 'All team cars' : 'All drivers & teams'}</option>
+            {!teamId && (
+              <optgroup label="Teams">
+                {season.teams.map((t) => (
+                  <option key={t.id} value={`t:${t.id}`}>
+                    {t.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
             <optgroup label="Drivers">
-              {[...season.drivers].sort((a, b) => a.code.localeCompare(b.code)).map((d) => (
+              {season.drivers.filter((d) => !teamId || d.teamId === teamId).sort((a, b) => a.code.localeCompare(b.code)).map((d) => (
                 <option key={d.number} value={`d:${d.number}`}>
                   {d.code} · {d.fullName}
                 </option>
