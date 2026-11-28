@@ -33,7 +33,7 @@ All figures above come from the sources as reported. The replay does not show nu
 - `follow`: the distance to that follower's nose.
 - `weight`.
 
-When `loss > 0`, the wake stretches to reach the follower's nose. It stays visible right up to that car instead of fading out. Its colour shifts from **clean-air blue `#1E9BFF`** to **dirty-air orange-red `#FF3D1F`**. Turbulence and puff density rise with `loss`. Both colours are saturated so they read on the bright "Pit-Lane Pop" asphalt. The blending is normal alpha, not additive, which would wash out in daylight.
+When `loss > 0`, the wake stretches to reach the follower's nose and stays visible up to that car. Turbulence rises with `loss`. The colour is deliberately calm: wakes are a translucent **blue-white `#9CC8F2`**, and turn **warm amber `#FF8A3D`** only when the follower is genuinely inside the wake (gap ≤ 1.0 s). That warm strength (`frame.air.heat`) is `downforceLoss(gap)` shaped by how close the follower is, and it is **capped per pack**: the cars of a train of consecutive followers within 1 s share a total heat budget of 1.2, so a queue never turns the screen red. Blending is normal alpha, not additive.
 
 **Weighting and toggle.**
 - The focus car and the three cars either side of it in the running order: full weight.
@@ -42,3 +42,10 @@ When `loss > 0`, the wake stretches to reach the follower's nose. It stays visib
 - HUD **Airflow** button, or key `A`: hides both meshes. The choice is remembered per browser in `lib/prefs.ts`.
 
 The old per-car amber cones are gone: 22 meshes and 22 materials removed.
+
+## Quality ladder (adaptive)
+
+`lib/quality.ts`: one level q (High = 1, Low = 0, Auto = drei `PerformanceMonitor` factor). The airflow shader reads `uDensity = 0.3 + 0.7 q`:
+below 0.75 the secondary vortex strands are skipped, below 0.4 the front-tyre outwash, and the puff count scales with q. Still 2 draw calls at every level.
+The same level drives the canvas DPR (1 … 1.5), soft car contact shadows (1 instanced draw call, off on Low), the shadow-mapped sun on the
+environment (top level only) and the sky dome / trackside scatter (off on Low). HUD button (Auto / High / Low, key Q), remembered per viewer.
