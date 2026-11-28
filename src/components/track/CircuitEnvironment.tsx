@@ -21,6 +21,7 @@ import {
 
 const MelbourneEnvironment = lazy(() => import('./tracks/melbourne/MelbourneEnvironment'));
 const ShanghaiEnvironment = lazy(() => import('./tracks/shanghai/ShanghaiEnvironment'));
+const ModelEnvironment = lazy(() => import('./tracks/sketchfab/ModelEnvironment'));
 
 /**
  * Shared 3D circuit environment: a diorama block of terrain that follows the
@@ -72,8 +73,20 @@ export function CircuitEnvironment(props: CircuitEnvironmentProps) {
       </Suspense>
     );
   }
+  if (MODEL_CIRCUITS.has(props.circuit.slug)) {
+    // the procedural scene stands in while the circuit's baked model downloads
+    return (
+      <Suspense fallback={<GenericCircuitEnvironment {...props} />}>
+        <ModelEnvironment {...props} />
+        {import.meta.env.DEV && <RenderStatsProbe />}
+      </Suspense>
+    );
+  }
   return <GenericCircuitEnvironment {...props} />;
 }
+
+/** Slugs with a baked circuit model (kept here so the model module itself stays lazy). */
+const MODEL_CIRCUITS = new Set(['catalunya', 'austin']);
 
 function GenericCircuitEnvironment({
   circuit,

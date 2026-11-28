@@ -1,0 +1,46 @@
+{
+  "catalunya": {
+    "title": "circuit de catalunya",
+    "author": "amogusstrikesback2",
+    "authorUrl": "https://sketchfab.com/amogusstrikesback2",
+    "source": "https://sketchfab.com/3d-models/circuit-de-catalunya-3437118430674bee8f22b1416e2a57bf",
+    "license": "CC-BY-4.0",
+    "road": "^grass-gnd_grass_patchy_01_37$",
+    "drop": [],
+    "dropLow": [
+      "veh_ambulance"
+    ],
+    "keep": {
+      "high": 0.16,
+      "low": 0.07
+    }
+  },
+  "austin": {
+    "title": "circuit of the americas",
+    "author": "amogusstrikesback2",
+    "authorUrl": "https://sketchfab.com/amogusstrikesback2",
+    "source": "https://sketchfab.com/3d-models/circuit-of-the-americas-e1e94a86bba442309816bb7eb7fa1cb6",
+    "license": "CC-BY-4.0",
+    "road": "^overlay-(_\\d+)?$",
+    "drop": [
+      "^crowd-",
+      "sky_hills",
+      "^moutains_range"
+    ],
+    "dropLow": [
+      "^poles",
+      "^light_poles",
+      "powerlines",
+      "^fencewire",
+      "^metal_wire",
+      "veh_",
+      "portaloo",
+      "tent_poles",
+      "^prop_"
+    ],
+    "keep": {
+      "high": 0.45,
+      "low": 0.1
+    }
+  }
+}

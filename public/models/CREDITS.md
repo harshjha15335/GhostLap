@@ -95,3 +95,10 @@ Rasterised via `scripts/circuits/build_albert_park_logos.py` from official SVG f
 
 ## Race & Telemetry Data
 - **Source**: OpenF1 (https://openf1.org)
+
+## Circuit de Barcelona-Catalunya and Circuit of the Americas (3D surroundings)
+- **Models**: "circuit de catalunya" (https://sketchfab.com/3d-models/circuit-de-catalunya-3437118430674bee8f22b1416e2a57bf) and "circuit of the americas" (https://sketchfab.com/3d-models/circuit-of-the-americas-e1e94a86bba442309816bb7eb7fa1cb6)
+- **Author**: amogusstrikesback2 (https://sketchfab.com/amogusstrikesback2)
+- **License**: Creative Commons Attribution (CC-BY 4.0) (http://creativecommons.org/licenses/by/4.0/), as stated by the uploader
+- **Changes**: fitted onto the OpenF1 racing line (scale, rotation, smooth warp; `scripts/circuits/sketchfab/align.py`), objects standing on the racing surface removed, crowd cards and backdrop hills removed (COTA), meshes merged and simplified, textures reduced to WebP (`build-circuit.mjs`). Files: `circuits/catalunya/catalunya-{high,low}.glb`, `circuits/austin/austin-{high,low}.glb`.
+- **Note**: the source files' material and texture names suggest they were extracted from a racing video game; the CC-BY licence is the uploader's claim and has not been verified with the original rights holder.
