@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { Link } from 'react-router-dom';
 import type { RosterEntry } from './roster';
 import { mediaSrcSet, mediaUrl, type DriverMedia } from './driverMedia';
 import { useRevealEngine } from './revealContext';
@@ -18,18 +19,24 @@ export function RevealFrame({
   variant,
   reducedMotion,
   onOpen,
+  href,
   eager = false,
+  sizes: sizesProp,
 }: {
   entry: RosterEntry;
   media: DriverMedia;
   variant: 'card' | 'hero';
   reducedMotion: boolean;
   onOpen?: () => void;
+  /** render as a link (new-tab friendly) to this route instead of a button */
+  href?: string;
   eager?: boolean;
+  /** `sizes` attribute override for the responsive images */
+  sizes?: string;
 }) {
   const { driver, team } = entry;
   const engine = useRevealEngine();
-  const frameRef = useRef<HTMLButtonElement>(null);
+  const frameRef = useRef<HTMLElement | null>(null);
   const layerRef = useRef<HTMLDivElement>(null);
   const helmetRef = useRef<HTMLImageElement>(null);
   const [placeholder, setPlaceholder] = useState<HTMLCanvasElement | null>(null);
@@ -159,9 +166,11 @@ export function RevealFrame({
     if (reducedMotion) setOpen(false);
     else engine?.release(frameRef.current ?? undefined);
   };
-  const onClick = () => {
+  const onClick = (e: ReactMouseEvent) => {
     if (suppressClick.current) {
+      // a touch tap toggles the reveal; it never navigates
       suppressClick.current = false;
+      e.preventDefault();
       return;
     }
     onOpen?.();
@@ -169,7 +178,7 @@ export function RevealFrame({
 
   const portrait = media.portrait;
   const helmet = media.helmet;
-  const sizes = variant === 'hero' ? '(min-width: 1024px) 34vw, 90vw' : '(min-width: 1280px) 15vw, (min-width: 768px) 24vw, 46vw';
+  const sizes = sizesProp ?? (variant === 'hero' ? '(min-width: 1024px) 34vw, 90vw' : '(min-width: 1280px) 15vw, (min-width: 768px) 24vw, 46vw');
   const big = (img: NonNullable<DriverMedia['portrait']>) => img.sizes[img.sizes.length - 1];
 
   // reveal layer visibility: GL draws on its own canvas; CSS fallback masks this layer
@@ -182,26 +191,25 @@ export function RevealFrame({
         }
       : { opacity: 0 };
 
-  return (
-    <button
-      ref={frameRef}
-      type="button"
-      onPointerEnter={onPointerEnter}
-      onPointerMove={onPointerMove}
-      onPointerLeave={onPointerLeave}
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
-      onFocus={onFocus}
-      onBlur={onBlur}
-      onClick={onClick}
-      onContextMenu={(e) => suppressClick.current && e.preventDefault()}
-      aria-label={`${driver.fullName}, ${team.name}. ${helmet ? 'Hover the face, tap or focus to reveal the 2026 helmet.' : '2026 helmet image coming soon.'} Open season stats.`}
-      className={`group relative block aspect-[4/5] w-full touch-pan-y select-none overflow-hidden border-ink bg-cream text-left [-webkit-touch-callout:none] ${
-        variant === 'hero' ? 'rounded-2xl border-[3px] shadow-sticker-lg' : 'rounded-xl border-2 shadow-sticker'
-      }`}
-      style={{ ['--team' as string]: team.color }}
-    >
+  const common = {
+    onPointerEnter,
+    onPointerMove,
+    onPointerLeave,
+    onPointerDown,
+    onPointerUp,
+    onPointerCancel,
+    onFocus,
+    onBlur,
+    onClick,
+    onContextMenu: (e: ReactMouseEvent) => suppressClick.current && e.preventDefault(),
+    'aria-label': `${driver.fullName}, ${team.name}. ${helmet ? 'Hover the face, tap or focus to reveal the 2026 helmet.' : '2026 helmet image coming soon.'} Open season stats.`,
+    className: `group relative block aspect-[4/5] w-full touch-pan-y select-none overflow-hidden border-ink bg-cream text-left [-webkit-touch-callout:none] ${
+      variant === 'hero' ? 'rounded-2xl border-[3px] shadow-sticker-lg' : 'rounded-xl border-2 shadow-sticker'
+    }`,
+    style: { ['--team' as string]: team.color },
+  };
+  const inner = (
+    <>
       {/* team sheet behind the cut-out */}
       <span aria-hidden className="pop-dots absolute inset-0" style={{ backgroundColor: team.color }} />
       <span aria-hidden className="pop-halftone" />
@@ -252,6 +260,15 @@ export function RevealFrame({
       >
         {driver.number}
       </span>
+    </>
+  );
+  return href ? (
+    <Link ref={(el) => (frameRef.current = el)} to={href} draggable={false} {...common}>
+      {inner}
+    </Link>
+  ) : (
+    <button ref={(el) => (frameRef.current = el)} type="button" {...common}>
+      {inner}
     </button>
   );
 }
