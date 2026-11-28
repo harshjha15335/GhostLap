@@ -1,0 +1,2 @@
+Source: https://github.com/coreyhaines31/marketingskills/tree/2bf95ed/skills/social (MIT)
+Scanned with NVIDIA SkillSpector --no-llm on 2026-11-28: SAFE

@@ -1,0 +1,2 @@
+Source: https://github.com/mojomast/open-higgsfield-skills/tree/5a1a2d4/skills/story-bible (MIT)
+Scanned with NVIDIA SkillSpector --no-llm on 2026-11-28: SAFE

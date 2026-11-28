@@ -1,0 +1,2 @@
+Source: supplied by the project owner (pasted text)
+Scanned with NVIDIA SkillSpector --no-llm on 2026-11-28: SAFE
