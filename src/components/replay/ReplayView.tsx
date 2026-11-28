@@ -11,6 +11,7 @@ import { FocusPanel } from './hud/FocusPanel';
 import { RaceToasts } from './hud/RaceToasts';
 import { ViewToggles } from './hud/ViewToggles';
 import { useReplayPrefs } from './lib/prefs';
+import { useReplayQuality } from './lib/quality';
 import { decodeScenario, encodeScenario } from './lib/shareCodec';
 import { frame, launchScenario } from './lib/frame';
 
@@ -18,7 +19,7 @@ const ReplayCanvas = lazy(() => import('./scene/ReplayCanvas'));
 
 // dev-only handle for the screenshot / QA scripts (stripped from production builds)
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __raceLab: unknown }).__raceLab = { useRaceLab, frame, useReplayPrefs };
+  (window as unknown as { __raceLab: unknown }).__raceLab = { useRaceLab, frame, useReplayPrefs, useReplayQuality };
 }
 
 /**
@@ -83,7 +84,7 @@ export default function ReplayView() {
     [],
   );
 
-  // keyboard: space play/pause, ←/→ lap, 1/2/3 cameras, W what-if, A airflow, C auto-cut
+  // keyboard: space play/pause, ←/→ lap, 1/2/3 cameras, W what-if, A airflow, C auto-cut, Q quality
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
@@ -102,6 +103,9 @@ export default function ReplayView() {
       } else if (e.key.toLowerCase() === 'c') {
         const p = useReplayPrefs.getState();
         p.setAutoCut(!p.autoCut);
+      } else if (e.key.toLowerCase() === 'q') {
+        const p = useReplayPrefs.getState();
+        p.setQuality(p.quality === 'auto' ? 'high' : p.quality === 'high' ? 'low' : 'auto');
       }
       else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && s.timeline && el?.getAttribute('role') !== 'slider') {
         const lap = s.timeline.leaderLapAt(s.time) + (e.key === 'ArrowRight' ? 1 : -1);

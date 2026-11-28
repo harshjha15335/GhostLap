@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import type { CircuitGeometry } from '@/types';
 import type { CircuitCurve } from '@/engine/circuitCurve';
@@ -10,9 +11,27 @@ import { REPLAY_TRACK_OPTS } from '../lib/dims';
  * line, passing lanes and track limits match the asphalt that is drawn. The pit lane
  * sits at PIT_LANE_OFFSET where the field puts pitting cars.
  */
-export function Track({ circuit, curve }: { circuit: CircuitGeometry; curve: CircuitCurve }) {
+export function Track({
+  circuit,
+  curve,
+  rich = true,
+  shadows = false,
+}: {
+  circuit: CircuitGeometry;
+  curve: CircuitCurve;
+  /** false (Low quality): trackside scatter (trees, buildings, props: the instanced meshes) hidden */
+  rich?: boolean;
+  shadows?: boolean;
+}) {
   const o = REPLAY_TRACK_OPTS;
+  const group = useRef<THREE.Group>(null);
+  useEffect(() => {
+    group.current?.traverse((obj) => {
+      if ((obj as THREE.InstancedMesh).isInstancedMesh) obj.visible = rich;
+    });
+  });
   return (
+    <group ref={group}>
     <CircuitEnvironment
       circuit={circuit}
       curve={curve}
@@ -22,7 +41,9 @@ export function Track({ circuit, curve }: { circuit: CircuitGeometry; curve: Cir
       pitLane={o.pitLane}
       pitSpan={o.pitSpan}
       showSectors
+      shadows={shadows}
     />
+    </group>
   );
 }
 

@@ -282,7 +282,7 @@ function puffGeometry() {
   return g;
 }
 
-export function Airflow({ scene }: { scene: RaceScene }) {
+export function Airflow({ scene, density = 1 }: { scene: RaceScene; density?: number }) {
   const enabled = useReplayPrefs((s) => s.airflow);
   const ribbons = useRef<THREE.Mesh>(null);
   const puffs = useRef<THREE.Mesh>(null);
@@ -324,6 +324,7 @@ export function Airflow({ scene }: { scene: RaceScene }) {
     const air = frame.air;
     const u = res.uniforms;
     if (useRaceLab.getState().playing) u.uTime.value += Math.min(dt, 0.1);
+    u.uDensity.value = density;
     const m = scene.model;
     const n = m.n;
     const step = PATH_LEN / (PATH_N - 1);
