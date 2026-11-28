@@ -474,3 +474,6 @@ export function textOn(hex: string): 'ink' | 'chalk' {
   const l = luminance(hex);
   return contrast(l, INK_LUM) >= contrast(l, CHALK_LUM) ? 'ink' : 'chalk';
 }
+
+/** Exploded-stage studio colour (ultraviolet). */
+export const STAGE_BG = '#7A2CFF';

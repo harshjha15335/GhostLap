@@ -10,7 +10,7 @@ import { useCanvasDpr, useInView, useIsMobile } from '@/components/ui/hooks';
  * into its 8 sub-assemblies with callout leaders. Upgrade / pace-step rounds pulse the
  * candidate parts in sunshine yellow. Unmounts (disposing its context) with the route.
  */
-export const STAGE_BG = '#7A2CFF';
+import { STAGE_BG } from './teamStats';
 const HIGHLIGHT = '#FFD23F';
 
 export interface ExplodedStageProps {
@@ -31,9 +31,9 @@ function CameraRig() {
   const tmpLook = useMemo(() => new THREE.Vector3(), []);
   useFrame((_, dt) => {
     // portrait screens need to pull back
-    const k = aspect < 1 ? 1.5 / Math.max(aspect, 0.45) : aspect < 1.4 ? 1.2 : 1;
+    const k = aspect < 1 ? 1.15 / Math.max(aspect, 0.45) : aspect < 1.4 ? 1.2 : 1;
     tmpPos.set(pointer.x * 0.6, 3.8 + pointer.y * 0.4, 11.5 * Math.min(k, 2.6));
-    tmpLook.set(0, aspect < 1 ? -0.7 : 0.9, 0);
+    tmpLook.set(0, aspect < 1 ? -0.2 : 0.9, 0);
     const l = 1 - Math.exp(-2.6 * dt);
     camera.position.lerp(tmpPos, l);
     look.current.lerp(tmpLook, l);

@@ -9,6 +9,7 @@ import { useRaceBundles } from '@/components/ui/hooks';
 import { CurvedSheet, SectionHeading } from '@/components/ui/primitives';
 import {
   PART_LABEL,
+  STAGE_BG,
   UPGRADE_AREA_PARTS,
   completedIndices,
   headToHead,
@@ -24,7 +25,7 @@ import {
   type HeadToHead,
   type RoundLine,
 } from './teamStats';
-import { STAGE_BG } from './ExplodedStage';
+
 import PartsAllocationPanel from './PartsAllocationPanel';
 import TeamBlueprint from './TeamBlueprint';
 import { LineChart, UpgradeBadges, type Series } from './Charts';

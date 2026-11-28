@@ -33,7 +33,7 @@ function CarShot({ team, big }: { team: Team; big: boolean }) {
 function Achievement({ label, value, hot }: { label: string; value: string | number; hot?: boolean }) {
   return (
     <div className={`rounded-md border-2 border-ink px-2 py-1.5 ${hot ? 'bg-pop-sun' : 'bg-white'}`}>
-      <dt className="truncate font-mono text-[8.5px] font-semibold uppercase tracking-[0.16em] text-ink/70">{label}</dt>
+      <dt className="truncate font-mono text-[8.5px] font-semibold uppercase tracking-[0.1em] text-ink/70">{label}</dt>
       <dd className="font-mono text-lg font-bold leading-tight tabular-nums text-ink">{value}</dd>
     </div>
   );
@@ -41,7 +41,7 @@ function Achievement({ label, value, hot }: { label: string; value: string | num
 
 function TeamCard({ team, ach, maxPoints, big }: { team: Team; ach: TeamAchievements; maxPoints: number; big: boolean }) {
   const chalk = textOn(team.color) === 'chalk';
-  const regulars = ach.drivers.slice(0, 2);
+  const regulars = ach.drivers.slice(0, 2).sort((a, b) => b.points - a.points);
   const subs = ach.drivers.slice(2).filter((d) => d.results > 0);
   return (
     <article
@@ -75,10 +75,10 @@ function TeamCard({ team, ach, maxPoints, big }: { team: Team; ach: TeamAchievem
           <Achievement label="Wins" value={ach.wins} hot={ach.wins > 0} />
           <Achievement label="Podiums" value={ach.podiums} hot={ach.podiums > 0} />
           <Achievement label="Poles" value={ach.poles} />
-          <Achievement label="Fastest laps" value={ach.fastestLaps} />
+          <Achievement label="Fast laps" value={ach.fastestLaps} />
           <Achievement label="1-2s" value={ach.oneTwos} />
           <Achievement label="Best" value={ach.bestResult == null ? '—' : `P${ach.bestResult}${ach.bestResultCount > 1 ? `×${ach.bestResultCount}` : ''}`} />
-          <Achievement label="Pts finishes" value={ach.pointsFinishes} />
+          <Achievement label="In points" value={ach.pointsFinishes} />
           <Achievement label="DNFs" value={ach.dnfs} />
         </dl>
 
