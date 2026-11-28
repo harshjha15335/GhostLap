@@ -10,7 +10,7 @@ import { RevealContext, useRevealEngineHost } from './revealContext';
 import { RevealFrame } from './DriverCard';
 import DriverPanel from './DriverPanel';
 
-const CREDITS = 'Driver portraits and helmet images © Formula 1 / respective teams. Unofficial fan project, not affiliated with Formula 1.';
+const CREDITS = 'Driver portraits © Formula 1. Helmet images © the respective teams, drivers, helmet makers and photographers (sources: official team and driver stores, F1 Authentics, helmetarchive.com; see SOURCES.md). Unofficial fan project, not affiliated with Formula 1.';
 
 function DriverInfo({ entry, compact = false }: { entry: RosterEntry; compact?: boolean }) {
   const { driver, team, standing } = entry;
