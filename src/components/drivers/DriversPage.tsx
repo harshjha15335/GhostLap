@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { SeasonData } from '@/types';
 import { useSeason } from '@/store/seasonStore';
 import Loader from '@/components/ui/Loader';
@@ -8,7 +9,7 @@ import { buildRoster, type RosterEntry } from './roster';
 import { loadManifest, mediaFor, type MediaManifest } from './driverMedia';
 import { RevealContext, useRevealEngineHost } from './revealContext';
 import { RevealFrame } from './DriverCard';
-import DriverPanel from './DriverPanel';
+import { driverHref } from './driverLinks';
 
 const CREDITS = 'Driver portraits © Formula 1. Helmet images © the respective teams, drivers, helmet makers and photographers (sources: official team and driver stores, F1 Authentics, helmetarchive.com; see SOURCES.md). Unofficial fan project, not affiliated with Formula 1.';
 
@@ -42,7 +43,6 @@ function DriverInfo({ entry, compact = false }: { entry: RosterEntry; compact?: 
 function DriversContent({ season }: { season: SeasonData }) {
   const roster = useMemo(() => buildRoster(season), [season]);
   const [manifest, setManifest] = useState<MediaManifest>({ drivers: {} });
-  const [openCode, setOpenCode] = useState<string | null>(null);
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const engine = useRevealEngineHost(!reducedMotion);
 
@@ -58,7 +58,7 @@ function DriversContent({ season }: { season: SeasonData }) {
   const teamPos = new Map(season.constructorStandings.map((c) => [c.teamId, c]));
   const missing = roster.drivers.filter((d) => !mediaFor(manifest, d.driver.code).helmet).length;
   const noPortrait = roster.drivers.filter((d) => !mediaFor(manifest, d.driver.code).portrait).length;
-  const openEntry = roster.drivers.find((d) => d.driver.code === openCode) ?? null;
+  const lastRound = [...season.races].reverse().find((r) => r.status === 'completed');
 
   return (
     <RevealContext.Provider value={engine}>
@@ -70,7 +70,7 @@ function DriversContent({ season }: { season: SeasonData }) {
             <div className="min-w-0">
               <PageTitle kicker={`2026 grid · ${roster.drivers.length} race drivers`}>Drivers</PageTitle>
               <p className="mt-5 max-w-md font-mono text-[13px] leading-relaxed text-cream/90">
-                Every race seat of the 2026 season, grouped by team. Run your cursor over a driver's face and their 2026 helmet floods in under it; tap on a phone, or tab through
+                Every race seat of the 2026 season, in championship order. Run your cursor over a driver's face and their 2026 helmet floods in under it; tap on a phone, or tab through
                 with the keyboard.
               </p>
               {leader && (
@@ -96,7 +96,7 @@ function DriversContent({ season }: { season: SeasonData }) {
                   variant="hero"
                   reducedMotion={reducedMotion}
                   eager
-                  onOpen={() => setOpenCode(leader.driver.code)}
+                  href={driverHref(leader.driver.code)}
                 />
                 <div className="rounded-b-xl text-cream">
                   <div className="mt-3 flex items-end justify-between gap-3">
@@ -113,50 +113,43 @@ function DriversContent({ season }: { season: SeasonData }) {
           </div>
         </section>
 
-        {/* team grid */}
+        {/* championship-order grid */}
         <CurvedSheet bg="bg-cream" depth={56} className="-mt-12">
           <div className="mx-auto max-w-[1400px] px-4 pb-16 pt-2 sm:px-6">
-            <div className="grid gap-x-6 gap-y-10 md:grid-cols-2 xl:grid-cols-3">
-              {roster.teams.map(({ team, drivers }) => {
-                const c = teamPos.get(team.id);
+            <header className="mb-4 flex flex-wrap items-end justify-between gap-2 border-b-2 border-ink pb-1.5">
+              <h2 className="font-display text-3xl uppercase leading-none tracking-wide text-ink">Championship order</h2>
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-ink/70">
+                after R{lastRound?.round ?? '—'} {lastRound?.circuitName ?? ''}
+              </span>
+            </header>
+            <ol className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4 xl:grid-cols-6">
+              {roster.drivers.map((d) => {
+                const c = teamPos.get(d.team.id);
                 return (
-                  <section key={team.id} aria-labelledby={`team-${team.id}`} className="min-w-0">
-                    <header className="mb-3 flex items-center justify-between gap-2 border-b-2 border-ink pb-1.5">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="h-5 w-2.5 shrink-0 -skew-x-12 border-[1.5px] border-ink" style={{ background: team.color }} />
-                        <h2 id={`team-${team.id}`} className="truncate font-display text-2xl uppercase leading-none tracking-wide text-ink">
-                          {team.name}
-                        </h2>
-                      </div>
-                      <span className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-ink/70">
-                        {c ? `P${c.position} · ${c.points} pts` : 'no data'}
-                      </span>
-                    </header>
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                      {drivers.map((d) => (
-                        <article key={d.driver.number} className="min-w-0">
-                          <RevealFrame
-                            entry={d}
-                            media={mediaFor(manifest, d.driver.code)}
-                            variant="card"
-                            reducedMotion={reducedMotion}
-                            onOpen={() => setOpenCode(d.driver.code)}
-                          />
-                          <DriverInfo entry={d} />
-                          <button
-                            type="button"
-                            onClick={() => setOpenCode(d.driver.code)}
-                            className="mt-2 rounded-md border-2 border-ink bg-white px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-ink shadow-sticker-sm hover:-translate-y-px"
-                          >
-                            Season stats
-                          </button>
-                        </article>
-                      ))}
+                  <li key={d.driver.number} className="min-w-0">
+                    <div className="mb-1.5 flex items-center gap-1.5">
+                      <span className="font-display text-2xl leading-none text-ink">P{d.standing?.position ?? '—'}</span>
+                      <span className="h-1.5 flex-1 -skew-x-12 border-[1.5px] border-ink" style={{ background: d.team.color }} title={c ? `${d.team.name}: P${c.position} in the constructors'` : d.team.name} />
                     </div>
-                  </section>
+                    <RevealFrame
+                      entry={d}
+                      media={mediaFor(manifest, d.driver.code)}
+                      variant="card"
+                      reducedMotion={reducedMotion}
+                      href={driverHref(d.driver.code)}
+                      sizes="(min-width: 1280px) 15vw, (min-width: 1024px) 23vw, (min-width: 640px) 30vw, 46vw"
+                    />
+                    <DriverInfo entry={d} />
+                    <Link
+                      to={driverHref(d.driver.code)}
+                      className="mt-2 inline-block rounded-md border-2 border-ink bg-white px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-ink shadow-sticker-sm hover:-translate-y-px"
+                    >
+                      Season stats
+                    </Link>
+                  </li>
                 );
               })}
-            </div>
+            </ol>
 
             {roster.reserves.length > 0 && (
               <p className="mt-12 font-mono text-[11px] leading-relaxed text-ink/70">
@@ -174,7 +167,6 @@ function DriversContent({ season }: { season: SeasonData }) {
           </div>
         </CurvedSheet>
       </div>
-      {openEntry && <DriverPanel entry={openEntry} season={season} onClose={() => setOpenCode(null)} />}
     </RevealContext.Provider>
   );
 }

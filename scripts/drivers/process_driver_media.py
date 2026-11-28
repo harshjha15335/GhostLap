@@ -21,8 +21,13 @@ head. Fine-tune any driver in scripts/drivers/align_overrides.json:
 This script does not download anything. Record where every source image came from, and
 the permission you have to use it, in public/drivers/SOURCES.md.
 
-Usage: python3 scripts/drivers/process_driver_media.py [--only NOR,PIA] [--sizes 1600,800]
-Requires Pillow (pip install pillow).
+Drop-in helmet replacements: put a front-view photo (any background) at
+    scripts/drivers/source/_incoming/<CODE>.(png|jpg|jpeg|webp)
+and run with --incoming: background removal (rembg) -> source/<CODE>/helmet.png ->
+alignment -> WebP, plus a fit-check image per driver in source/_check/ (see README.md).
+
+Usage: python3 scripts/drivers/process_driver_media.py [--only NOR,PIA] [--sizes 1600,800] [--incoming] [--check]
+Requires Pillow (pip install pillow); --incoming also needs rembg (pip install "rembg[cpu]").
 """
 from __future__ import annotations
 
@@ -210,18 +215,59 @@ def process(code: str, sizes: list[int], overrides: dict) -> dict | None:
     return entry
 
 
+def write_check(code: str) -> Path | None:
+    """portrait | helmet over portrait | 50% blend, with the chin line, for eyeballing the fit"""
+    d = OUT / code.lower()
+    pp, hp = d / 'portrait-800.webp', d / 'helmet-800.webp'
+    if not pp.exists() or not hp.exists():
+        return None
+    from PIL import ImageDraw
+
+    portrait = Image.open(pp).convert('RGBA')
+    helmet = Image.open(hp).convert('RGBA')
+    g = head_geometry(portrait)
+    base = Image.alpha_composite(Image.new('RGBA', portrait.size, (40, 90, 200, 255)), portrait)
+    half = helmet.copy()
+    half.putalpha(helmet.getchannel('A').point(lambda v: v // 2))
+    w, h = portrait.size
+    sheet = Image.new('RGB', (w * 3, int(h * 0.6)), (255, 255, 255))
+    for i, im in enumerate((base, Image.alpha_composite(base, helmet), Image.alpha_composite(base, half))):
+        sheet.paste(im.convert('RGB').crop((0, 0, w, int(h * 0.6))), (i * w, 0))
+    chin = g['top'] + g['head_h']
+    ImageDraw.Draw(sheet).line((0, chin, w * 3, chin), fill=(255, 0, 0), width=1)
+    dst = SRC / '_check' / f'{code}.jpg'
+    dst.parent.mkdir(exist_ok=True)
+    sheet.save(dst, quality=82)
+    return dst
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--only', help='comma-separated driver codes')
     ap.add_argument('--sizes', default='1600,800', help='output heights in px')
+    ap.add_argument('--incoming', action='store_true',
+                    help='first turn source/_incoming/<CODE>.(png|jpg|webp) into source/<CODE>/helmet.png (rembg), then build only those drivers')
+    ap.add_argument('--check', action='store_true', help='write source/_check/<CODE>.jpg fit-check images')
     args = ap.parse_args()
     sizes = sorted({int(s) for s in args.sizes.split(',') if s.strip()})
     overrides = json.loads(OVERRIDES.read_text()) if OVERRIDES.exists() else {}
     if not SRC.exists():
         sys.exit(f'No source folder: {SRC.relative_to(ROOT)}/<CODE>/portrait.png (+ helmet.png)')
+    want = {c.strip().upper() for c in args.only.split(',')} if args.only else None
+    if args.incoming:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from prep_helmets import ingest_incoming
+
+        ingested = ingest_incoming(want)
+        if not ingested:
+            sys.exit(f'Nothing to ingest in {(SRC / "_incoming").relative_to(ROOT)}/ (expected e.g. NOR.png, OCO.jpg)')
+        want = set(ingested)
+        args.check = True
+        for c in ingested:
+            if overrides.get(c):
+                print(f'  {c}: align_overrides.json still applies {overrides[c]} (tuned for the previous image); check the fit image and retune if needed')
     codes = sorted(p.name.upper() for p in SRC.iterdir() if p.is_dir() and not p.name.startswith('_'))
-    if args.only:
-        want = {c.strip().upper() for c in args.only.split(',')}
+    if want:
         codes = [c for c in codes if c in want]
 
     manifest_path = ROOT / 'src' / 'components' / 'drivers' / 'media.generated.json'
@@ -235,6 +281,8 @@ def main() -> None:
             continue
         if entry:
             manifest['drivers'][code] = entry
+            if args.check and (chk := write_check(code)):
+                print(f'  {code}: fit check {chk.relative_to(ROOT)}')
         else:
             print(f'  {code}: no portrait source, skipped')
     manifest_path.write_text(json.dumps(manifest, indent=1, sort_keys=True) + '\n')
