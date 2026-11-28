@@ -26,6 +26,8 @@ export interface AirflowBus {
   loss: Float32Array;
   /** distance (render units) to that follower's nose, 0 = none */
   follow: Float32Array;
+  /** 0..1 warm-colour strength: the follower is genuinely inside the wake (≤ 1 s), capped per pack */
+  heat: Float32Array;
   /** 0..1 how strongly to draw this car's airflow (focus + neighbours 1, rest lighter) */
   weight: Float32Array;
   /** car scale factor (top-down zoom) */
@@ -71,6 +73,7 @@ export const frame = {
     d: new Float32Array(MAX_CARS),
     loss: new Float32Array(MAX_CARS),
     follow: new Float32Array(MAX_CARS),
+    heat: new Float32Array(MAX_CARS),
     weight: new Float32Array(MAX_CARS),
     scale: 1,
     count: 0,

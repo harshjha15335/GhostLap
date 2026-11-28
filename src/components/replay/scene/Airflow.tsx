@@ -32,7 +32,8 @@ const PUFFS = 22; // per car
 
 const COMMON = /* glsl */ `
   uniform vec4 uB[${MAX_CARS}]; // speed01 loss follow weight
-  uniform vec4 uC[${MAX_CARS}]; // - scale - -
+  uniform vec4 uC[${MAX_CARS}]; // heat scale - -   (heat: warm-colour strength, follower inside the wake)
+  uniform float uDensity;       // 0..1 quality: share of ribbons / puffs drawn
   uniform float uTime;
   uniform sampler2D uPath;      // ${PATH_N} × ${MAX_CARS}: the track path behind each car (x, y, z, heading)
   uniform float uPathStep;      // render units between path samples
@@ -110,13 +111,18 @@ const RIBBON_VS = /* glsl */ `
     float weight = B.w;
     if (weight < 0.01) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
     float sc = C.y;
+    float heat = C.x;
+    // adaptive quality: the secondary strands go first, then the outwash trails
+    if ((aKind > 2.5 && uDensity < 0.75) || (aKind > 1.5 && aKind < 2.5 && uDensity < 0.4)) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
     // wake length (car-local metres): longer at speed; reaches a follower in the dirty air
     float len = 7.0 + 18.0 * spd;
     if (B.z > 0.0) len = mix(len, max(len, B.z / (0.55 * sc)), smoothstep(0.0, 0.25, loss));
     if (aKind > 1.5 && aKind < 2.5) len = 4.5 + 2.5 * spd;
     float u = aUV.x;
     float s = u * len;
-    float dirty = loss * smoothstep(0.0, 0.55, u) * step(aKind, 1.5) + loss * 0.5 * smoothstep(0.0, 0.55, u) * step(2.5, aKind);
+    // turbulence follows the downforce loss; the warm colour only the (pack-capped) heat
+    float ramp = smoothstep(0.0, 0.55, u) * (step(aKind, 1.5) + 0.5 * step(2.5, aKind));
+    float dirty = loss * ramp * 0.6;
     vec3 l0 = ribbonLocal(s, len, aKind, aSide, aSeed, spd, dirty);
     vec3 l1 = ribbonLocal(s + 0.25, len, aKind, aSide, aSeed, spd, dirty);
     vec3 p0 = wakePoint(aCar, sc, l0.x, l0.yz);
@@ -124,15 +130,16 @@ const RIBBON_VS = /* glsl */ `
     vec3 tang = normalize(p1 - p0 + vec3(1e-5));
     vec3 toCam = normalize(cameraPosition - p0);
     vec3 across = normalize(cross(tang, toCam) + vec3(1e-5, 0.0, 0.0));
-    float w = (aKind > 0.5 && aKind < 1.5 ? 0.09 : 0.05) * (0.6 + u * 1.2) * sc * (1.0 + dirty * 0.8);
+    float w = (aKind > 0.5 && aKind < 1.5 ? 0.09 : 0.05) * (0.6 + u * 1.2) * sc * (1.0 + dirty * 0.6);
     vec3 pos = p0 + across * aUV.y * w;
     vV = aUV.y;
     float fadeIn = smoothstep(0.0, 0.06, u);
     float base = aKind > 2.5 ? 0.45 : (aKind > 1.5 ? 0.55 : (aKind > 0.5 ? 0.7 : 0.9));
     // clean air fades out behind the car; a wake that reaches a follower stays visible up to its nose
     float tail = mix(pow(1.0 - u, 1.15), 1.0 - smoothstep(0.88, 1.0, u), smoothstep(0.0, 0.3, loss) * step(aKind, 1.5));
-    vAlpha = weight * base * fadeIn * tail * (0.25 + 0.75 * smoothstep(0.05, 0.6, spd)) * (1.0 + 0.6 * dirty);
-    vDirty = clamp(dirty, 0.0, 1.0);
+    // translucent: the wake is a hint, not a paint stroke
+    vAlpha = 0.55 * weight * base * fadeIn * tail * (0.25 + 0.75 * smoothstep(0.05, 0.6, spd)) * (1.0 + 0.5 * heat * ramp);
+    vDirty = clamp(heat * ramp, 0.0, 1.0);
     vFlow = s * 0.22 - uTime * (0.9 + 2.6 * spd) + aSeed * 3.0;
     gl_Position = projectionMatrix * viewMatrix * vec4(pos, 1.0);
   }
@@ -152,8 +159,8 @@ const RIBBON_FS = /* glsl */ `
     float a = vAlpha * edge * (0.3 + 0.7 * streak);
     if (a < 0.004) discard;
     vec3 col = mix(uClean, uDirty, vDirty);
-    col = mix(col, vec3(1.0), 0.35 * streak * edge);
-    gl_FragColor = vec4(col, min(a, 0.95));
+    col = mix(col, vec3(1.0), 0.25 * streak * edge * (1.0 - vDirty));
+    gl_FragColor = vec4(col, min(a, 0.8));
   }
 `;
 
@@ -173,8 +180,9 @@ const PUFF_VS = /* glsl */ `
     float spd = clamp(B.x, 0.0, 1.2);
     float loss = B.y;
     float weight = B.w;
-    if (weight < 0.01 || spd < 0.03) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+    if (weight < 0.01 || spd < 0.03 || aSeed - floor(aSeed) > uDensity * 0.49 + 0.005) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
     float sc = C.y;
+    float heat = C.x;
     float len = 6.0 + 16.0 * spd;
     if (B.z > 0.0) len = mix(len, max(len, B.z / (0.55 * sc)), smoothstep(0.0, 0.25, loss));
     float u = fract(aPhase + uTime * (0.18 + 0.55 * spd));
@@ -191,8 +199,8 @@ const PUFF_VS = /* glsl */ `
     mv.xy += aCorner * size;
     vC = aCorner;
     float life = smoothstep(0.0, 0.12, u) * mix(1.0 - u, 1.0 - smoothstep(0.85, 1.0, u), smoothstep(0.0, 0.3, loss));
-    vAlpha = weight * life * (0.06 + 0.18 * loss) * smoothstep(0.05, 0.5, spd);
-    vDirty = clamp(loss * smoothstep(0.0, 0.7, u) + 0.0, 0.0, 1.0);
+    vAlpha = weight * life * (0.035 + 0.06 * loss + 0.08 * heat) * smoothstep(0.05, 0.5, spd);
+    vDirty = clamp(heat * smoothstep(0.0, 0.7, u), 0.0, 1.0);
     gl_Position = projectionMatrix * mv;
   }
 `;
@@ -207,7 +215,7 @@ const PUFF_FS = /* glsl */ `
     float d = dot(vC, vC);
     if (d > 1.0) discard;
     float a = vAlpha * (1.0 - d) * (1.0 - d);
-    vec3 col = mix(mix(uClean, vec3(1.0), 0.55), uDirty, vDirty);
+    vec3 col = mix(mix(uClean, vec3(1.0), 0.45), uDirty, vDirty);
     gl_FragColor = vec4(col, a);
   }
 `;
@@ -290,9 +298,10 @@ export function Airflow({ scene }: { scene: RaceScene }) {
       uB: { value: Array.from({ length: MAX_CARS }, () => new THREE.Vector4()) },
       uC: { value: Array.from({ length: MAX_CARS }, () => new THREE.Vector4()) },
       uTime: { value: 0 },
-      // clean air: cool blue · dirty air: hot orange-red (both saturated so they read on a bright track)
-      uClean: { value: new THREE.Color('#1E9BFF') },
-      uDirty: { value: new THREE.Color('#FF3D1F') },
+      // clean air: soft blue-white · dirty air (a follower genuinely inside the wake): warm amber
+      uClean: { value: new THREE.Color('#9CC8F2') },
+      uDirty: { value: new THREE.Color('#FF8A3D') },
+      uDensity: { value: 1 },
     };
     const common = { uniforms, transparent: true, depthWrite: false, toneMapped: false, side: THREE.DoubleSide } as const;
     const ribbonMat = new THREE.ShaderMaterial({ ...common, vertexShader: RIBBON_VS, fragmentShader: RIBBON_FS });
@@ -322,7 +331,7 @@ export function Airflow({ scene }: { scene: RaceScene }) {
     for (let i = 0; i < MAX_CARS; i++) {
       const on = i < air.count && air.weight[i] > 0;
       u.uB.value[i].set(air.speed[i], air.loss[i], air.follow[i], on ? air.weight[i] : 0);
-      u.uC.value[i].set(0, air.scale, 0, 0);
+      u.uC.value[i].set(air.heat[i], air.scale, 0, 0);
       if (!on || !enabled) continue;
       // the track path behind the car, at the car's current lateral offset
       for (let k = 0; k < PATH_N; k++) {

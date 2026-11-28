@@ -6,7 +6,7 @@ import { useRaceLab } from '@/store/raceLabStore';
 import WhatIfDrawer from '@/components/WhatIfDrawer';
 import { TimingTower } from './hud/TimingTower';
 import { Scrubber } from './hud/Scrubber';
-import { CameraSwitch, RaceSelector, TrackStatusBanner } from './hud/TopBar';
+import { CameraSwitch, RaceSelector, TrackStatusBanner, TrackStatusVignette } from './hud/TopBar';
 import { FocusPanel } from './hud/FocusPanel';
 import { RaceToasts } from './hud/RaceToasts';
 import { ViewToggles } from './hud/ViewToggles';
@@ -127,6 +127,8 @@ export default function ReplayView() {
 
       {/* soft warm edge haze (HUD panels are opaque stickers, so no dark vignette needed) */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(130%_95%_at_50%_45%,transparent_62%,rgba(255,246,224,.35))]" />
+      {/* neutralised track (VSC / SC / red) tints the screen edge */}
+      {ready && <TrackStatusVignette />}
 
       {!ready && (
         <div className="absolute inset-0 flex items-center justify-center">

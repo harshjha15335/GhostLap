@@ -19,6 +19,10 @@ import { PIT_LANE_OFFSET } from '../lib/dims';
 const UP = new THREE.Vector3(0, 1, 0);
 const GREY = new THREE.Color('#5b6068');
 const HAZARD = new THREE.Color('#FFB000');
+/** follower gap (s) under which the wake turns warm */
+const HEAT_GAP = 1.0;
+/** total warm-colour strength allowed per pack of consecutive cars inside each other's wake */
+const PACK_HEAT = 1.2;
 
 function makeHaloGeometry() {
   const g = new THREE.RingGeometry(1.7, 1.92, 40);
@@ -230,6 +234,7 @@ export const Cars = memo(function Cars({ scene }: { scene: RaceScene }) {
         air.d[i] = d;
         air.loss[i] = 0;
         air.follow[i] = 0;
+        air.heat[i] = 0;
         air.weight[i] = out.input.kind[i] === KIND_RACE ? 0.35 : 0;
       }
     }
@@ -251,6 +256,29 @@ export const Cars = memo(function Cars({ scene }: { scene: RaceScene }) {
       if (dist <= 0 || dist > 14) continue;
       air.loss[i] = downforceLoss(fol.gapAhead);
       air.follow[i] = Math.max(0.1, dist - CAR_LEN * 0.5);
+      // warm colour only when the follower is genuinely inside the wake (≤ 1 s), stronger the closer
+      const g = fol.gapAhead;
+      air.heat[i] = g <= HEAT_GAP ? air.loss[i] * (0.4 + 0.6 * Math.min(1, Math.max(0, (HEAT_GAP - g) / 0.7))) : 0;
+    }
+    // cap the warm colour per pack (a train of cars must not turn the screen red)
+    let packSum = 0;
+    let packStart = 0;
+    for (let k = 0; k <= states.length; k++) {
+      const ik = k < states.length ? rt.ctx.idxByDriver.get(states[k].driverNumber) : undefined;
+      const h = ik !== undefined && ik < MAX_CARS ? air.heat[ik] : 0;
+      if (h > 0) {
+        if (packSum === 0) packStart = k;
+        packSum += h;
+        continue;
+      }
+      if (packSum > PACK_HEAT) {
+        const f = PACK_HEAT / packSum;
+        for (let q = packStart; q < k; q++) {
+          const iq = rt.ctx.idxByDriver.get(states[q].driverNumber);
+          if (iq !== undefined && iq < MAX_CARS) air.heat[iq] *= f;
+        }
+      }
+      packSum = 0;
     }
 
     // 5. tyre halos at ~4 Hz (compound colour fading to grey with age); parked cars flash hazards

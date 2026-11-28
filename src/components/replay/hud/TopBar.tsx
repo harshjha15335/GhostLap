@@ -133,8 +133,10 @@ const STATUS_STYLE: Record<TrackStatusType | 'FLAG', { text: string; cls: string
   FLAG: { text: 'CHEQUERED FLAG', cls: 'bg-white text-ink' },
 };
 
-export function TrackStatusBanner() {
-  useTicker(4);
+/** after an SC / VSC / red period: a short green "track clear" (matches the green LED boards) */
+const GREEN_SECONDS = 25;
+
+function statusNow() {
   const { timeline, time } = useRaceLab.getState();
   if (!timeline) return null;
   const b = timeline.bundle;
@@ -142,9 +144,47 @@ export function TrackStatusBanner() {
   const wCum = timeline.cumulative.get(winner.driverNumber) ?? [];
   const finished = time >= (wCum[wCum.length - 1] ?? Infinity);
   const st = timeline.trackStatusAt(time);
+  let cleared: TrackStatusType | null = null;
+  if (!st && !finished) {
+    for (const w of b.trackStatus) {
+      if (w.endLap + 1 > timeline.totalLaps) continue;
+      const tEnd = timeline.timeAtLap(w.endLap + 1);
+      if (time >= tEnd && time < tEnd + GREEN_SECONDS) cleared = w.type;
+    }
+  }
+  return { finished, st, cleared };
+}
+
+export function TrackStatusBanner() {
+  useTicker(4);
+  const now = statusNow();
+  if (!now) return null;
+  const { finished, st, cleared } = now;
   const key = finished ? 'FLAG' : st;
-  if (!key) return null;
+  if (!key) {
+    if (!cleared) return null;
+    return (
+      <div className="pointer-events-none flex -rotate-1 items-center gap-2 rounded-md border-2 border-ink bg-[#1BE36B] px-3 py-1 font-display text-sm tracking-[0.18em] text-ink shadow-sticker md:text-base" role="status">
+        <span className="h-2 w-2 rounded-full bg-current" />
+        {cleared === 'VSC' ? 'VSC ENDED · GREEN' : 'GREEN FLAG'}
+      </div>
+    );
+  }
   const s = STATUS_STYLE[key];
+  if (key === 'VSC') {
+    // the VSC banner: big, hazard-striped, flashing — it has to read at a glance
+    return (
+      <div className="pointer-events-none flex -rotate-1 overflow-hidden rounded-md border-2 border-ink shadow-sticker" role="status">
+        <span className="w-4 bg-[repeating-linear-gradient(135deg,#111_0_6px,#FFD400_6px_12px)] md:w-6" />
+        <span className="flex items-center gap-2 bg-[#FFD400] px-3 py-1 font-display text-base tracking-[0.18em] text-ink md:px-4 md:text-xl">
+          <span className="animate-[vscflash_0.66s_steps(2,jump-none)_infinite] rounded-[3px] border-2 border-ink bg-ink px-1.5 font-mono text-[13px] font-black tracking-widest text-[#FFD400] md:text-[15px]">VSC</span>
+          VIRTUAL SAFETY CAR
+        </span>
+        <span className="w-4 bg-[repeating-linear-gradient(135deg,#111_0_6px,#FFD400_6px_12px)] md:w-6" />
+        <style>{'@keyframes vscflash{0%{opacity:1}100%{opacity:.25}}'}</style>
+      </div>
+    );
+  }
   return (
     <div
       className={`pointer-events-none flex -rotate-1 items-center gap-2 rounded-md border-2 border-ink px-3 py-1 font-display text-sm tracking-[0.18em] shadow-sticker md:text-base ${s.cls} ${
@@ -156,5 +196,25 @@ export function TrackStatusBanner() {
       {s.text}
     </div>
   );
+}
 
+/**
+ * Screen-edge tint while the track is neutralised (VSC amber pulse, SC yellow, red),
+ * green briefly when it clears. DOM only: no draw call.
+ */
+export function TrackStatusVignette() {
+  useTicker(4);
+  const now = statusNow();
+  if (!now || now.finished) return null;
+  const { st, cleared } = now;
+  const col = st === 'VSC' ? '255,196,0' : st === 'SC' ? '255,212,0' : st === 'RED' ? '215,16,42' : cleared ? '27,227,107' : null;
+  if (!col) return null;
+  const strong = st === 'VSC';
+  return (
+    <div
+      aria-hidden
+      className={`pointer-events-none absolute inset-0 ${strong ? 'animate-pulse' : ''}`}
+      style={{ boxShadow: `inset 0 0 ${strong ? 140 : 90}px ${strong ? 26 : 14}px rgba(${col},${strong ? 0.42 : 0.28})` }}
+    />
+  );
 }

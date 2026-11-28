@@ -1,40 +1,42 @@
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
+import type { TrackStatusType } from '@/types';
 import { frame } from '../lib/frame';
 import { sampleLane } from '../lib/laneTrack';
 import type { RaceScene } from '../lib/raceScene';
 
 /**
- * Trackside marshal light panels (one instanced draw call), subtle by design:
- *   SC / VSC   yellow, slow blink (VSC alternates with dark so it reads "virtual")
- *   RED        red
+ * Trackside marshal LED boards: 2 instanced draw calls (housings + lit faces).
+ *   VSC        bright yellow "VSC" boards, flashing, all round the lap
+ *   SC         yellow "SC" boards, steady blink
+ *   RED        red boards
  *   restart    green for a short while after an SC / VSC / red period ends
- *   incident   the panels nearest a stopped car flash yellow for ~1.5 laps
+ *   incident   the boards nearest a stopped car flash yellow for ~1.5 laps
  *   otherwise  dark (off)
+ * The face texture (dot-matrix glyphs) is swapped per track state: one texture per
+ * label, made once on a canvas. Faces face the oncoming cars from the left verge.
  */
-const BOARDS = 16;
+const BOARDS = 24;
 const UP = new THREE.Vector3(0, 1, 0);
-const OFF = new THREE.Color('#2a2f38');
-const YELLOW = new THREE.Color('#FFD400');
-const RED = new THREE.Color('#FF1E2D');
-const GREEN = new THREE.Color('#1BE36B');
+const OFF = new THREE.Color('#1f232b');
+const YELLOW = new THREE.Color('#FFE14D').multiplyScalar(1.6);
+const RED = new THREE.Color('#FF2A36').multiplyScalar(1.4);
+const GREEN = new THREE.Color('#2BFF7E').multiplyScalar(1.4);
+const GREEN_SECONDS = 25;
 
-function panelGeometry() {
-  const pole = new THREE.BoxGeometry(0.06, 1.2, 0.06).toNonIndexed();
-  pole.translate(0, 0.6, 0);
-  const frameBox = new THREE.BoxGeometry(0.7, 0.5, 0.08).toNonIndexed();
-  frameBox.translate(0, 1.35, -0.01);
-  const face = new THREE.PlaneGeometry(0.58, 0.38).toNonIndexed();
-  face.translate(0, 1.35, 0.035);
+function housingGeometry() {
+  const pole = new THREE.BoxGeometry(0.07, 1.25, 0.07).toNonIndexed();
+  pole.translate(0, 0.62, 0);
+  const box = new THREE.BoxGeometry(1.18, 0.62, 0.1).toNonIndexed();
+  box.translate(0, 1.5, -0.03);
   const pos: number[] = [];
   const col: number[] = [];
-  [pole, frameBox, face].forEach((g, k) => {
+  [pole, box].forEach((g) => {
     const p = g.getAttribute('position');
-    const c = k === 2 ? 1 : 0.06; // only the face takes the signal colour
     for (let i = 0; i < p.count; i++) {
       pos.push(p.getX(i), p.getY(i), p.getZ(i));
-      col.push(c, c, c);
+      col.push(0.07, 0.07, 0.08);
     }
     g.dispose();
   });
@@ -44,14 +46,81 @@ function panelGeometry() {
   return out;
 }
 
+function faceGeometry() {
+  const g = new THREE.PlaneGeometry(1.06, 0.5);
+  g.translate(0, 1.5, 0.03);
+  return g;
+}
+
+/** dot-matrix LED face: lit dots form the label, the rest glow faintly */
+function ledTexture(label: string): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  const W = 128;
+  const H = 60;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const g = c.getContext('2d');
+  if (!g) return null;
+  // the glyph mask
+  const m = document.createElement('canvas');
+  m.width = W / 4;
+  m.height = H / 4;
+  const mg = m.getContext('2d')!;
+  mg.fillStyle = '#000';
+  mg.fillRect(0, 0, m.width, m.height);
+  if (label) {
+    mg.fillStyle = '#fff';
+    mg.font = `bold ${label.length > 2 ? 12 : 13}px sans-serif`;
+    mg.textAlign = 'center';
+    mg.textBaseline = 'middle';
+    mg.fillText(label, m.width / 2, m.height / 2 + 1);
+  }
+  const mask = mg.getImageData(0, 0, m.width, m.height).data;
+  g.fillStyle = '#060606';
+  g.fillRect(0, 0, W, H);
+  for (let y = 0; y < m.height; y++)
+    for (let x = 0; x < m.width; x++) {
+      const on = label ? mask[(y * m.width + x) * 4] > 90 : true;
+      g.fillStyle = on ? '#ffffff' : '#2a2a2a';
+      g.beginPath();
+      g.arc(x * 4 + 2, y * 4 + 2, 1.55, 0, Math.PI * 2);
+      g.fill();
+    }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+type Face = 'VSC' | 'SC' | 'RED' | 'FULL';
+
 export function TrackSignals({ scene }: { scene: RaceScene }) {
   const { curve, lt, plans, timeline, bundle } = scene;
-  const ref = useRef<THREE.InstancedMesh>(null);
-  const res = useMemo(() => ({ geo: panelGeometry(), mat: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }) }), []);
+  const housing = useRef<THREE.InstancedMesh>(null);
+  const faces = useRef<THREE.InstancedMesh>(null);
+  const res = useMemo(() => {
+    const tex: Record<Face, THREE.CanvasTexture | null> = {
+      VSC: ledTexture('VSC'),
+      SC: ledTexture('SC'),
+      RED: ledTexture(''),
+      FULL: ledTexture(''),
+    };
+    return {
+      hGeo: housingGeometry(),
+      hMat: new THREE.MeshBasicMaterial({ vertexColors: true }),
+      fGeo: faceGeometry(),
+      fMat: new THREE.MeshBasicMaterial({ map: tex.FULL, toneMapped: false }),
+      tex,
+    };
+  }, []);
   useEffect(
     () => () => {
-      res.geo.dispose();
-      res.mat.dispose();
+      res.hGeo.dispose();
+      res.hMat.dispose();
+      res.fGeo.dispose();
+      res.fMat.dispose();
+      Object.values(res.tex).forEach((t) => t?.dispose());
     },
     [res],
   );
@@ -61,50 +130,77 @@ export function TrackSignals({ scene }: { scene: RaceScene }) {
     for (let k = 0; k < BOARDS; k++) s[k] = ((k + 0.5) / BOARDS) * lt.length;
     // ends of neutralised periods → short green
     const ends = bundle.trackStatus.map((w) => (w.endLap + 1 <= timeline.totalLaps ? timeline.timeAtLap(w.endLap + 1) : Infinity));
-    const lap = lt.length > 0 ? (bundle.cars[0]?.laps[3] ?? 90) : 90;
-    return { s, ends, lap, color: new THREE.Color(), dummy: new THREE.Object3D(), p: new THREE.Vector3(), t: new THREE.Vector3(), r: new THREE.Vector3(), placed: false };
-  }, [lt, bundle, timeline]);
+    const restS = plans.map((p) => (p ? (((p.sRest % lt.length) + lt.length) % lt.length) : 0));
+    return { s, ends, restS, color: new THREE.Color(), dummy: new THREE.Object3D(), p: new THREE.Vector3(), t: new THREE.Vector3(), r: new THREE.Vector3(), lastScale: -1, face: 'FULL' as Face };
+  }, [lt, bundle, timeline, plans]);
 
   useFrame(({ clock }) => {
-    const m = ref.current;
-    if (!m) return;
+    const hm = housing.current;
+    const fm = faces.current;
+    if (!hm || !fm) return;
     const sc = 1 + frame.topW * 0.6;
-    for (let k = 0; k < BOARDS; k++) {
-      const s = rt.s[k];
-      curve.pointAt(s / lt.length, rt.p);
-      curve.tangentAt(s / lt.length, rt.t);
-      rt.r.crossVectors(rt.t, UP).normalize();
-      const d = sampleLane(lt.lo, lt, s) - 2.0; // left verge, outside the kerb
-      rt.dummy.position.copy(rt.p).addScaledVector(rt.r, d);
-      rt.dummy.rotation.set(0, Math.atan2(-rt.t.x, -rt.t.z), 0); // face oncoming cars
-      rt.dummy.scale.setScalar(sc);
-      rt.dummy.updateMatrix();
-      m.setMatrixAt(k, rt.dummy.matrix);
+    if (sc !== rt.lastScale) {
+      rt.lastScale = sc;
+      for (let k = 0; k < BOARDS; k++) {
+        const s = rt.s[k];
+        curve.pointAt(s / lt.length, rt.p);
+        curve.tangentAt(s / lt.length, rt.t);
+        rt.r.crossVectors(rt.t, UP).normalize();
+        const d = sampleLane(lt.lo, lt, s) - 2.0; // left verge, outside the kerb
+        rt.dummy.position.copy(rt.p).addScaledVector(rt.r, d);
+        rt.dummy.rotation.set(0, Math.atan2(-rt.t.x, -rt.t.z), 0); // face oncoming cars
+        rt.dummy.scale.setScalar(sc);
+        rt.dummy.updateMatrix();
+        hm.setMatrixAt(k, rt.dummy.matrix);
+        fm.setMatrixAt(k, rt.dummy.matrix);
+      }
+      hm.instanceMatrix.needsUpdate = true;
+      fm.instanceMatrix.needsUpdate = true;
     }
-    m.instanceMatrix.needsUpdate = true;
 
     const t = frame.time;
-    const st = frame.status;
+    const st: TrackStatusType | null = frame.status;
     const e = clock.elapsedTime;
+    let green = false;
+    for (let k = 0; k < rt.ends.length; k++) if (t >= rt.ends[k] && t < rt.ends[k] + GREEN_SECONDS) green = true;
     let base = OFF;
-    if (st === 'RED') base = RED;
-    else if (st === 'SC') base = Math.sin(e * 5) > -0.2 ? YELLOW : OFF;
-    else if (st === 'VSC') base = Math.sin(e * 3) > 0 ? YELLOW : OFF;
-    else if (rt.ends.some((x) => t >= x && t < x + 25)) base = GREEN;
+    let face: Face = 'FULL';
+    if (st === 'RED') {
+      base = RED;
+      face = 'RED';
+    } else if (st === 'SC') {
+      base = Math.sin(e * 5) > -0.3 ? YELLOW : OFF;
+      face = 'SC';
+    } else if (st === 'VSC') {
+      // VSC: bright, flashing ~1.5 Hz, the label readable while lit
+      base = Math.sin(e * 9.4) > -0.35 ? YELLOW : OFF;
+      face = 'VSC';
+    } else if (green) base = GREEN;
+    if (face !== rt.face) {
+      rt.face = face;
+      res.fMat.map = res.tex[face];
+      res.fMat.needsUpdate = true;
+    }
     for (let k = 0; k < BOARDS; k++) {
       let c = base;
       if (!st) {
-        for (const p of plans) {
+        for (let q = 0; q < plans.length; q++) {
+          const p = plans[q];
           if (!p || p.kind === 'garage' || t < p.tStop || t > p.tStop + p.lapTime * 1.5) continue;
-          let dd = Math.abs(rt.s[k] - (((p.sRest % lt.length) + lt.length) % lt.length));
+          let dd = Math.abs(rt.s[k] - rt.restS[q]);
           dd = Math.min(dd, lt.length - dd);
-          if (dd < lt.length / BOARDS * 1.6) c = Math.sin(e * 10) > 0 ? YELLOW : OFF;
+          if (dd < (lt.length / BOARDS) * 1.6) c = Math.sin(e * 10) > 0 ? YELLOW : OFF;
         }
       }
-      m.setColorAt(k, rt.color.copy(c));
+      fm.setColorAt(k, rt.color.copy(c));
     }
-    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    if (fm.instanceColor) fm.instanceColor.needsUpdate = true;
   });
 
-  return <instancedMesh ref={ref} args={[res.geo, res.mat, BOARDS]} frustumCulled={false} />;
+  return (
+    <>
+      <instancedMesh ref={housing} args={[res.hGeo, res.hMat, BOARDS]} frustumCulled={false} />
+      <instancedMesh ref={faces} args={[res.fGeo, res.fMat, BOARDS]} frustumCulled={false} />
+    </>
+  );
 }
