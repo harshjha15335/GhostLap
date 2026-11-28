@@ -219,7 +219,7 @@ def main() -> None:
     overrides = json.loads(OVERRIDES.read_text()) if OVERRIDES.exists() else {}
     if not SRC.exists():
         sys.exit(f'No source folder: {SRC.relative_to(ROOT)}/<CODE>/portrait.png (+ helmet.png)')
-    codes = sorted(p.name.upper() for p in SRC.iterdir() if p.is_dir())
+    codes = sorted(p.name.upper() for p in SRC.iterdir() if p.is_dir() and not p.name.startswith('_'))
     if args.only:
         want = {c.strip().upper() for c in args.only.split(',')}
         codes = [c for c in codes if c in want]

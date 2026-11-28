@@ -1,6 +1,19 @@
 {
  "ALB": { "helmet_rotate": 16, "helmet_scale": 1.45, "helmet_dy": 0.004 },
+ "ANT": { "helmet_scale": 1.45, "helmet_dy": 0.018 },
+ "BOR": { "helmet_scale": 1.42, "helmet_dy": 0.0 },
+ "BOT": { "helmet_scale": 1.62, "helmet_dy": 0.012 },
  "GAS": { "helmet_scale": 1.45, "helmet_dy": 0.008 },
+ "HAD": { "helmet_scale": 1.42, "helmet_dy": 0.016 },
+ "HAM": { "helmet_scale": 1.5, "helmet_dx": -0.018, "helmet_dy": 0.012 },
+ "HUL": { "helmet_scale": 1.42, "helmet_dy": -0.004 },
+ "LEC": { "helmet_scale": 1.42, "helmet_dy": 0.016 },
+ "LIN": { "helmet_scale": 1.42, "helmet_dy": -0.004 },
+ "NOR": { "helmet_scale": 1.5, "helmet_dy": 0.022 },
  "OCO": { "helmet_scale": 1.5, "helmet_dy": 0.012 },
+ "PER": { "helmet_scale": 1.46, "helmet_dy": -0.006 },
+ "PIA": { "helmet_scale": 1.42, "helmet_dy": 0.008 },
+ "RUS": { "helmet_scale": 1.45, "helmet_dy": 0.014 },
+ "SAI": { "helmet_scale": 1.4, "helmet_dy": -0.006 },
  "VER": { "helmet_scale": 1.3, "helmet_dy": 0.006 }
 }
