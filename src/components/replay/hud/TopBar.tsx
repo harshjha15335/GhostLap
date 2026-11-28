@@ -214,7 +214,7 @@ export function TrackStatusVignette() {
     <div
       aria-hidden
       className={`pointer-events-none absolute inset-0 ${strong ? 'animate-pulse' : ''}`}
-      style={{ boxShadow: `inset 0 0 ${strong ? 140 : 90}px ${strong ? 26 : 14}px rgba(${col},${strong ? 0.42 : 0.28})` }}
+      style={{ boxShadow: `inset 0 0 ${strong ? 160 : 90}px ${strong ? 34 : 14}px rgba(${col},${strong ? 0.55 : 0.28})` }}
     />
   );
 }

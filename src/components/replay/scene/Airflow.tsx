@@ -138,7 +138,7 @@ const RIBBON_VS = /* glsl */ `
     // clean air fades out behind the car; a wake that reaches a follower stays visible up to its nose
     float tail = mix(pow(1.0 - u, 1.15), 1.0 - smoothstep(0.88, 1.0, u), smoothstep(0.0, 0.3, loss) * step(aKind, 1.5));
     // translucent: the wake is a hint, not a paint stroke
-    vAlpha = 0.55 * weight * base * fadeIn * tail * (0.25 + 0.75 * smoothstep(0.05, 0.6, spd)) * (1.0 + 0.5 * heat * ramp);
+    vAlpha = 0.45 * weight * base * fadeIn * tail * (0.25 + 0.75 * smoothstep(0.05, 0.6, spd)) * (1.0 + 0.5 * heat * ramp);
     vDirty = clamp(heat * ramp, 0.0, 1.0);
     vFlow = s * 0.22 - uTime * (0.9 + 2.6 * spd) + aSeed * 3.0;
     gl_Position = projectionMatrix * viewMatrix * vec4(pos, 1.0);
@@ -199,7 +199,7 @@ const PUFF_VS = /* glsl */ `
     mv.xy += aCorner * size;
     vC = aCorner;
     float life = smoothstep(0.0, 0.12, u) * mix(1.0 - u, 1.0 - smoothstep(0.85, 1.0, u), smoothstep(0.0, 0.3, loss));
-    vAlpha = weight * life * (0.035 + 0.06 * loss + 0.08 * heat) * smoothstep(0.05, 0.5, spd);
+    vAlpha = weight * life * (0.025 + 0.035 * loss + 0.07 * heat) * smoothstep(0.05, 0.5, spd);
     vDirty = clamp(heat * smoothstep(0.0, 0.7, u), 0.0, 1.0);
     gl_Position = projectionMatrix * mv;
   }

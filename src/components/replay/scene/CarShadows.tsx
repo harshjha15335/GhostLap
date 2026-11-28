@@ -23,7 +23,7 @@ const FS = /* glsl */ `
   void main() {
     vec2 p = (vUv - 0.5) * 2.0;
     float d = length(p * vec2(1.0, 0.85));
-    float a = 0.42 * (1.0 - smoothstep(0.35, 1.0, d));
+    float a = 0.3 * (1.0 - smoothstep(0.35, 1.0, d));
     if (a < 0.01) discard;
     gl_FragColor = vec4(0.05, 0.06, 0.08, a);
   }

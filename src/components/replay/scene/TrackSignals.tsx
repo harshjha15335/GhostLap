@@ -24,6 +24,10 @@ const YELLOW = new THREE.Color('#FFE14D').multiplyScalar(1.6);
 const RED = new THREE.Color('#FF2A36').multiplyScalar(1.4);
 const GREEN = new THREE.Color('#2BFF7E').multiplyScalar(1.4);
 const GREEN_SECONDS = 25;
+/** the VSC boards' dim phase still shows the label (it must read in any frame) */
+const YELLOW_DIM = new THREE.Color('#FFE14D').multiplyScalar(0.45);
+/** boards are drawn larger than life so they read from the broadcast camera */
+const BOARD_SCALE = 1.6;
 
 function housingGeometry() {
   const pole = new THREE.BoxGeometry(0.07, 1.25, 0.07).toNonIndexed();
@@ -138,7 +142,7 @@ export function TrackSignals({ scene }: { scene: RaceScene }) {
     const hm = housing.current;
     const fm = faces.current;
     if (!hm || !fm) return;
-    const sc = 1 + frame.topW * 0.6;
+    const sc = BOARD_SCALE * (1 + frame.topW * 0.6);
     if (sc !== rt.lastScale) {
       rt.lastScale = sc;
       for (let k = 0; k < BOARDS; k++) {
@@ -146,7 +150,7 @@ export function TrackSignals({ scene }: { scene: RaceScene }) {
         curve.pointAt(s / lt.length, rt.p);
         curve.tangentAt(s / lt.length, rt.t);
         rt.r.crossVectors(rt.t, UP).normalize();
-        const d = sampleLane(lt.lo, lt, s) - 2.0; // left verge, outside the kerb
+        const d = sampleLane(lt.lo, lt, s) - 2.4; // left verge, outside the kerb
         rt.dummy.position.copy(rt.p).addScaledVector(rt.r, d);
         rt.dummy.rotation.set(0, Math.atan2(-rt.t.x, -rt.t.z), 0); // face oncoming cars
         rt.dummy.scale.setScalar(sc);
@@ -173,7 +177,7 @@ export function TrackSignals({ scene }: { scene: RaceScene }) {
       face = 'SC';
     } else if (st === 'VSC') {
       // VSC: bright, flashing ~1.5 Hz, the label readable while lit
-      base = Math.sin(e * 9.4) > -0.35 ? YELLOW : OFF;
+      base = Math.sin(e * 9.4) > -0.35 ? YELLOW : YELLOW_DIM;
       face = 'VSC';
     } else if (green) base = GREEN;
     if (face !== rt.face) {
