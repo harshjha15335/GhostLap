@@ -5,7 +5,7 @@
  "BOT": { "helmet_scale": 1.8, "helmet_dy": 0.012 },
  "GAS": { "helmet_scale": 1.45, "helmet_dy": 0.008 },
  "HAD": { "helmet_scale": 1.42, "helmet_dy": 0.016 },
- "HAM": { "helmet_scale": 1.5, "helmet_dx": -0.018, "helmet_dy": 0.012 },
+ "HAM": { "helmet_scale": 1.34, "helmet_dy": 0.02 },
  "HUL": { "helmet_scale": 1.56, "helmet_dy": -0.004 },
  "LEC": { "helmet_scale": 1.42, "helmet_dy": 0.016 },
  "LIN": { "helmet_scale": 1.42, "helmet_dy": -0.004 },
