@@ -51,6 +51,9 @@ ASPECT = 4 / 5            # frame width / height (matches the card's aspect-[4/5
 HEAD_FRACTION = 0.25      # head height (crown to chin) as a fraction of the frame height
 HEAD_TOP_MARGIN = 0.11    # space above the crown, fraction of the frame height
 HELMET_SCALE = 1.42       # helmet width / head width (a lid is wider than the skull)
+NECK_TUCK = 0.012        # chin bar ends this far (fraction of frame height) above the collar line
+CROWN_COVER = 0.012      # the helmet's top stays at least this far above the crown
+NECK_GROW = 1.15         # max extra scale used to reach the collar after sliding down
 BUDGET = {1600: 250_000, 800: 90_000}  # bytes per image (large / small)
 
 
@@ -126,7 +129,7 @@ def head_geometry(im: Image.Image) -> dict:
     head_rows = range(top, top + int(head_h))
     cxs = [(spans[y][0] + spans[y][1]) / 2 for y in head_rows if spans[y]]
     cx = sum(cxs) / len(cxs)
-    return {'top': top, 'head_h': head_h, 'head_w': head_w, 'cx': cx}
+    return {'top': top, 'head_h': head_h, 'head_w': head_w, 'cx': cx, 'shoulders': shoulders}
 
 
 def bbox_alpha(im: Image.Image) -> tuple[int, int, int, int]:
@@ -196,6 +199,23 @@ def process(code: str, sizes: list[int], overrides: dict) -> dict | None:
         helmet = helmet.resize((hw, hh), Image.LANCZOS)
         cx_px = head_cx * out_w + float(ov.get('helmet_dx', 0.0)) * out_w
         cy_px = head_cy * out_h + float(ov.get('helmet_dy', -0.01)) * out_h
+        if ov.get('neck_cover', True):
+            # Cover the neck: the chin bar should come down to the collar. First slide the
+            # helmet down while its top still covers the crown, then grow it (anchored at
+            # the top, at most NECK_GROW) for whatever gap is left.
+            collar = (g['shoulders'] - y0) * scale - NECK_TUCK * out_h
+            crown = (g['top'] - y0) * scale
+            gap = collar - (cy_px + hh / 2)
+            if gap > 0:
+                slide = min(gap, max(0.0, crown - CROWN_COVER * out_h - (cy_px - hh / 2)))
+                cy_px += slide
+                gap -= slide
+            if gap > 0:
+                top_px = cy_px - hh / 2
+                grow = min(float(ov.get('neck_grow', NECK_GROW)), (hh + gap) / hh)
+                helmet = helmet.resize((round(hw * grow), round(hh * grow)), Image.LANCZOS)
+                hw, hh = helmet.size
+                cy_px = top_px + hh / 2
         helm_frame = Image.new('RGBA', (out_w, out_h), (0, 0, 0, 0))
         helm_frame.paste(helmet, (round(cx_px - hw / 2), round(cy_px - hh / 2)), helmet)
 
