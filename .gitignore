@@ -33,3 +33,6 @@ scripts/drivers/source/
 public/drivers/*/
 src/components/drivers/media.generated.json
 scripts/drivers/__pycache__/
+
+scripts/circuits/source/
+scripts/circuits/.cache/

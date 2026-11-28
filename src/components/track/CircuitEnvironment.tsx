@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import type { CircuitGeometry } from '@/types';
@@ -19,14 +19,17 @@ import {
   treeGeometry,
 } from './geometry';
 
+const MelbourneEnvironment = lazy(() => import('./tracks/melbourne/MelbourneEnvironment'));
+const ShanghaiEnvironment = lazy(() => import('./tracks/shanghai/ShanghaiEnvironment'));
+
 /**
  * Shared 3D circuit environment: a diorama block of terrain that follows the
  * track's elevation, the asphalt ribbon at its real (scaled) width, track-limit
  * lines, kerbs, gravel and paved run-off, barriers, pit lane + pit building,
  * grandstands, the start/finish gantry and instanced trees / building blocks.
  *
- * Everything is procedural and merged per material: ~15 draw calls in "low"
- * (replay, mobile) and ~20 in "high" (inspector, plus shadow passes there).
+ * Hero circuits with dedicated OSM-aligned layers (starting with Melbourne / Albert Park)
+ * are lazy-loaded per slug while keeping this component's props API identical.
  *
  * Layout approach inspired by Boxlane / F1TrackViewer (MIT); track widths from
  * the TUMFTM racetrack-database (LGPL-3.0) via the data pipeline.
@@ -52,7 +55,27 @@ export interface CircuitEnvironmentProps {
 /** Street circuits get a built-up block instead of parkland (styling only). */
 const STREET = new Set(['monte-carlo', 'singapore', 'baku', 'las-vegas', 'jeddah', 'madring', 'miami']);
 
-export function CircuitEnvironment({
+export function CircuitEnvironment(props: CircuitEnvironmentProps) {
+  if (props.circuit.slug === 'melbourne') {
+    return (
+      <Suspense fallback={null}>
+        <MelbourneEnvironment {...props} />
+        {import.meta.env.DEV && <RenderStatsProbe />}
+      </Suspense>
+    );
+  }
+  if (props.circuit.slug === 'shanghai') {
+    return (
+      <Suspense fallback={null}>
+        <ShanghaiEnvironment {...props} />
+        {import.meta.env.DEV && <RenderStatsProbe />}
+      </Suspense>
+    );
+  }
+  return <GenericCircuitEnvironment {...props} />;
+}
+
+function GenericCircuitEnvironment({
   circuit,
   curve,
   quality = 'high',
