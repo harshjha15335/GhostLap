@@ -465,31 +465,16 @@ export function DriveChapter({
 
 /* ---------------------------------- 04 flow --------------------------------- */
 
-export function FlowChapter({ stats }: { stats: LandingStats }) {
+export function FlowChapter() {
   return (
     <div className="sticky top-0 flex h-[100svh] flex-col justify-between px-4 pb-6 pt-16 sm:px-8">
       <div>
         <ChapterTag n={4} title="22-car flow" />
         <h2 className="mt-3 font-display text-[clamp(40px,7vw,96px)] uppercase leading-[0.9]">
-          <span className="kl-cream">22 cars.</span>
+          <span className="kl-cream">Every car.</span>
           <br />
-          <span className="kl-sun">One ribbon.</span>
+          <span className="kl-sun">Every corner.</span>
         </h2>
-      </div>
-      <div className="pointer-events-auto max-w-3xl">
-        <div className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-cream/85">The 2026 grid · team colours</div>
-        <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-11">
-          {stats.grid.map((g, i) => (
-            <span
-              key={`${g.code}-${i}`}
-              title={g.team}
-              className="flex items-center gap-1.5 rounded-[4px] border border-ink bg-ink/85 px-1.5 py-1 font-mono text-[10px] font-semibold text-cream/90"
-            >
-              <span className="h-2 w-1 rounded-full" style={{ background: g.color }} />
-              {g.code}
-            </span>
-          ))}
-        </div>
       </div>
     </div>
   );

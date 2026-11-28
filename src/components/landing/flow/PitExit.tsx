@@ -100,8 +100,8 @@ export default function PitExit({
       disc('WET'),
     ];
     if (stats.leader) {
-      // team-colour variant: the real championship leader
-      list.splice(5, 0, disc('SOFT', { color: stats.leader.color, letter: '1', label: `LEADER ${stats.leader.code}`, ring: `CHAMPIONSHIP LEADER · ${stats.leader.code} · ${stats.leader.points} PTS · ` }));
+      // an extra plain soft tyre once season data is in (no hub label)
+      list.splice(5, 0, { ...disc('SOFT'), key: 'd-SOFT-extra' });
     }
     return list;
   }, [rd, rb, navigate, share, reduced, stats.leader]);

@@ -227,7 +227,7 @@ export default function Landing() {
           <DriveChapter layout={layout} stats={stats} path={path} subscribe={choreo.subscribe} />
         </section>
         <section ref={reg(3)} data-chapter="flow" className="relative h-[280vh]">
-          <FlowChapter stats={stats} />
+          <FlowChapter />
         </section>
         <Strategist vp={vp} race={feature} reduced={choreo.reducedMotion} sectionRef={reg(4)} />
         <EveryLap vp={vp} race={feature} stats={stats} reduced={choreo.reducedMotion} sectionRef={reg(5)} />
