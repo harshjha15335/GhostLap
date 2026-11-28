@@ -104,7 +104,7 @@ export default function LaunchCard({
                 {stats.ready ? `Circuits · ${stats.racesTotal} rounds →` : 'Circuits →'}
               </Link>
               <Link to="/teams" className="rounded-full border px-4 py-2 transition hover:bg-[#FFD23F] hover:text-[#170F33]" style={{ borderColor: C.sun }}>
-                Season →
+                Teams →
               </Link>
             </div>
           </div>
